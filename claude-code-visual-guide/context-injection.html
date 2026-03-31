@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context Injection — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(57,210,192,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 20% 60%, rgba(88,166,255,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(188,140,255,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      background: rgba(57,210,192,0.08);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 580px;
+      margin: 0 auto var(--space-10);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 860px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-blue), transparent);
+      opacity: 0.4;
+    }
+
+    /* =====================================================================
+       Animated SVG — message construction
+       ===================================================================== */
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-24px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .msg-block {
+      opacity: 0;
+      animation: slideInLeft 0.5s ease forwards;
+    }
+    .msg-block:nth-child(1) { animation-delay: 0.3s; }
+    .msg-block:nth-child(2) { animation-delay: 0.9s; }
+    .msg-block:nth-child(3) { animation-delay: 1.5s; }
+    .msg-block:nth-child(4) { animation-delay: 2.1s; }
+    .msg-block:nth-child(5) { animation-delay: 2.7s; }
+
+    /* =====================================================================
+       Page Sections
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 580px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Context Builder
+       ===================================================================== */
+    .builder-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .builder-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-5);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .builder-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: var(--text-xs);
+    }
+
+    .builder-title-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 6px rgba(57,210,192,0.5);
+    }
+
+    .token-count-display {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .token-count-value {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      font-weight: var(--font-bold);
+      color: var(--accent-cyan);
+      transition: color 0.3s ease;
+    }
+
+    /* Toggles grid */
+    .builder-toggles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-3);
+      padding: var(--space-5);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toggle-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      cursor: pointer;
+      padding: var(--space-3);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .toggle-item:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(57,210,192,0.04);
+    }
+
+    .toggle-item.active {
+      border-color: rgba(57,210,192,0.4);
+      background: rgba(57,210,192,0.06);
+    }
+
+    .toggle-checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: all var(--transition);
+    }
+
+    .toggle-item.active .toggle-checkbox {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+    }
+
+    .toggle-checkbox-icon {
+      display: none;
+      color: #0d1117;
+    }
+
+    .toggle-item.active .toggle-checkbox-icon {
+      display: block;
+    }
+
+    .toggle-info {
+      flex: 1;
+    }
+
+    .toggle-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .toggle-tokens {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Builder output */
+    .builder-output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) var(--space-5);
+      background: rgba(13,17,23,0.5);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: var(--space-3);
+    }
+
+    .builder-output-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .builder-view-toggle {
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    .builder-view-btn {
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      padding: 3px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .builder-view-btn.active {
+      background: rgba(57,210,192,0.1);
+      border-color: rgba(57,210,192,0.3);
+      color: var(--accent-cyan);
+    }
+
+    .builder-output-body {
+      padding: var(--space-5);
+      min-height: 280px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    /* Content blocks visual view */
+    .content-blocks-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .content-block-item {
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      animation: slideInLeft 0.35s ease forwards;
+    }
+
+    .content-block-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background: var(--bg-tertiary);
+      cursor: pointer;
+    }
+
+    .content-block-index {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      width: 20px;
+    }
+
+    .content-block-tag {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      padding: 1px 7px;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+    }
+
+    .tag-reminder {
+      background: rgba(57,210,192,0.1);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(57,210,192,0.2);
+    }
+
+    .tag-message {
+      background: rgba(88,166,255,0.1);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .content-block-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .content-block-tokens {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .content-block-body {
+      background: var(--bg-primary);
+      padding: var(--space-3) var(--space-3) var(--space-3) var(--space-8);
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .content-block-item.expanded .content-block-body {
+      display: block;
+    }
+
+    .content-block-expand-icon {
+      font-size: 10px;
+      color: var(--text-secondary);
+      transition: transform var(--transition);
+    }
+
+    .content-block-item.expanded .content-block-expand-icon {
+      transform: rotate(90deg);
+    }
+
+    /* Token budget bar */
+    .token-budget-section {
+      padding: var(--space-4) var(--space-5);
+      border-top: 1px solid var(--border);
+      background: rgba(13,17,23,0.3);
+    }
+
+    .token-budget-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-2);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .token-budget-bar {
+      height: 8px;
+      border-radius: var(--radius-full);
+      background: var(--bg-tertiary);
+      overflow: hidden;
+      display: flex;
+      gap: 1px;
+    }
+
+    .token-budget-segment {
+      height: 100%;
+      border-radius: 0;
+      transition: width 0.4s ease;
+    }
+
+    .token-budget-segment:first-child { border-radius: var(--radius-full) 0 0 var(--radius-full); }
+    .token-budget-segment:last-child  { border-radius: 0 var(--radius-full) var(--radius-full) 0; }
+
+    .seg-hook    { background: var(--accent-purple); }
+    .seg-skills  { background: var(--accent-blue); }
+    .seg-claude  { background: var(--accent-orange); }
+    .seg-memory  { background: var(--accent-green); }
+    .seg-mcp     { background: var(--accent-cyan); }
+    .seg-date    { background: rgba(88,166,255,0.5); }
+    .seg-task    { background: rgba(248,81,73,0.6); }
+    .seg-user    { background: rgba(255,255,255,0.12); }
+
+    .token-budget-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      margin-top: var(--space-3);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Raw JSON view */
+    .raw-json-view {
+      display: none;
+      padding: var(--space-5);
+      background: var(--bg-primary);
+      min-height: 280px;
+    }
+
+    .raw-json-view.visible {
+      display: block;
+    }
+
+    .raw-json-view pre {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .json-key    { color: #79c0ff; }
+    .json-string { color: #a5d6ff; }
+    .json-tag    { color: var(--accent-cyan); }
+    .json-punct  { color: var(--text-secondary); }
+
+    /* =====================================================================
+       Reminder Types Reference (tabs)
+       ===================================================================== */
+    .tabs-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+
+    .tabs-header {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tabs-header::-webkit-scrollbar { display: none; }
+
+    .tab-trigger {
+      flex-shrink: 0;
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .tab-trigger:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .tab-trigger.active {
+      color: var(--accent-cyan);
+      border-bottom-color: var(--accent-cyan);
+      background: rgba(57,210,192,0.04);
+    }
+
+    .tab-trigger-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: var(--font-bold);
+      color: var(--text-secondary);
+    }
+
+    .tab-trigger.active .tab-trigger-num {
+      background: rgba(57,210,192,0.15);
+      color: var(--accent-cyan);
+    }
+
+    .tab-content {
+      display: none;
+      padding: var(--space-6);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .reminder-type-card {
+      display: flex;
+      gap: var(--space-5);
+      flex-wrap: wrap;
+    }
+
+    .reminder-type-meta {
+      flex-shrink: 0;
+      width: 220px;
+    }
+
+    @media (max-width: 700px) {
+      .reminder-type-meta { width: 100%; }
+    }
+
+    .reminder-type-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: var(--space-3);
+    }
+
+    .reminder-type-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-2);
+    }
+
+    .reminder-type-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-3);
+    }
+
+    .reminder-meta-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .reminder-meta-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+    }
+
+    .reminder-meta-key {
+      color: var(--text-secondary);
+      white-space: nowrap;
+      min-width: 80px;
+    }
+
+    .reminder-meta-val {
+      color: var(--text-primary);
+    }
+
+    .reminder-type-example {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .example-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-2);
+    }
+
+    .example-code {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .xml-tag     { color: var(--accent-cyan); }
+    .xml-content { color: var(--text-primary); }
+    .xml-attr    { color: var(--accent-orange); }
+    .xml-comment { color: var(--text-secondary); opacity: 0.6; }
+    .xml-emph    { color: var(--accent-purple); font-weight: 600; }
+
+    /* =====================================================================
+       Injection Timing Table
+       ===================================================================== */
+    .timing-table-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+
+    .timing-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .timing-table th {
+      text-align: left;
+      padding: var(--space-3) var(--space-5);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .timing-table td {
+      padding: var(--space-3) var(--space-5);
+      font-size: var(--text-sm);
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      vertical-align: middle;
+    }
+
+    .timing-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .timing-table tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .timing-name {
+      font-weight: var(--font-medium);
+      color: var(--text-primary);
+    }
+
+    .timing-yes {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--accent-green);
+      background: rgba(63,185,80,0.08);
+      border: 1px solid rgba(63,185,80,0.2);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+    }
+
+    .timing-heavy {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--accent-orange);
+      background: rgba(210,153,34,0.08);
+      border: 1px solid rgba(210,153,34,0.2);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+    }
+
+    .timing-no {
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+    }
+
+    .timing-sometimes {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.07);
+      border: 1px solid rgba(88,166,255,0.18);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+    }
+
+    /* =====================================================================
+       Key Principle Card
+       ===================================================================== */
+    .principle-card {
+      background: linear-gradient(135deg, rgba(57,210,192,0.06) 0%, rgba(88,166,255,0.06) 100%);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .principle-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+    }
+
+    .principle-quote {
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      margin-bottom: var(--space-6);
+      line-height: var(--leading-snug);
+    }
+
+    .principle-quote span {
+      color: var(--accent-cyan);
+    }
+
+    .principle-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+
+    @media (max-width: 700px) {
+      .principle-compare { grid-template-columns: 1fr; }
+    }
+
+    .compare-block {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .compare-block-header {
+      padding: var(--space-2) var(--space-4);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compare-block-header.bad  { color: var(--accent-red);   background: rgba(248,81,73,0.05); }
+    .compare-block-header.good { color: var(--accent-green);  background: rgba(63,185,80,0.05); }
+
+    .compare-block pre {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      padding: var(--space-4);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .py-kw      { color: #ff7b72; }
+    .py-str     { color: #a5d6ff; }
+    .py-comment { color: #6e7681; }
+    .py-key     { color: #79c0ff; }
+    .py-fstr    { color: var(--accent-cyan); }
+
+    /* =====================================================================
+       Nav footer
+       ===================================================================== */
+    .page-nav-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-10) 0;
+    }
+
+    .page-nav-footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .page-nav-link {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-5);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      transition: all var(--transition);
+    }
+
+    .page-nav-link:hover {
+      color: var(--text-primary);
+      border-color: var(--accent-cyan);
+      background: rgba(57,210,192,0.04);
+      text-decoration: none;
+    }
+
+    .page-nav-link-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 1px;
+    }
+
+    .page-nav-link-title {
+      color: var(--text-primary);
+      font-weight: var(--font-semibold);
+    }
+
+    /* Reveal animation */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =====================================================================
+       Navigation
+       ===================================================================== -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <div class="nav-inner">
+
+        <a href="index.html" class="nav-brand" aria-label="Claude Code Architecture Home">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="22" height="22" rx="6" fill="rgba(88,166,255,0.15)"/>
+            <circle cx="11" cy="11" r="3.5" stroke="#58a6ff" stroke-width="1.5"/>
+            <path d="M11 4v2M11 16v2M4 11h2M16 11h2" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6.5 6.5l1.5 1.5M14 14l1.5 1.5M14 6.5l-1.5 1.5M8 14l-1.5 1.5" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <span>Claude Code Architecture</span>
+        </a>
+
+        <div class="nav-links" role="list">
+          <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+          <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+          <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+          <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+          <a href="context-injection.html" class="nav-link active" role="listitem">Context Injection</a>
+          <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+          <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+          <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+          <a href="mcp.html" class="nav-link" role="listitem">MCP</a>
+          <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+          <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+          <a href="emulator.html" class="nav-link" role="listitem">Emulator</a>
+        </div>
+
+        <button class="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+    <a href="index.html" class="nav-link">The Big Picture</a>
+    <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+    <a href="system-prompt.html" class="nav-link">System Prompt</a>
+    <a href="tools.html" class="nav-link">Tools</a>
+    <a href="context-injection.html" class="nav-link active">Context Injection</a>
+    <a href="skills.html" class="nav-link">Skills</a>
+    <a href="plugins.html" class="nav-link">Plugins</a>
+    <a href="agents.html" class="nav-link">Agents</a>
+    <a href="mcp.html" class="nav-link">MCP</a>
+    <a href="context-management.html" class="nav-link">Context Mgmt</a>
+    <a href="persistence.html" class="nav-link">Persistence</a>
+    <a href="emulator.html" class="nav-link">Emulator</a>
+  </div>
+
+  <main>
+
+    <!-- =================================================================
+         Hero
+         ================================================================= -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+
+        <div class="hero-eyebrow" aria-hidden="true">
+          <span class="hero-eyebrow-dot"></span>
+          Dynamic Context
+        </div>
+
+        <h1 class="hero-title" id="hero-title">
+          System Reminders &amp;<br><span class="hero-title-accent">Dynamic Context Injection</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          How Claude Code injects changing context without breaking the cache — by
+          prepending <code>&lt;system-reminder&gt;</code> blocks into every user message.
+        </p>
+
+        <!-- Animated SVG — user message construction -->
+        <div class="hero-diagram-wrap reveal">
+          <svg viewBox="0 0 860 310" xmlns="http://www.w3.org/2000/svg"
+               role="img" aria-label="Animation showing system reminders being prepended to a user message"
+               style="width:100%;max-height:310px">
+            <title>User Message Construction — system reminders injected before user text</title>
+            <defs>
+              <pattern id="ciGrid" width="30" height="30" patternUnits="userSpaceOnUse">
+                <path d="M30 0L0 0 0 30" fill="none" stroke="rgba(255,255,255,0.025)" stroke-width="1"/>
+              </pattern>
+              <filter id="ciGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+              </filter>
+            </defs>
+
+            <!-- Background -->
+            <rect width="860" height="310" fill="url(#ciGrid)"/>
+
+            <!-- Left label: user message -->
+            <text x="28" y="30" font-size="11" font-weight="600" fill="#8b949e"
+                  font-family="-apple-system,sans-serif" letter-spacing="0.06em">USER MESSAGE</text>
+            <text x="28" y="46" font-size="10" fill="#6e7681"
+                  font-family="-apple-system,sans-serif">content: [ ... ]</text>
+
+            <!-- Outer message box -->
+            <rect x="24" y="56" width="812" height="238" rx="10"
+                  fill="rgba(22,27,34,0.8)" stroke="#30363d" stroke-width="1.5"/>
+
+            <!-- Block 1: SessionStart hook -->
+            <g class="msg-block">
+              <rect x="36" y="68" width="788" height="46" rx="6"
+                    fill="rgba(188,140,255,0.07)" stroke="rgba(188,140,255,0.25)" stroke-width="1"/>
+              <text x="50" y="85" font-size="10" fill="#bc8cff" font-family="-apple-system,sans-serif"
+                    font-weight="600">&lt;system-reminder&gt;</text>
+              <text x="50" y="100" font-size="10" fill="#8b949e" font-family="Consolas,monospace">
+                SessionStart hook additional context: &lt;EXTREMELY_IMPORTANT&gt;...&lt;/EXTREMELY_IMPORTANT&gt;</text>
+              <text x="680" y="100" font-size="9" fill="rgba(188,140,255,0.6)"
+                    font-family="-apple-system,sans-serif" text-anchor="end">&lt;/system-reminder&gt;</text>
+              <!-- pill -->
+              <rect x="700" y="74" width="112" height="16" rx="8"
+                    fill="rgba(188,140,255,0.12)" stroke="rgba(188,140,255,0.2)" stroke-width="1"/>
+              <text x="756" y="85" font-size="9" fill="#bc8cff" font-family="-apple-system,sans-serif"
+                    text-anchor="middle" font-weight="600">SessionStart Hook</text>
+            </g>
+
+            <!-- Divider 1 -->
+            <line x1="36" y1="116" x2="822" y2="116" stroke="#30363d" stroke-width="1"
+                  style="opacity:0;animation:slideInLeft 0.3s ease 0.9s forwards"/>
+
+            <!-- Block 2: Skill catalog -->
+            <g class="msg-block">
+              <rect x="36" y="118" width="788" height="46" rx="6"
+                    fill="rgba(88,166,255,0.06)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+              <text x="50" y="135" font-size="10" fill="#58a6ff" font-family="-apple-system,sans-serif"
+                    font-weight="600">&lt;system-reminder&gt;</text>
+              <text x="50" y="150" font-size="10" fill="#8b949e" font-family="Consolas,monospace">
+                The following skills are available: brainstorming, test-driven-development, ...</text>
+              <text x="680" y="150" font-size="9" fill="rgba(88,166,255,0.5)"
+                    font-family="-apple-system,sans-serif" text-anchor="end">&lt;/system-reminder&gt;</text>
+              <rect x="700" y="124" width="88" height="16" rx="8"
+                    fill="rgba(88,166,255,0.1)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+              <text x="744" y="135" font-size="9" fill="#58a6ff" font-family="-apple-system,sans-serif"
+                    text-anchor="middle" font-weight="600">Skill Catalog</text>
+            </g>
+
+            <!-- Divider 2 -->
+            <line x1="36" y1="166" x2="822" y2="166" stroke="#30363d" stroke-width="1"
+                  style="opacity:0;animation:slideInLeft 0.3s ease 1.5s forwards"/>
+
+            <!-- Block 3: CLAUDE.md -->
+            <g class="msg-block">
+              <rect x="36" y="168" width="788" height="46" rx="6"
+                    fill="rgba(210,153,34,0.06)" stroke="rgba(210,153,34,0.2)" stroke-width="1"/>
+              <text x="50" y="185" font-size="10" fill="#d29922" font-family="-apple-system,sans-serif"
+                    font-weight="600">&lt;system-reminder&gt;</text>
+              <text x="50" y="200" font-size="10" fill="#8b949e" font-family="Consolas,monospace">
+                &lt;claude_md&gt; # My Project  This is a React app... &lt;/claude_md&gt;</text>
+              <text x="680" y="200" font-size="9" fill="rgba(210,153,34,0.5)"
+                    font-family="-apple-system,sans-serif" text-anchor="end">&lt;/system-reminder&gt;</text>
+              <rect x="700" y="174" width="82" height="16" rx="8"
+                    fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.2)" stroke-width="1"/>
+              <text x="741" y="185" font-size="9" fill="#d29922" font-family="-apple-system,sans-serif"
+                    text-anchor="middle" font-weight="600">CLAUDE.md</text>
+            </g>
+
+            <!-- Divider 3 -->
+            <line x1="36" y1="216" x2="822" y2="216" stroke="#30363d" stroke-width="1"
+                  style="opacity:0;animation:slideInLeft 0.3s ease 2.1s forwards"/>
+
+            <!-- Block 4: date -->
+            <g class="msg-block">
+              <rect x="36" y="218" width="388" height="28" rx="6"
+                    fill="rgba(57,210,192,0.06)" stroke="rgba(57,210,192,0.18)" stroke-width="1"/>
+              <text x="50" y="234" font-size="10" fill="#39d2c0" font-family="-apple-system,sans-serif">
+                &lt;system-reminder&gt; Today's date is 2026-03-24. &lt;/system-reminder&gt;</text>
+              <rect x="360" y="222" width="58" height="14" rx="7"
+                    fill="rgba(57,210,192,0.12)" stroke="rgba(57,210,192,0.2)" stroke-width="1"/>
+              <text x="389" y="232" font-size="8.5" fill="#39d2c0" font-family="-apple-system,sans-serif"
+                    text-anchor="middle" font-weight="600">Date</text>
+            </g>
+
+            <!-- Divider 4 -->
+            <line x1="36" y1="248" x2="822" y2="248" stroke="#30363d" stroke-width="1"
+                  style="opacity:0;animation:slideInLeft 0.3s ease 2.7s forwards"/>
+
+            <!-- Block 5: user message -->
+            <g class="msg-block">
+              <rect x="36" y="252" width="788" height="32" rx="6"
+                    fill="rgba(255,255,255,0.03)" stroke="#30363d" stroke-width="1"/>
+              <text x="50" y="272" font-size="11" fill="#e6edf3" font-family="Consolas,monospace">
+                "your actual message here"</text>
+              <rect x="726" y="257" width="88" height="16" rx="8"
+                    fill="rgba(255,255,255,0.06)" stroke="#30363d" stroke-width="1"/>
+              <text x="770" y="268" font-size="9" fill="#8b949e" font-family="-apple-system,sans-serif"
+                    text-anchor="middle" font-weight="600">User Text</text>
+            </g>
+
+          </svg>
+        </div><!-- /hero-diagram-wrap -->
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section: Context Builder
+         ================================================================= -->
+    <section class="page-section" id="builder" aria-labelledby="builder-heading">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">Interactive Demo</p>
+          <h2 class="section-title" id="builder-heading">Context Builder</h2>
+          <p class="section-desc">
+            Toggle features to see the first user message build up in real time.
+            Watch the content blocks appear and the token count update as you configure your session.
+          </p>
+        </div>
+
+        <div class="builder-wrap reveal">
+
+          <!-- Header -->
+          <div class="builder-header">
+            <div class="builder-title">
+              <span class="builder-title-dot"></span>
+              Context Builder — First Turn
+            </div>
+            <div class="token-count-display">
+              <span>Token overhead:</span>
+              <span class="token-count-value" id="tokenCountValue">0</span>
+              <span>tokens</span>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="builder-toggles" role="group" aria-label="Session feature toggles">
+
+            <label class="toggle-item active" data-feature="hook">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5"/>
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">Superpowers Plugin</div>
+                <div class="toggle-tokens">~1,200 tokens</div>
+              </div>
+              <input type="checkbox" checked style="display:none" aria-label="Superpowers Plugin">
+            </label>
+
+            <label class="toggle-item active" data-feature="skills">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">Skill Catalog</div>
+                <div class="toggle-tokens">~600 tokens</div>
+              </div>
+              <input type="checkbox" checked style="display:none" aria-label="Skill Catalog">
+            </label>
+
+            <label class="toggle-item" data-feature="claude_md">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">CLAUDE.md</div>
+                <div class="toggle-tokens">~300 tokens</div>
+              </div>
+              <input type="checkbox" style="display:none" aria-label="CLAUDE.md">
+            </label>
+
+            <label class="toggle-item active" data-feature="memory">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">Memory System</div>
+                <div class="toggle-tokens">~200 tokens</div>
+              </div>
+              <input type="checkbox" checked style="display:none" aria-label="Memory System">
+            </label>
+
+            <label class="toggle-item active" data-feature="mcp">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">MCP Servers</div>
+                <div class="toggle-tokens">~800 tokens</div>
+              </div>
+              <input type="checkbox" checked style="display:none" aria-label="MCP Servers">
+            </label>
+
+            <label class="toggle-item active" data-feature="date">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">Date Context</div>
+                <div class="toggle-tokens">~30 tokens</div>
+              </div>
+              <input type="checkbox" checked style="display:none" aria-label="Date Context">
+            </label>
+
+            <label class="toggle-item" data-feature="task">
+              <div class="toggle-checkbox" aria-hidden="true">
+                <svg class="toggle-checkbox-icon" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M8.5 2.5L4 7.5 1.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="toggle-info">
+                <div class="toggle-name">Task Status</div>
+                <div class="toggle-tokens">~150 tokens</div>
+              </div>
+              <input type="checkbox" style="display:none" aria-label="Task Status">
+            </label>
+
+          </div>
+
+          <!-- Output header -->
+          <div class="builder-output-header">
+            <span class="builder-output-label">First user message — content blocks:</span>
+            <div class="builder-view-toggle">
+              <button class="builder-view-btn active" id="viewVisual" type="button">Visual</button>
+              <button class="builder-view-btn" id="viewJson" type="button">Raw JSON</button>
+            </div>
+          </div>
+
+          <!-- Visual output -->
+          <div class="builder-output-body" id="builderVisual">
+            <div class="content-blocks-list" id="contentBlocksList">
+              <!-- populated by JS -->
+            </div>
+          </div>
+
+          <!-- Raw JSON output -->
+          <div class="raw-json-view" id="builderJson">
+            <pre id="jsonOutput"></pre>
+          </div>
+
+          <!-- Token budget bar -->
+          <div class="token-budget-section">
+            <div class="token-budget-label">
+              <span>Token budget — first turn</span>
+              <span id="budgetPercent">0% system reminders</span>
+            </div>
+            <div class="token-budget-bar" id="tokenBudgetBar" aria-label="Token budget distribution">
+              <!-- segments injected by JS -->
+            </div>
+            <div class="token-budget-legend" id="tokenBudgetLegend">
+              <!-- injected by JS -->
+            </div>
+          </div>
+
+        </div><!-- /builder-wrap -->
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section: Reminder Types Reference
+         ================================================================= -->
+    <section class="page-section" id="types" aria-labelledby="types-heading">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">Reference</p>
+          <h2 class="section-title" id="types-heading">9 Types of System Reminders</h2>
+          <p class="section-desc">
+            Every type of dynamic context that gets injected into the user message,
+            with real examples from captured sessions.
+          </p>
+        </div>
+
+        <div class="tabs tabs-wrap reveal">
+          <div class="tabs-header" role="tablist" aria-label="System reminder types">
+            <button class="tab-trigger active" role="tab" aria-selected="true" id="tab-1" aria-controls="panel-1">
+              <span class="tab-trigger-num">1</span> Instructions
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-2" aria-controls="panel-2">
+              <span class="tab-trigger-num">2</span> Plugin/Hook
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-3" aria-controls="panel-3">
+              <span class="tab-trigger-num">3</span> Skill Catalog
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-4" aria-controls="panel-4">
+              <span class="tab-trigger-num">4</span> Deferred Tools
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-5" aria-controls="panel-5">
+              <span class="tab-trigger-num">5</span> Date/Time
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-6" aria-controls="panel-6">
+              <span class="tab-trigger-num">6</span> MCP Server
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-7" aria-controls="panel-7">
+              <span class="tab-trigger-num">7</span> CLAUDE.md
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-8" aria-controls="panel-8">
+              <span class="tab-trigger-num">8</span> Memory
+            </button>
+            <button class="tab-trigger" role="tab" aria-selected="false" id="tab-9" aria-controls="panel-9">
+              <span class="tab-trigger-num">9</span> Task Status
+            </button>
+          </div>
+
+          <!-- Panel 1: Instructions -->
+          <div class="tab-content active" id="panel-1" role="tabpanel" aria-labelledby="tab-1">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(88,166,255,0.1)">📋</div>
+                <div class="reminder-type-label" style="color:var(--accent-blue)">Type 1</div>
+                <div class="reminder-type-name">Instruction Reminders</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Every turn</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~300</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">General behavioral guidelines — always present</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-content">You are Claude Code, Anthropic's official CLI for Claude.
+You must always use the Task tools to track work.
+Never make up tool results. Always confirm destructive
+operations before proceeding.</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Plugin/Hook -->
+          <div class="tab-content" id="panel-2" role="tabpanel" aria-labelledby="tab-2">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(188,140,255,0.1)">⚡</div>
+                <div class="reminder-type-label" style="color:var(--accent-purple)">Type 2</div>
+                <div class="reminder-type-name">Plugin / Hook Context</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 only (SessionStart hook)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~1,200</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Skill bootstrap, plugin instructions</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+SessionStart hook additional context:
+<span class="xml-emph">&lt;EXTREMELY_IMPORTANT&gt;</span>
+<span class="xml-content">You have superpowers.
+[using-superpowers skill content...]
+You MUST use the Skill tool before attempting
+any task that has a matching skill.</span>
+<span class="xml-emph">&lt;/EXTREMELY_IMPORTANT&gt;</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 3: Skill Catalog -->
+          <div class="tab-content" id="panel-3" role="tabpanel" aria-labelledby="tab-3">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(88,166,255,0.1)">🧰</div>
+                <div class="reminder-type-label" style="color:var(--accent-blue)">Type 3</div>
+                <div class="reminder-type-name">Skill Catalog</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 (if skills configured)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~600</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Lists all available skills with descriptions</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-content">The following skills are available for use
+with the Skill tool:
+- brainstorming: You MUST use this before any
+  creative work or ideation task.
+- test-driven-development: Use when implementing
+  any new feature or fixing a bug.
+- using-superpowers: Bootstrap superpowers for
+  this session.</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 4: Deferred Tools -->
+          <div class="tab-content" id="panel-4" role="tabpanel" aria-labelledby="tab-4">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(57,210,192,0.1)">🔌</div>
+                <div class="reminder-type-label" style="color:var(--accent-cyan)">Type 4</div>
+                <div class="reminder-type-name">Available Deferred Tools</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 (if MCP connected)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~400</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">MCP tool names available via ToolSearch</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;available-deferred-tools&gt;</span>
+<span class="xml-content">mcp__claude_ai_Amplitude__create_cohort
+mcp__claude_ai_Amplitude__create_dashboard
+mcp__claude_ai_Amplitude__query_chart
+mcp__claude_ai_Slack__slack_send_message
+mcp__claude_ai_Slack__slack_search_channels
+mcp__playwright__browser_click
+mcp__playwright__browser_navigate
+mcp__playwright__browser_snapshot
+...</span>
+<span class="xml-tag">&lt;/available-deferred-tools&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 5: Date/Time -->
+          <div class="tab-content" id="panel-5" role="tabpanel" aria-labelledby="tab-5">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(57,210,192,0.1)">📅</div>
+                <div class="reminder-type-label" style="color:var(--accent-cyan)">Type 5</div>
+                <div class="reminder-type-name">Date / Time Context</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 + periodic updates</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~30</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Keeps the model's calendar awareness current</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-content">Today's date is 2026-03-24.</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 6: MCP Server Instructions -->
+          <div class="tab-content" id="panel-6" role="tabpanel" aria-labelledby="tab-6">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(57,210,192,0.1)">🖧</div>
+                <div class="reminder-type-label" style="color:var(--accent-cyan)">Type 6</div>
+                <div class="reminder-type-name">MCP Server Instructions</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 (per connected server)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~800 (combined)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Per-server usage guidance from server metadata</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-content">MCP server "claude_ai_Slack" instructions:
+Use slack_search_channels before sending
+messages to unknown channels. Always confirm
+channel name before posting. Rate-limit
+bulk sends to 1/second.</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 7: CLAUDE.md -->
+          <div class="tab-content" id="panel-7" role="tabpanel" aria-labelledby="tab-7">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(210,153,34,0.1)">📄</div>
+                <div class="reminder-type-label" style="color:var(--accent-orange)">Type 7</div>
+                <div class="reminder-type-name">CLAUDE.md Content</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 (if file found in cwd)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">Variable</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Project-level instructions for this workspace</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-tag">&lt;claude_md&gt;</span>
+<span class="xml-content"># My Project
+
+This is a React + TypeScript app.
+- Always run `npm test` before committing
+- Use `pnpm` not `npm` for installs
+- Main branch is `main`, never push directly</span>
+<span class="xml-tag">&lt;/claude_md&gt;</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 8: Memory -->
+          <div class="tab-content" id="panel-8" role="tabpanel" aria-labelledby="tab-8">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(63,185,80,0.1)">🧠</div>
+                <div class="reminder-type-label" style="color:var(--accent-green)">Type 8</div>
+                <div class="reminder-type-name">Memory System</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 (if memory enabled)</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">Variable</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Auto-memory index from MEMORY.md</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-content">Memory index (MEMORY.md):
+- User prefers TypeScript over JavaScript
+- Preferred test runner: Vitest
+- Common tasks: refactoring, adding tests
+- Last session: worked on auth module</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 9: Task Status -->
+          <div class="tab-content" id="panel-9" role="tabpanel" aria-labelledby="tab-9">
+            <div class="reminder-type-card">
+              <div class="reminder-type-meta">
+                <div class="reminder-type-icon" style="background:rgba(248,81,73,0.1)">✅</div>
+                <div class="reminder-type-label" style="color:var(--accent-red)">Type 9</div>
+                <div class="reminder-type-name">Task Status Reminders</div>
+                <div class="reminder-meta-list">
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">When:</span>
+                    <span class="reminder-meta-val">Turn 1 + periodic nudges</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Tokens:</span>
+                    <span class="reminder-meta-val">~150</span>
+                  </div>
+                  <div class="reminder-meta-row">
+                    <span class="reminder-meta-key">Purpose:</span>
+                    <span class="reminder-meta-val">Periodic nudge to use TaskCreate/TaskUpdate</span>
+                  </div>
+                </div>
+              </div>
+              <div class="reminder-type-example">
+                <div class="example-label">Example content</div>
+                <div class="example-code"><span class="xml-tag">&lt;system-reminder&gt;</span>
+<span class="xml-content">The task tools haven't been used recently.
+If you're working on tasks that would benefit
+from tracking progress, consider using
+TaskCreate to add new tasks and TaskUpdate to
+update task status (set to in_progress when
+starting, completed when done).</span>
+<span class="xml-tag">&lt;/system-reminder&gt;</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /tabs-wrap -->
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section: Injection Timing
+         ================================================================= -->
+    <section class="page-section" id="timing" aria-labelledby="timing-heading">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">Timing Reference</p>
+          <h2 class="section-title" id="timing-heading">When Each Type Is Injected</h2>
+          <p class="section-desc">
+            Turn 1 carries the heaviest load. Subsequent turns are much lighter —
+            only periodic task nudges and date updates.
+          </p>
+        </div>
+
+        <div class="timing-table-wrap reveal">
+          <table class="timing-table" role="table">
+            <thead>
+              <tr>
+                <th scope="col">Reminder Type</th>
+                <th scope="col">Turn 1</th>
+                <th scope="col">Turn 2+</th>
+                <th scope="col">Approx. Tokens</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="timing-name">Instruction Reminders</span></td>
+                <td><span class="timing-yes">&#10003; Always</span></td>
+                <td><span class="timing-yes">&#10003; Always</span></td>
+                <td class="font-mono text-secondary">~300</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">SessionStart Hook / Plugin</span></td>
+                <td><span class="timing-heavy">&#9679; Heavy</span></td>
+                <td><span class="timing-no">—</span></td>
+                <td class="font-mono text-secondary">~1,200</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">Skill Catalog</span></td>
+                <td><span class="timing-yes">&#10003; Yes</span></td>
+                <td><span class="timing-no">—</span></td>
+                <td class="font-mono text-secondary">~600</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">Deferred Tools List</span></td>
+                <td><span class="timing-yes">&#10003; Yes</span></td>
+                <td><span class="timing-no">—</span></td>
+                <td class="font-mono text-secondary">~400</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">MCP Server Instructions</span></td>
+                <td><span class="timing-yes">&#10003; Yes</span></td>
+                <td><span class="timing-no">—</span></td>
+                <td class="font-mono text-secondary">~800</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">CLAUDE.md Content</span></td>
+                <td><span class="timing-yes">&#10003; If present</span></td>
+                <td><span class="timing-no">—</span></td>
+                <td class="font-mono text-secondary">variable</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">Memory System</span></td>
+                <td><span class="timing-yes">&#10003; If enabled</span></td>
+                <td><span class="timing-no">—</span></td>
+                <td class="font-mono text-secondary">variable</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">Date / Time Context</span></td>
+                <td><span class="timing-yes">&#10003; Yes</span></td>
+                <td><span class="timing-sometimes">~ Sometimes</span></td>
+                <td class="font-mono text-secondary">~30</td>
+              </tr>
+              <tr>
+                <td><span class="timing-name">Task Status Reminder</span></td>
+                <td><span class="timing-yes">&#10003; Yes</span></td>
+                <td><span class="timing-sometimes">~ Periodic</span></td>
+                <td class="font-mono text-secondary">~150</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section: Key Principle
+         ================================================================= -->
+    <section class="page-section" id="principle" aria-labelledby="principle-heading">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">Core Design</p>
+          <h2 class="section-title" id="principle-heading">The Cache-Friendly Pattern</h2>
+          <p class="section-desc">
+            Why dynamic context goes into messages instead of the system prompt —
+            and how that decision saves thousands of tokens per turn.
+          </p>
+        </div>
+
+        <div class="principle-card reveal">
+          <div class="principle-quote">
+            <span>Freeze</span> the system prompt, <span>inject</span> dynamics through messages.
+          </div>
+
+          <p style="color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-6);max-width:680px">
+            The system prompt carries <code>cache_control: ephemeral</code>. Any change — even a single
+            character — invalidates the cache and forces a full re-tokenization on the next API call.
+            Dynamic context like the current date, CLAUDE.md content, or session hook output changes
+            every turn, so it lives in the user message instead.
+          </p>
+
+          <div class="principle-compare">
+            <div class="compare-block">
+              <div class="compare-block-header bad">Before — breaks cache every turn</div>
+              <pre><span class="py-comment"># system changes → cache miss every turn</span>
+<span class="py-key">system</span> = [<span class="py-str">{</span>
+  <span class="py-str">"text"</span>: <span class="py-fstr">f"Today is {date}. You are a coding assistant..."</span>,
+  <span class="py-str">"cache_control"</span>: <span class="py-str">"ephemeral"</span>  <span class="py-comment"># ← changes!</span>
+<span class="py-str">}</span>]</pre>
+            </div>
+            <div class="compare-block">
+              <div class="compare-block-header good">After — cache-friendly</div>
+              <pre><span class="py-comment"># system frozen → cache hits every turn</span>
+<span class="py-key">system</span> = [<span class="py-str">{</span>
+  <span class="py-str">"text"</span>: <span class="py-str">"You are a coding assistant..."</span>,
+  <span class="py-str">"cache_control"</span>: <span class="py-str">"ephemeral"</span>  <span class="py-comment"># ← stable!</span>
+<span class="py-str">}</span>]
+<span class="py-key">messages</span> = [<span class="py-str">{</span>
+  <span class="py-str">"role"</span>: <span class="py-str">"user"</span>,
+  <span class="py-str">"content"</span>: [
+    <span class="py-str">{</span><span class="py-str">"text"</span>: <span class="py-fstr">f"&lt;system-reminder&gt;Today is {date}&lt;/system-reminder&gt;"</span><span class="py-str">}</span>,
+    <span class="py-str">{</span><span class="py-str">"text"</span>: user_message<span class="py-str">}</span>
+  ]
+<span class="py-str">}</span>]</pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Navigation Footer
+         ================================================================= -->
+    <div class="page-nav-footer">
+      <div class="container">
+        <div class="page-nav-footer-inner">
+          <a href="tools.html" class="page-nav-link" aria-label="Previous: Tool Definitions">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06Z"/>
+            </svg>
+            <div>
+              <span class="page-nav-link-label">Previous</span>
+              <span class="page-nav-link-title">Tool Definitions</span>
+            </div>
+          </a>
+          <a href="skills.html" class="page-nav-link" aria-label="Next: Skills System">
+            <div style="text-align:right">
+              <span class="page-nav-link-label">Next</span>
+              <span class="page-nav-link-title">Skills System</span>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/diagrams.js"></script>
+  <script src="js/prism.min.js"></script>
+  <script>
+  /* =====================================================================
+     Context Builder — Interactive Logic
+     ===================================================================== */
+  (function() {
+    'use strict';
+
+    // Feature definitions
+    const FEATURES = {
+      hook: {
+        label: 'SessionStart Hook',
+        tokens: 1200,
+        segClass: 'seg-hook',
+        tag: 'system-reminder',
+        content: `SessionStart hook additional context: <EXTREMELY_IMPORTANT>\nYou have superpowers.\n[using-superpowers skill content...]\nYou MUST use the Skill tool before attempting any task that has a matching skill.\n</EXTREMELY_IMPORTANT>`
+      },
+      skills: {
+        label: 'Skill Catalog',
+        tokens: 600,
+        segClass: 'seg-skills',
+        tag: 'system-reminder',
+        content: `The following skills are available for use with the Skill tool:\n- brainstorming: You MUST use this before any creative work or ideation task.\n- test-driven-development: Use when implementing any new feature or fixing a bug.\n- using-superpowers: Bootstrap superpowers for this session.`
+      },
+      claude_md: {
+        label: 'CLAUDE.md',
+        tokens: 300,
+        segClass: 'seg-claude',
+        tag: 'system-reminder',
+        content: `<claude_md>\n# My Project\n\nThis is a React + TypeScript app.\n- Always run \`npm test\` before committing\n- Use \`pnpm\` not \`npm\` for installs\n- Main branch is \`main\`, never push directly\n</claude_md>`
+      },
+      memory: {
+        label: 'Memory System',
+        tokens: 200,
+        segClass: 'seg-memory',
+        tag: 'system-reminder',
+        content: `Memory index (MEMORY.md):\n- User prefers TypeScript over JavaScript\n- Preferred test runner: Vitest\n- Common tasks: refactoring, adding tests\n- Last session: worked on auth module`
+      },
+      mcp: {
+        label: 'MCP Servers',
+        tokens: 800,
+        segClass: 'seg-mcp',
+        tag: 'system-reminder',
+        content: `MCP server "claude_ai_Slack" instructions:\nUse slack_search_channels before sending messages to unknown channels.\n\n<available-deferred-tools>\nmcp__claude_ai_Amplitude__create_cohort\nmcp__claude_ai_Slack__slack_send_message\nmcp__playwright__browser_click\nmcp__playwright__browser_navigate\n...\n</available-deferred-tools>`
+      },
+      date: {
+        label: 'Date Context',
+        tokens: 30,
+        segClass: 'seg-date',
+        tag: 'system-reminder',
+        content: `Today's date is 2026-03-24.`
+      },
+      task: {
+        label: 'Task Status',
+        tokens: 150,
+        segClass: 'seg-task',
+        tag: 'system-reminder',
+        content: `The task tools haven't been used recently. If you're working on tasks that would benefit from tracking progress, consider using TaskCreate to add new tasks and TaskUpdate to update task status (set to in_progress when starting, completed when done).`
+      }
+    };
+
+    const FEATURE_ORDER = ['hook', 'skills', 'claude_md', 'memory', 'mcp', 'date', 'task'];
+    const USER_TOKENS = 50;
+    const TOTAL_BUDGET = 8192;
+
+    // State
+    const state = {};
+    FEATURE_ORDER.forEach(k => {
+      const el = document.querySelector(`.toggle-item[data-feature="${k}"]`);
+      state[k] = el ? el.classList.contains('active') : false;
+    });
+
+    let viewMode = 'visual'; // 'visual' | 'json'
+
+    // Elements
+    const tokenCountEl   = document.getElementById('tokenCountValue');
+    const blocksList     = document.getElementById('contentBlocksList');
+    const budgetBar      = document.getElementById('tokenBudgetBar');
+    const budgetLegend   = document.getElementById('tokenBudgetLegend');
+    const budgetPercent  = document.getElementById('budgetPercent');
+    const jsonOutput     = document.getElementById('jsonOutput');
+    const builderVisual  = document.getElementById('builderVisual');
+    const builderJson    = document.getElementById('builderJson');
+    const viewVisualBtn  = document.getElementById('viewVisual');
+    const viewJsonBtn    = document.getElementById('viewJson');
+
+    // Toggle handlers
+    document.querySelectorAll('.toggle-item[data-feature]').forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        const feature = this.dataset.feature;
+        state[feature] = !state[feature];
+        this.classList.toggle('active', state[feature]);
+        render();
+      });
+
+      item.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.click();
+        }
+      });
+
+      // Make keyboard accessible
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('role', 'checkbox');
+      item.setAttribute('aria-checked', item.classList.contains('active') ? 'true' : 'false');
+    });
+
+    // View toggle
+    viewVisualBtn.addEventListener('click', () => {
+      viewMode = 'visual';
+      viewVisualBtn.classList.add('active');
+      viewJsonBtn.classList.remove('active');
+      builderVisual.style.display = '';
+      builderJson.classList.remove('visible');
+      render();
+    });
+
+    viewJsonBtn.addEventListener('click', () => {
+      viewMode = 'json';
+      viewJsonBtn.classList.add('active');
+      viewVisualBtn.classList.remove('active');
+      builderVisual.style.display = 'none';
+      builderJson.classList.add('visible');
+      render();
+    });
+
+    // Content block expand/collapse
+    function attachBlockToggle(item) {
+      const header = item.querySelector('.content-block-header');
+      if (!header) return;
+      header.addEventListener('click', () => {
+        item.classList.toggle('expanded');
+      });
+    }
+
+    function getActiveFeatures() {
+      return FEATURE_ORDER.filter(k => state[k]);
+    }
+
+    function getTotalTokens() {
+      return getActiveFeatures().reduce((sum, k) => sum + FEATURES[k].tokens, 0);
+    }
+
+    function escHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderVisual() {
+      const active = getActiveFeatures();
+      blocksList.innerHTML = '';
+
+      active.forEach((key, i) => {
+        const feat = FEATURES[key];
+        const item = document.createElement('div');
+        item.className = 'content-block-item';
+
+        const tagColor = {
+          hook: 'var(--accent-purple)',
+          skills: 'var(--accent-blue)',
+          claude_md: 'var(--accent-orange)',
+          memory: 'var(--accent-green)',
+          mcp: 'var(--accent-cyan)',
+          date: 'var(--accent-cyan)',
+          task: 'var(--accent-red)'
+        }[key] || 'var(--accent-cyan)';
+
+        item.innerHTML = `
+          <div class="content-block-header">
+            <span class="content-block-index">[${i}]</span>
+            <span class="content-block-tag tag-reminder">&lt;system-reminder&gt;</span>
+            <span class="content-block-label">${feat.label}</span>
+            <span class="content-block-tokens">~${feat.tokens} tokens</span>
+            <span class="content-block-expand-icon">&#9654;</span>
+          </div>
+          <div class="content-block-body">${escHtml(feat.content)}</div>
+        `;
+
+        blocksList.appendChild(item);
+        attachBlockToggle(item);
+      });
+
+      // User message block
+      const userItem = document.createElement('div');
+      userItem.className = 'content-block-item';
+      userItem.innerHTML = `
+        <div class="content-block-header">
+          <span class="content-block-index">[${active.length}]</span>
+          <span class="content-block-tag tag-message">user text</span>
+          <span class="content-block-label">your actual message</span>
+          <span class="content-block-tokens">~${USER_TOKENS} tokens</span>
+          <span class="content-block-expand-icon">&#9654;</span>
+        </div>
+        <div class="content-block-body">"your actual message here"</div>
+      `;
+      blocksList.appendChild(userItem);
+      attachBlockToggle(userItem);
+
+      // Empty state
+      if (active.length === 0) {
+        blocksList.innerHTML = `
+          <div style="padding:var(--space-8);text-align:center;color:var(--text-secondary);font-size:var(--text-sm)">
+            No system reminders active. Toggle features above to build up the context.
+          </div>
+        `;
+        // Still add user block
+        const minItem = document.createElement('div');
+        minItem.className = 'content-block-item';
+        minItem.innerHTML = `
+          <div class="content-block-header">
+            <span class="content-block-index">[0]</span>
+            <span class="content-block-tag tag-message">user text</span>
+            <span class="content-block-label">your actual message</span>
+            <span class="content-block-tokens">~${USER_TOKENS} tokens</span>
+            <span class="content-block-expand-icon">&#9654;</span>
+          </div>
+          <div class="content-block-body">"your actual message here"</div>
+        `;
+        blocksList.innerHTML = '';
+        blocksList.appendChild(minItem);
+        attachBlockToggle(minItem);
+      }
+    }
+
+    function renderJson() {
+      const active = getActiveFeatures();
+      const blocks = active.map(k => {
+        const feat = FEATURES[k];
+        return `    <span class="json-punct">{</span> <span class="json-key">"type"</span><span class="json-punct">:</span> <span class="json-string">"text"</span><span class="json-punct">,</span> <span class="json-key">"text"</span><span class="json-punct">:</span> <span class="json-string">"&lt;system-reminder&gt;\\n${escHtml(feat.content.replace(/"/g, '\\"').replace(/\n/g, '\\n'))}\\n&lt;/system-reminder&gt;"</span> <span class="json-punct">}</span>`;
+      });
+
+      blocks.push(`    <span class="json-punct">{</span> <span class="json-key">"type"</span><span class="json-punct">:</span> <span class="json-string">"text"</span><span class="json-punct">,</span> <span class="json-key">"text"</span><span class="json-punct">:</span> <span class="json-string">"your actual message here"</span> <span class="json-punct">}</span>`);
+
+      const json = `<span class="json-punct">{</span>
+  <span class="json-key">"role"</span><span class="json-punct">:</span> <span class="json-string">"user"</span><span class="json-punct">,</span>
+  <span class="json-key">"content"</span><span class="json-punct">:</span> <span class="json-punct">[</span>
+${blocks.join(',\n')}
+  <span class="json-punct">]</span>
+<span class="json-punct">}</span>`;
+
+      jsonOutput.innerHTML = json;
+    }
+
+    function renderBudget() {
+      const active = getActiveFeatures();
+      const reminderTokens = getTotalTokens();
+      const total = reminderTokens + USER_TOKENS;
+      const pct = Math.round((reminderTokens / TOTAL_BUDGET) * 100);
+
+      // Token count
+      tokenCountEl.textContent = reminderTokens.toLocaleString();
+      budgetPercent.textContent = `${pct}% of ${(TOTAL_BUDGET/1000).toFixed(0)}K context budget`;
+
+      // Budget bar
+      budgetBar.innerHTML = '';
+      const segments = [];
+
+      active.forEach(k => {
+        segments.push({ key: k, tokens: FEATURES[k].tokens, cls: FEATURES[k].segClass });
+      });
+      segments.push({ key: 'user', tokens: USER_TOKENS, cls: 'seg-user' });
+
+      // Remaining
+      const remaining = TOTAL_BUDGET - total;
+      if (remaining > 0) {
+        segments.push({ key: 'remaining', tokens: remaining, cls: '' });
+      }
+
+      segments.forEach(seg => {
+        const w = Math.max(0.5, (seg.tokens / TOTAL_BUDGET) * 100);
+        const div = document.createElement('div');
+        div.className = `token-budget-segment ${seg.cls}`;
+        div.style.width = w + '%';
+        if (!seg.cls) {
+          div.style.background = 'rgba(255,255,255,0.04)';
+        }
+        div.setAttribute('title', seg.key === 'remaining'
+          ? `Remaining: ${remaining.toLocaleString()} tokens`
+          : `${FEATURES[seg.key]?.label || 'User message'}: ${seg.tokens} tokens`);
+        budgetBar.appendChild(div);
+      });
+
+      // Legend
+      budgetLegend.innerHTML = '';
+      active.forEach(k => {
+        const feat = FEATURES[k];
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `
+          <span class="legend-dot ${feat.segClass}"></span>
+          <span>${feat.label} (${feat.tokens})</span>
+        `;
+        budgetLegend.appendChild(item);
+      });
+
+      // User message
+      const userLegend = document.createElement('div');
+      userLegend.className = 'legend-item';
+      userLegend.innerHTML = `<span class="legend-dot seg-user"></span><span>User message (~${USER_TOKENS})</span>`;
+      budgetLegend.appendChild(userLegend);
+    }
+
+    function render() {
+      // Update aria-checked on toggles
+      document.querySelectorAll('.toggle-item[data-feature]').forEach(item => {
+        item.setAttribute('aria-checked', state[item.dataset.feature] ? 'true' : 'false');
+      });
+
+      if (viewMode === 'visual') {
+        renderVisual();
+      } else {
+        renderJson();
+      }
+      renderBudget();
+    }
+
+    // Initial render
+    render();
+
+  })();
+  </script>
+</body>
+</html>

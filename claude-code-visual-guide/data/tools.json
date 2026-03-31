@@ -1,0 +1,296 @@
+{
+  "builtin": [
+    {
+      "name": "Task",
+      "purpose": "Launch sub-agents for complex multi-step tasks",
+      "tokenCount": 4400,
+      "description": "Spawns an independent Claude sub-agent with its own context window. Used for parallelising work and isolating complex operations. The sub-agent receives a description, optional allowed tools list, and returns a result string.",
+      "inputs": ["description", "prompt", "allowed_tools"],
+      "returns": "string result from sub-agent"
+    },
+    {
+      "name": "Bash",
+      "purpose": "Execute shell commands",
+      "tokenCount": 8638,
+      "description": "Runs arbitrary shell commands in a zsh environment. The working directory persists between calls but shell state (variables, functions) does not. Supports background execution via run_in_background.",
+      "inputs": ["command", "description", "timeout", "run_in_background"],
+      "returns": "stdout + stderr"
+    },
+    {
+      "name": "Glob",
+      "purpose": "Fast file pattern matching",
+      "tokenCount": 350,
+      "description": "Matches file paths against a glob pattern using the filesystem. Returns paths sorted by modification time. Much faster than Bash find for file discovery.",
+      "inputs": ["pattern", "path"],
+      "returns": "array of matching file paths"
+    },
+    {
+      "name": "Grep",
+      "purpose": "Content search with ripgrep",
+      "tokenCount": 800,
+      "description": "Searches file content using ripgrep. Supports regex patterns, file type filters, and context lines. Returns matches with file paths and line numbers.",
+      "inputs": ["pattern", "path", "include", "exclude", "case_sensitive", "context_lines"],
+      "returns": "matching lines with file and line number"
+    },
+    {
+      "name": "Read",
+      "purpose": "Read files from filesystem",
+      "tokenCount": 600,
+      "description": "Reads the full contents of a file at an absolute path. Must be called before Write to avoid overwriting unknown content. Supports optional line range.",
+      "inputs": ["file_path", "start_line", "end_line"],
+      "returns": "file contents as string"
+    },
+    {
+      "name": "Edit",
+      "purpose": "Edit existing files (sends diff)",
+      "tokenCount": 700,
+      "description": "Replaces an exact string match within an existing file. More efficient than Write for modifications as only the diff is transmitted. Requires reading the file first.",
+      "inputs": ["file_path", "old_string", "new_string"],
+      "returns": "confirmation or error"
+    },
+    {
+      "name": "Write",
+      "purpose": "Create or overwrite files",
+      "tokenCount": 400,
+      "description": "Writes full file content to the filesystem. Creates the file if it doesn't exist. For existing files, must Read first. Prefer Edit for modifications.",
+      "inputs": ["file_path", "content"],
+      "returns": "confirmation"
+    },
+    {
+      "name": "WebFetch",
+      "purpose": "Fetch web content",
+      "tokenCount": 300,
+      "description": "Fetches a URL and returns the content as text (HTML stripped to readable text by default). Used for reading documentation, APIs, or web resources.",
+      "inputs": ["url", "prompt"],
+      "returns": "page content as text"
+    },
+    {
+      "name": "WebSearch",
+      "purpose": "Web search",
+      "tokenCount": 250,
+      "description": "Performs a web search and returns a list of results with titles, URLs, and snippets. Used when current information is needed.",
+      "inputs": ["query"],
+      "returns": "list of search results"
+    }
+  ],
+  "plugin": [
+    {
+      "name": "Skill",
+      "purpose": "Load and invoke skill content",
+      "tokenCount": 500,
+      "description": "Fetches a named skill document and injects its content as context. Skills contain process instructions, checklists, and guidance. Most skills are invoked by reading them — the content itself is the instruction.",
+      "inputs": ["name"],
+      "returns": "skill content injected into context"
+    },
+    {
+      "name": "Agent",
+      "purpose": "Enhanced agent dispatch with skill support",
+      "tokenCount": 5000,
+      "description": "Like Task but with enhanced routing. Selects the appropriate sub-agent type based on task complexity and required capabilities. Supports specifying skill pre-loading for the sub-agent.",
+      "inputs": ["description", "prompt", "skills", "allowed_tools"],
+      "returns": "string result from sub-agent"
+    },
+    {
+      "name": "AskUserQuestion",
+      "purpose": "Explicitly ask the user a question",
+      "tokenCount": 200,
+      "description": "Pauses execution and presents a question to the user, waiting for their response before continuing. Used when a decision genuinely requires human input.",
+      "inputs": ["question"],
+      "returns": "user's answer as string"
+    },
+    {
+      "name": "TaskCreate",
+      "purpose": "Create structured tasks",
+      "tokenCount": 400,
+      "description": "Creates a tracked task in the session task list with a title, description, and initial status. Tasks persist across context and provide a structured way to track progress.",
+      "inputs": ["title", "description", "status"],
+      "returns": "task id"
+    },
+    {
+      "name": "TaskUpdate",
+      "purpose": "Update task status",
+      "tokenCount": 400,
+      "description": "Updates the status or description of an existing task. Status values: pending, in_progress, completed, blocked.",
+      "inputs": ["task_id", "status", "description"],
+      "returns": "updated task"
+    },
+    {
+      "name": "TaskGet",
+      "purpose": "Retrieve a specific task",
+      "tokenCount": 150,
+      "description": "Returns the current state of a single task by its id.",
+      "inputs": ["task_id"],
+      "returns": "task object"
+    },
+    {
+      "name": "TaskList",
+      "purpose": "List all tasks in the session",
+      "tokenCount": 150,
+      "description": "Returns all tasks registered in the current session with their status.",
+      "inputs": [],
+      "returns": "array of task objects"
+    }
+  ],
+  "mcp": [
+    {
+      "server": "playwright",
+      "prefix": "mcp__playwright__",
+      "toolCount": 23,
+      "purpose": "Browser automation",
+      "description": "Provides a full browser automation API via Playwright. Supports navigation, interaction, screenshots, network inspection, form filling, and JavaScript execution.",
+      "tools": [
+        "browser_navigate",
+        "browser_click",
+        "browser_fill_form",
+        "browser_type",
+        "browser_press_key",
+        "browser_snapshot",
+        "browser_take_screenshot",
+        "browser_evaluate",
+        "browser_network_requests",
+        "browser_console_messages",
+        "browser_wait_for",
+        "browser_hover",
+        "browser_drag",
+        "browser_select_option",
+        "browser_file_upload",
+        "browser_handle_dialog",
+        "browser_navigate_back",
+        "browser_tabs",
+        "browser_close",
+        "browser_resize",
+        "browser_install",
+        "browser_run_code",
+        "browser_navigate_back"
+      ]
+    },
+    {
+      "server": "circleci-mcp-server",
+      "prefix": "mcp__circleci-mcp-server__",
+      "toolCount": 15,
+      "purpose": "CI/CD pipeline management",
+      "description": "Interfaces with CircleCI for pipeline inspection, triggering, failure analysis, and test results.",
+      "tools": [
+        "get_latest_pipeline_status",
+        "get_build_failure_logs",
+        "get_job_test_results",
+        "run_pipeline",
+        "rerun_workflow",
+        "run_rollback_pipeline",
+        "find_flaky_tests",
+        "find_underused_resource_classes",
+        "list_followed_projects",
+        "analyze_diff",
+        "config_helper",
+        "create_prompt_template",
+        "recommend_prompt_template_tests",
+        "run_evaluation_tests",
+        "list_component_versions",
+        "download_usage_api_data"
+      ]
+    },
+    {
+      "server": "claude_ai_Slack",
+      "prefix": "mcp__claude_ai_Slack__",
+      "toolCount": 12,
+      "purpose": "Slack messaging and search",
+      "description": "Send messages, read channels and threads, search Slack, manage canvases, and look up users.",
+      "tools": [
+        "slack_send_message",
+        "slack_send_message_draft",
+        "slack_schedule_message",
+        "slack_read_channel",
+        "slack_read_thread",
+        "slack_search_public",
+        "slack_search_public_and_private",
+        "slack_search_channels",
+        "slack_search_users",
+        "slack_read_user_profile",
+        "slack_create_canvas",
+        "slack_read_canvas",
+        "slack_update_canvas"
+      ]
+    },
+    {
+      "server": "claude_ai_Atlassian",
+      "prefix": "mcp__claude_ai_Atlassian_JIRA_Confluence__",
+      "toolCount": 30,
+      "purpose": "Jira issue and Confluence page management",
+      "description": "Full CRUD for Jira issues, Confluence pages, comments, and worklog. Includes JQL search and workflow transitions.",
+      "tools": [
+        "getJiraIssue",
+        "createJiraIssue",
+        "editJiraIssue",
+        "transitionJiraIssue",
+        "searchJiraIssuesUsingJql",
+        "addCommentToJiraIssue",
+        "addWorklogToJiraIssue",
+        "getTransitionsForJiraIssue",
+        "getVisibleJiraProjects",
+        "getJiraProjectIssueTypesMetadata",
+        "lookupJiraAccountId",
+        "getConfluencePage",
+        "createConfluencePage",
+        "updateConfluencePage",
+        "getConfluenceSpaces",
+        "getPagesInConfluenceSpace",
+        "searchConfluenceUsingCql",
+        "getConfluencePageFooterComments",
+        "getConfluencePageInlineComments",
+        "createConfluenceFooterComment",
+        "createConfluenceInlineComment",
+        "atlassianUserInfo",
+        "getAccessibleAtlassianResources",
+        "fetchAtlassian",
+        "searchAtlassian",
+        "createIssueLink",
+        "getIssueLinkTypes",
+        "getJiraIssueRemoteIssueLinks",
+        "getJiraIssueTypeMetaWithFields",
+        "getConfluencePageDescendants",
+        "getConfluenceCommentChildren"
+      ]
+    },
+    {
+      "server": "claude_ai_Amplitude",
+      "prefix": "mcp__claude_ai_Amplitude__",
+      "toolCount": 25,
+      "purpose": "Product analytics and experimentation",
+      "description": "Query charts and datasets, manage dashboards, run experiments, inspect cohorts, review session replays, and access user feedback.",
+      "tools": [
+        "get_context",
+        "get_project_context",
+        "search",
+        "get_charts",
+        "query_chart",
+        "query_charts",
+        "get_chart_definition_params",
+        "verify_chart_definition",
+        "save_chart_edits",
+        "get_dashboard",
+        "create_dashboard",
+        "edit_dashboard",
+        "create_notebook",
+        "edit_notebook",
+        "query_dataset",
+        "get_event_properties",
+        "get_cohorts",
+        "create_cohort",
+        "get_experiments",
+        "create_experiment",
+        "query_experiment",
+        "get_deployments",
+        "get_session_replays",
+        "list_session_replays",
+        "get_session_replay_events",
+        "get_users",
+        "get_from_url",
+        "get_feedback_comments",
+        "get_feedback_insights",
+        "get_feedback_mentions",
+        "get_feedback_sources",
+        "get_feedback_trends"
+      ]
+    }
+  ]
+}

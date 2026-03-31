@@ -1,0 +1,1155 @@
+[
+  {
+    "entry": 0,
+    "url": "https://api.anthropic.com/api/oauth/claude_cli/client_data",
+    "method": "GET",
+    "status_code": 200,
+    "logged_at": "2026-03-23T17:12:16.634Z"
+  },
+  {
+    "entry": 1,
+    "url": "https://api.anthropic.com/api/organization/a6756009-f046-48ba-82a8-9252f4f9834e/claude_code_sonnet_1m_access",
+    "method": "GET",
+    "status_code": 200,
+    "logged_at": "2026-03-23T17:12:19.740Z"
+  },
+  {
+    "entry": 2,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:19.840Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 0,
+    "tool_names": [],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 3,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:25.963Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_press_key"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 4,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:25.983Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_fill_form"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 5,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:25.992Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__list_followed_projects"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 6,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:25.998Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_file_upload"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 7,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.004Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_click"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 8,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.011Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_evaluate"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 9,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.018Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_navigate"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 10,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.023Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_resize"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 11,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.028Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_run_code"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 12,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.034Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_console_messages"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 13,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.040Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__langchain-docs__search_docs_by_lang_chain"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 14,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.046Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_snapshot"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 15,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.050Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__run_rollback_pipeline"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 16,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.055Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__run_evaluation_tests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 17,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.065Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_take_screenshot"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 18,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.071Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_navigate_back"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 19,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.078Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__get_latest_pipeline_status"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 20,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.092Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_install"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 21,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.097Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_handle_dialog"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 22,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.102Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__download_usage_api_data"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 23,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.107Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_close"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 24,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.112Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_network_requests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 25,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.118Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_type"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 26,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.123Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_tabs"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 27,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.127Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__rerun_workflow"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 28,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.132Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__get_build_failure_logs"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 29,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.137Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_drag"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 30,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.145Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_hover"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 31,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.150Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__config_helper"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 32,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.154Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_select_option"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 33,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.159Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__create_prompt_template"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 34,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.164Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__list_component_versions"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 35,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.170Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__run_pipeline"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 36,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.176Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__find_underused_resource_classes"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 37,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.181Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__analyze_diff"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 38,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.193Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__find_flaky_tests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 39,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.199Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_wait_for"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 40,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.205Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__get_job_test_results"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 41,
+    "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.210Z",
+    "model": "opus",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__recommend_prompt_template_tests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 42,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.216Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_press_key"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 43,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.223Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_fill_form"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 44,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.227Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_file_upload"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 45,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.232Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_click"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 46,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.247Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_console_messages"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 47,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.253Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_snapshot"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 48,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.264Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__run_rollback_pipeline"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 49,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.271Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_resize"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 50,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.276Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__run_evaluation_tests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 51,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.283Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_run_code"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 52,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.288Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_navigate_back"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 53,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.292Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__get_latest_pipeline_status"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 54,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.297Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__langchain-docs__search_docs_by_lang_chain"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 55,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.310Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_take_screenshot"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 56,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.315Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_handle_dialog"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 57,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.321Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_network_requests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 58,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.326Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__download_usage_api_data"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 59,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.332Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_close"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 60,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.336Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_type"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 61,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.342Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__rerun_workflow"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 62,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.360Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_drag"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 63,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.367Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__config_helper"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 64,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.373Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__list_component_versions"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 65,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.378Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_install"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 66,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.383Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__analyze_diff"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 67,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.390Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__find_underused_resource_classes"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 68,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.395Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__run_pipeline"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 69,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.402Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_tabs"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 70,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.407Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_wait_for"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 71,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.414Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__get_build_failure_logs"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 72,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.419Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__find_flaky_tests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 73,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.423Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_hover"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 74,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.439Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__recommend_prompt_template_tests"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 75,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.444Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__create_prompt_template"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 76,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.471Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_select_option"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 77,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.484Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__list_followed_projects"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 78,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.501Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__circleci-mcp-server__get_job_test_results"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 79,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.575Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_evaluate"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 80,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 404,
+    "logged_at": "2026-03-23T17:12:26.635Z",
+    "model": "claude-3-5-haiku-20241022",
+    "tool_count": 1,
+    "tool_names": [
+      "mcp__playwright__browser_navigate"
+    ],
+    "message_count": 1,
+    "has_system": false
+  },
+  {
+    "entry": 81,
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "method": "POST",
+    "status_code": 200,
+    "logged_at": "2026-03-23T17:12:35.581Z",
+    "model": "claude-sonnet-4-20250514",
+    "tool_count": 57,
+    "tool_names": [
+      "Task",
+      "Bash",
+      "Glob"
+    ],
+    "message_count": 1,
+    "has_system": true
+  },
+  {
+    "entry": 82,
+    "url": "https://api.anthropic.com/api/claude_code/organizations/metrics_enabled",
+    "method": "GET",
+    "status_code": 200,
+    "logged_at": "2026-03-23T17:12:35.921Z"
+  },
+  {
+    "entry": 83,
+    "url": "https://api.anthropic.com/api/claude_code/metrics",
+    "method": "POST",
+    "status_code": 200,
+    "logged_at": "2026-03-23T17:12:36.193Z",
+    "model": "N/A",
+    "tool_count": 0,
+    "tool_names": [],
+    "message_count": 0,
+    "has_system": false
+  }
+]

@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Architecture — Interactive Visual Guide</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero Section
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(88,166,255,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 20% 60%, rgba(188,140,255,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(57,210,192,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.08);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 580px;
+      margin: 0 auto var(--space-10);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-purple), transparent);
+      opacity: 0.4;
+    }
+
+    .hero-diagram {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ---- SVG animation keyframes ---- */
+    @keyframes flowDash {
+      to { stroke-dashoffset: -24; }
+    }
+
+    @keyframes flowDashReverse {
+      to { stroke-dashoffset: 24; }
+    }
+
+    @keyframes nodeGlowPulse {
+      0%, 100% { filter: drop-shadow(0 0 6px rgba(88,166,255,0.6)); }
+      50%       { filter: drop-shadow(0 0 16px rgba(88,166,255,0.9)) drop-shadow(0 0 32px rgba(88,166,255,0.3)); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes tokenCountFade {
+      0%, 85%, 100% { opacity: 0.7; }
+      40%            { opacity: 1; }
+    }
+
+    .flow-arrow {
+      stroke-dasharray: 8 4;
+      animation: flowDash 1.2s linear infinite;
+    }
+
+    .flow-arrow-slow {
+      stroke-dasharray: 8 4;
+      animation: flowDash 2s linear infinite;
+    }
+
+    .flow-arrow-up {
+      stroke-dasharray: 6 4;
+      animation: flowDashReverse 1.4s linear infinite;
+    }
+
+    .glow-node {
+      animation: nodeGlowPulse 2.4s ease-in-out infinite;
+    }
+
+    .hero-svg-label {
+      animation: tokenCountFade 3s ease-in-out infinite;
+    }
+
+    /* =====================================================================
+       Architecture Overview Section
+       ===================================================================== */
+    .architecture-overview {
+      padding: var(--space-16) 0;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: var(--leading-relaxed);
+    }
+
+    .arch-diagram {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .arch-layer {
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-5) var(--space-6);
+      transition: background var(--transition);
+    }
+
+    .arch-layer:last-child {
+      border-bottom: none;
+    }
+
+    .arch-layer:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .arch-layer-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+
+    .arch-layer-number {
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+
+    .arch-layer-number.layer-purple {
+      background: rgba(188,140,255,0.12);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.25);
+    }
+    .arch-layer-number.layer-blue {
+      background: rgba(88,166,255,0.12);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.25);
+    }
+    .arch-layer-number.layer-orange {
+      background: rgba(210,153,34,0.12);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210,153,34,0.25);
+    }
+    .arch-layer-number.layer-green {
+      background: rgba(63,185,80,0.12);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.25);
+    }
+
+    .arch-layer-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .arch-boxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+
+    .arch-box {
+      position: relative;
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      cursor: pointer;
+      transition: all var(--transition);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .arch-box.purple {
+      background: rgba(188,140,255,0.08);
+      color: var(--accent-purple);
+      border-color: rgba(188,140,255,0.2);
+    }
+    .arch-box.purple:hover {
+      background: rgba(188,140,255,0.16);
+      border-color: rgba(188,140,255,0.45);
+      box-shadow: 0 0 16px rgba(188,140,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .arch-box.blue {
+      background: rgba(88,166,255,0.08);
+      color: var(--accent-blue);
+      border-color: rgba(88,166,255,0.2);
+    }
+    .arch-box.blue:hover {
+      background: rgba(88,166,255,0.16);
+      border-color: rgba(88,166,255,0.45);
+      box-shadow: 0 0 16px rgba(88,166,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .arch-box.orange {
+      background: rgba(210,153,34,0.08);
+      color: var(--accent-orange);
+      border-color: rgba(210,153,34,0.2);
+    }
+    .arch-box.orange:hover {
+      background: rgba(210,153,34,0.16);
+      border-color: rgba(210,153,34,0.45);
+      box-shadow: 0 0 16px rgba(210,153,34,0.2);
+      transform: translateY(-1px);
+    }
+
+    .arch-box.green {
+      background: rgba(63,185,80,0.08);
+      color: var(--accent-green);
+      border-color: rgba(63,185,80,0.2);
+    }
+    .arch-box.green:hover {
+      background: rgba(63,185,80,0.16);
+      border-color: rgba(63,185,80,0.45);
+      box-shadow: 0 0 16px rgba(63,185,80,0.2);
+      transform: translateY(-1px);
+    }
+
+    /* Tooltip for arch boxes */
+    .arch-box-tooltip {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+      font-size: var(--text-xs);
+      font-weight: var(--font-normal);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+
+    .arch-box:hover .arch-box-tooltip {
+      opacity: 1;
+    }
+
+    /* =====================================================================
+       Guide Intro — 3-column cards
+       ===================================================================== */
+    .guide-intro {
+      padding: var(--space-16) 0;
+      background: linear-gradient(180deg, transparent, rgba(88,166,255,0.02), transparent);
+    }
+
+    .intro-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-5);
+      margin-top: var(--space-10);
+    }
+
+    @media (max-width: 768px) {
+      .intro-cards { grid-template-columns: 1fr; }
+    }
+
+    .intro-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      text-align: center;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .intro-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .intro-card:nth-child(1)::before { background: var(--accent-blue); }
+    .intro-card:nth-child(2)::before { background: var(--accent-purple); }
+    .intro-card:nth-child(3)::before { background: var(--accent-cyan); }
+
+    .intro-card:hover {
+      border-color: rgba(88,166,255,0.25);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .intro-card:hover::before { opacity: 1; }
+
+    .intro-card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-lg);
+      margin: 0 auto var(--space-4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .intro-card:nth-child(1) .intro-card-icon { background: rgba(88,166,255,0.1); }
+    .intro-card:nth-child(2) .intro-card-icon { background: rgba(188,140,255,0.1); }
+    .intro-card:nth-child(3) .intro-card-icon { background: rgba(57,210,192,0.1); }
+
+    .intro-card-title {
+      font-size: var(--text-lg);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .intro-card-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Chapter Grid
+       ===================================================================== */
+    .chapter-grid-section {
+      padding: var(--space-16) 0 var(--space-20);
+    }
+
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+      margin-top: var(--space-10);
+    }
+
+    @media (max-width: 1024px) {
+      .chapter-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .chapter-grid { grid-template-columns: 1fr; }
+    }
+
+    .chapter-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-5) var(--space-5) var(--space-4);
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+      group: '';
+    }
+
+    .chapter-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-xl);
+      border: 1px solid transparent;
+      transition: border-color var(--transition);
+      pointer-events: none;
+    }
+
+    .chapter-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+      background: var(--bg-tertiary);
+    }
+
+    .chapter-card.centerpiece {
+      border-color: rgba(88,166,255,0.3);
+      background: linear-gradient(135deg, rgba(88,166,255,0.05) 0%, rgba(188,140,255,0.05) 100%);
+      grid-column: span 1;
+    }
+
+    .chapter-card.centerpiece:hover {
+      border-color: rgba(88,166,255,0.5);
+      box-shadow: 0 0 30px rgba(88,166,255,0.12), var(--shadow-lg);
+    }
+
+    .chapter-card-number {
+      font-size: 2.5rem;
+      font-weight: var(--font-bold);
+      color: var(--bg-tertiary);
+      line-height: 1;
+      transition: color var(--transition);
+    }
+
+    .chapter-card:hover .chapter-card-number {
+      color: rgba(88,166,255,0.15);
+    }
+
+    .centerpiece .chapter-card-number {
+      color: rgba(88,166,255,0.12);
+    }
+
+    .chapter-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .chapter-card-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .chapter-card-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      line-height: var(--leading-tight);
+    }
+
+    .chapter-card-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      flex: 1;
+    }
+
+    .chapter-card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--accent-blue);
+      transition: gap var(--transition-fast);
+    }
+
+    .chapter-card:hover .chapter-card-link {
+      gap: var(--space-2);
+    }
+
+    .chapter-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: var(--font-bold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.12);
+      border: 1px solid rgba(88,166,255,0.25);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+    }
+
+    /* =====================================================================
+       Footer
+       ===================================================================== */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-8) 0;
+      text-align: center;
+    }
+
+    .site-footer-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .site-footer-text span {
+      color: var(--text-primary);
+      font-weight: var(--font-medium);
+    }
+
+    /* =====================================================================
+       Nav overrides — ensure active state
+       ===================================================================== */
+    .nav-link.active {
+      color: var(--accent-blue) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================
+       Navigation
+       =================================================================== -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <div class="nav-inner">
+
+        <!-- Brand -->
+        <a href="index.html" class="nav-brand" aria-label="Claude Code Architecture Home">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="22" height="22" rx="6" fill="rgba(88,166,255,0.15)"/>
+            <circle cx="11" cy="11" r="3.5" stroke="#58a6ff" stroke-width="1.5"/>
+            <path d="M11 4v2M11 16v2M4 11h2M16 11h2" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6.5 6.5l1.5 1.5M14 14l1.5 1.5M14 6.5l-1.5 1.5M8 14l-1.5 1.5" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <span>Claude Code Architecture</span>
+        </a>
+
+        <!-- Desktop Links -->
+        <div class="nav-links" role="list">
+          <a href="index.html" class="nav-link active" role="listitem">The Big Picture</a>
+          <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+          <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+          <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+          <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+          <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+          <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+          <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+          <a href="mcp.html" class="nav-link" role="listitem">MCP</a>
+          <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+          <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+          <a href="emulator.html" class="nav-link" role="listitem">Emulator</a>
+        </div>
+
+        <!-- Hamburger -->
+        <button class="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+    <a href="index.html" class="nav-link active">The Big Picture</a>
+    <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+    <a href="system-prompt.html" class="nav-link">System Prompt</a>
+    <a href="tools.html" class="nav-link">Tools</a>
+    <a href="context-injection.html" class="nav-link">Context Injection</a>
+    <a href="skills.html" class="nav-link">Skills</a>
+    <a href="plugins.html" class="nav-link">Plugins</a>
+    <a href="agents.html" class="nav-link">Agents</a>
+    <a href="mcp.html" class="nav-link">MCP</a>
+    <a href="context-management.html" class="nav-link">Context Mgmt</a>
+    <a href="persistence.html" class="nav-link">Persistence</a>
+    <a href="emulator.html" class="nav-link">Emulator</a>
+  </div>
+
+  <main>
+
+    <!-- =================================================================
+         Hero Section
+         ================================================================= -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+
+        <div class="hero-eyebrow" aria-hidden="true">
+          <span class="hero-eyebrow-dot"></span>
+          Interactive Visual Guide
+        </div>
+
+        <h1 class="hero-title" id="hero-title">
+          How <span class="hero-title-accent">Claude Code</span><br>Actually Works
+        </h1>
+
+        <p class="hero-subtitle">
+          A deep visual tour of every layer — from the moment you press Enter
+          to the tool calls, API requests, and responses that make it happen.
+        </p>
+
+        <!-- Animated SVG Diagram -->
+        <div class="hero-diagram-wrap reveal">
+          <svg class="hero-diagram" viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg"
+               role="img" aria-label="Claude Code architecture flow diagram">
+            <title>Claude Code Architecture — Message Flow</title>
+            <defs>
+              <!-- Grid pattern -->
+              <pattern id="heroGrid" width="30" height="30" patternUnits="userSpaceOnUse">
+                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+              </pattern>
+
+              <!-- Glow filters -->
+              <filter id="glowBlue" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="4" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+              </filter>
+              <filter id="glowBlueStrong" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8" result="blur"/>
+                <feFlood flood-color="#58a6ff" flood-opacity="0.3" result="color"/>
+                <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glowPurple" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+                <feFlood flood-color="#bc8cff" flood-opacity="0.25" result="color"/>
+                <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glowGreen" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+                <feFlood flood-color="#3fb950" flood-opacity="0.25" result="color"/>
+                <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glowCyan" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="5" result="blur"/>
+                <feFlood flood-color="#39d2c0" flood-opacity="0.2" result="color"/>
+                <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+
+              <!-- Arrowhead markers -->
+              <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#58a6ff" opacity="0.8"/>
+              </marker>
+              <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#bc8cff" opacity="0.8"/>
+              </marker>
+              <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#3fb950" opacity="0.8"/>
+              </marker>
+              <marker id="arrowCyan" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#39d2c0" opacity="0.8"/>
+              </marker>
+              <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#d29922" opacity="0.8"/>
+              </marker>
+            </defs>
+
+            <!-- Background grid -->
+            <rect width="900" height="380" fill="url(#heroGrid)"/>
+
+            <!-- ============================================================
+                 MAIN FLOW — horizontal top row
+                 ============================================================ -->
+
+            <!-- 1. User Message node -->
+            <g id="node-user" transform="translate(30, 140)">
+              <rect x="0" y="0" width="130" height="60" rx="10"
+                    fill="rgba(30,38,50,0.9)" stroke="#30363d" stroke-width="1.5"/>
+              <rect x="0" y="0" width="130" height="3" rx="2" fill="#58a6ff" opacity="0.6"/>
+              <!-- Icon -->
+              <circle cx="20" cy="30" r="10" fill="rgba(88,166,255,0.15)" cx="20" cy="30"/>
+              <text x="20" y="35" text-anchor="middle" font-size="14" fill="#58a6ff">&#x1F464;</text>
+              <text x="80" y="26" text-anchor="middle" font-size="11" font-weight="600"
+                    fill="#e6edf3" font-family="-apple-system,sans-serif">User Message</text>
+              <text x="80" y="43" text-anchor="middle" font-size="9" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">Terminal input</text>
+            </g>
+
+            <!-- Arrow: User → Claude Code -->
+            <g>
+              <line x1="162" y1="170" x2="222" y2="170"
+                    stroke="#58a6ff" stroke-width="2" opacity="0.4"
+                    class="flow-arrow"
+                    marker-end="url(#arrowBlue)"/>
+              <!-- Token label -->
+              <rect x="165" y="155" width="52" height="14" rx="3" fill="rgba(13,17,23,0.8)"/>
+              <text x="191" y="165" text-anchor="middle" font-size="9" fill="#58a6ff"
+                    font-family="-apple-system,sans-serif" font-weight="600"
+                    class="hero-svg-label">~80 tokens</text>
+            </g>
+
+            <!-- 2. Claude Code node (HUB — glowing) -->
+            <g id="node-claude" transform="translate(225, 115)" class="glow-node" filter="url(#glowBlueStrong)">
+              <rect x="0" y="0" width="155" height="110" rx="12"
+                    fill="rgba(22,35,55,0.95)" stroke="#58a6ff" stroke-width="2"/>
+              <!-- Top accent bar -->
+              <rect x="0" y="0" width="155" height="4" rx="2"
+                    fill="url(#blueGrad)" style="fill:#58a6ff;opacity:0.8"/>
+              <!-- Circuit icon -->
+              <g transform="translate(12, 14)">
+                <circle cx="10" cy="10" r="7" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="1.2"/>
+                <circle cx="10" cy="10" r="2.5" fill="#58a6ff"/>
+                <line x1="10" y1="3" x2="10" y2="6" stroke="#58a6ff" stroke-width="1.2"/>
+                <line x1="10" y1="14" x2="10" y2="17" stroke="#58a6ff" stroke-width="1.2"/>
+                <line x1="3" y1="10" x2="6" y2="10" stroke="#58a6ff" stroke-width="1.2"/>
+                <line x1="14" y1="10" x2="17" y2="10" stroke="#58a6ff" stroke-width="1.2"/>
+              </g>
+              <text x="78" y="34" text-anchor="middle" font-size="13" font-weight="700"
+                    fill="#e6edf3" font-family="-apple-system,sans-serif">Claude Code</text>
+              <text x="78" y="52" text-anchor="middle" font-size="9.5" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">Context Assembly</text>
+              <!-- Sub-labels -->
+              <rect x="8" y="62" width="64" height="20" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+              <text x="40" y="76" text-anchor="middle" font-size="8.5" fill="#58a6ff"
+                    font-family="-apple-system,sans-serif" font-weight="600">57 Tools</text>
+              <rect x="80" y="62" width="67" height="20" rx="4" fill="rgba(188,140,255,0.08)" stroke="rgba(188,140,255,0.2)" stroke-width="1"/>
+              <text x="114" y="76" text-anchor="middle" font-size="8.5" fill="#bc8cff"
+                    font-family="-apple-system,sans-serif" font-weight="600">System Prompt</text>
+              <!-- Version -->
+              <text x="78" y="100" text-anchor="middle" font-size="8" fill="#30363d"
+                    font-family="-apple-system,sans-serif">v2.1.81</text>
+            </g>
+
+            <!-- Arrow: Claude Code → API Request -->
+            <g>
+              <line x1="382" y1="170" x2="442" y2="170"
+                    stroke="#d29922" stroke-width="2" opacity="0.5"
+                    class="flow-arrow"
+                    marker-end="url(#arrowOrange)"/>
+              <rect x="387" y="155" width="48" height="14" rx="3" fill="rgba(13,17,23,0.8)"/>
+              <text x="411" y="165" text-anchor="middle" font-size="9" fill="#d29922"
+                    font-family="-apple-system,sans-serif" font-weight="600"
+                    class="hero-svg-label">~42K tok</text>
+            </g>
+
+            <!-- 3. API Request node -->
+            <g id="node-api-req" transform="translate(445, 140)">
+              <rect x="0" y="0" width="130" height="60" rx="10"
+                    fill="rgba(30,28,22,0.9)" stroke="#30363d" stroke-width="1.5"/>
+              <rect x="0" y="0" width="130" height="3" rx="2" fill="#d29922" opacity="0.7"/>
+              <text x="65" y="25" text-anchor="middle" font-size="11" font-weight="600"
+                    fill="#e6edf3" font-family="-apple-system,sans-serif">API Request</text>
+              <text x="65" y="42" text-anchor="middle" font-size="9" fill="#d29922"
+                    font-family="-apple-system,sans-serif">messages + tools</text>
+              <text x="65" y="54" text-anchor="middle" font-size="8" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">HTTPS / JSON</text>
+            </g>
+
+            <!-- Arrow: API Request → Anthropic API -->
+            <g>
+              <line x1="577" y1="170" x2="637" y2="170"
+                    stroke="#bc8cff" stroke-width="2" opacity="0.5"
+                    class="flow-arrow-slow"
+                    marker-end="url(#arrowPurple)"/>
+              <rect x="584" y="155" width="42" height="14" rx="3" fill="rgba(13,17,23,0.8)"/>
+              <text x="605" y="165" text-anchor="middle" font-size="9" fill="#bc8cff"
+                    font-family="-apple-system,sans-serif" font-weight="600"
+                    class="hero-svg-label">TLS</text>
+            </g>
+
+            <!-- 4. Anthropic API node -->
+            <g id="node-anthropic" transform="translate(640, 130)" filter="url(#glowPurple)">
+              <rect x="0" y="0" width="130" height="80" rx="10"
+                    fill="rgba(28,22,38,0.95)" stroke="#bc8cff" stroke-width="1.5"/>
+              <rect x="0" y="0" width="130" height="3" rx="2" fill="#bc8cff" opacity="0.8"/>
+              <text x="65" y="28" text-anchor="middle" font-size="12" font-weight="700"
+                    fill="#e6edf3" font-family="-apple-system,sans-serif">Anthropic API</text>
+              <text x="65" y="45" text-anchor="middle" font-size="9" fill="#bc8cff"
+                    font-family="-apple-system,sans-serif">claude-sonnet-4</text>
+              <!-- Model indicator -->
+              <rect x="15" y="54" width="100" height="16" rx="4" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.2)" stroke-width="1"/>
+              <text x="65" y="65" text-anchor="middle" font-size="8.5" fill="#bc8cff"
+                    font-family="-apple-system,sans-serif" font-weight="600">200K ctx window</text>
+            </g>
+
+            <!-- Arrow: Anthropic API → Response (curved, going right then curving back down) -->
+            <g>
+              <path d="M 772 170 Q 840 170 840 200 Q 840 240 840 260"
+                    fill="none" stroke="#3fb950" stroke-width="2" opacity="0.5"
+                    class="flow-arrow"
+                    marker-end="url(#arrowGreen)"/>
+            </g>
+
+            <!-- 5. Response node -->
+            <g id="node-response" transform="translate(775, 265)" filter="url(#glowGreen)">
+              <rect x="0" y="0" width="130" height="60" rx="10"
+                    fill="rgba(22,30,22,0.95)" stroke="#3fb950" stroke-width="1.5"/>
+              <rect x="0" y="0" width="130" height="3" rx="2" fill="#3fb950" opacity="0.8"/>
+              <text x="65" y="26" text-anchor="middle" font-size="11" font-weight="600"
+                    fill="#e6edf3" font-family="-apple-system,sans-serif">Response</text>
+              <text x="65" y="42" text-anchor="middle" font-size="9" fill="#3fb950"
+                    font-family="-apple-system,sans-serif">text + tool_use</text>
+              <text x="65" y="54" text-anchor="middle" font-size="8" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">streaming SSE</text>
+            </g>
+
+            <!-- Return arrow: Response → Claude Code (bottom) -->
+            <g>
+              <path d="M 775 295 Q 700 295 650 320 Q 600 340 500 340 Q 380 340 303 285 Q 303 285 303 225"
+                    fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"
+                    class="flow-arrow-slow"
+                    marker-end="url(#arrowGreen)"/>
+              <rect x="560" y="325" width="70" height="14" rx="3" fill="rgba(13,17,23,0.8)"/>
+              <text x="595" y="335" text-anchor="middle" font-size="9" fill="#3fb950"
+                    font-family="-apple-system,sans-serif" font-weight="600"
+                    class="hero-svg-label">tool_result loop</text>
+            </g>
+
+            <!-- ============================================================
+                 BOTTOM ROW — supporting nodes below Claude Code
+                 ============================================================ -->
+
+            <!-- System Prompt (cached) -->
+            <g id="node-sysprompt" transform="translate(110, 275)">
+              <rect x="0" y="0" width="138" height="48" rx="20"
+                    fill="rgba(28,22,38,0.85)" stroke="rgba(188,140,255,0.35)" stroke-width="1.2"/>
+              <text x="69" y="21" text-anchor="middle" font-size="10" font-weight="600"
+                    fill="#bc8cff" font-family="-apple-system,sans-serif">System Prompt</text>
+              <rect x="14" y="28" width="50" height="13" rx="6" fill="rgba(57,210,192,0.1)" stroke="rgba(57,210,192,0.25)" stroke-width="1"/>
+              <text x="39" y="37.5" text-anchor="middle" font-size="8" fill="#39d2c0"
+                    font-family="-apple-system,sans-serif" font-weight="600">cached</text>
+              <text x="100" y="37.5" text-anchor="middle" font-size="8" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">~8K tok</text>
+            </g>
+
+            <!-- Arrow: System Prompt → Claude Code -->
+            <g>
+              <path d="M 179 275 Q 220 260 260 225"
+                    fill="none" stroke="#bc8cff" stroke-width="1.5" opacity="0.45"
+                    class="flow-arrow-up"
+                    marker-end="url(#arrowPurple)"/>
+            </g>
+
+            <!-- 57 Tools node -->
+            <g id="node-tools" transform="translate(270, 275)">
+              <rect x="0" y="0" width="110" height="48" rx="20"
+                    fill="rgba(22,28,38,0.85)" stroke="rgba(88,166,255,0.35)" stroke-width="1.2"/>
+              <text x="55" y="21" text-anchor="middle" font-size="10" font-weight="600"
+                    fill="#58a6ff" font-family="-apple-system,sans-serif">57 Tools</text>
+              <text x="55" y="38" text-anchor="middle" font-size="8.5" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">JSON schemas</text>
+            </g>
+
+            <!-- Arrow: Tools → Claude Code (up) -->
+            <g>
+              <path d="M 325 275 Q 325 240 303 225"
+                    fill="none" stroke="#58a6ff" stroke-width="1.5" opacity="0.45"
+                    class="flow-arrow-up"
+                    marker-end="url(#arrowBlue)"/>
+            </g>
+
+            <!-- System Reminders node -->
+            <g id="node-reminders" transform="translate(400, 275)">
+              <rect x="0" y="0" width="130" height="48" rx="20"
+                    fill="rgba(22,28,25,0.85)" stroke="rgba(57,210,192,0.35)" stroke-width="1.2"/>
+              <text x="65" y="21" text-anchor="middle" font-size="10" font-weight="600"
+                    fill="#39d2c0" font-family="-apple-system,sans-serif">System Reminders</text>
+              <text x="65" y="38" text-anchor="middle" font-size="8.5" fill="#8b949e"
+                    font-family="-apple-system,sans-serif">injected per turn</text>
+            </g>
+
+            <!-- Arrow: Reminders → Claude Code (up-left) -->
+            <g>
+              <path d="M 465 275 Q 430 250 380 225"
+                    fill="none" stroke="#39d2c0" stroke-width="1.5" opacity="0.4"
+                    class="flow-arrow-up"
+                    marker-end="url(#arrowCyan)"/>
+            </g>
+
+            <!-- ============================================================
+                 LABELS / ANNOTATIONS
+                 ============================================================ -->
+
+            <!-- "Context Window" bracket indicator -->
+            <g transform="translate(225, 90)">
+              <rect x="0" y="0" width="385" height="22" rx="4"
+                    fill="none" stroke="rgba(88,166,255,0.12)" stroke-width="1" stroke-dasharray="4 3"/>
+              <text x="192" y="15" text-anchor="middle" font-size="9" fill="rgba(88,166,255,0.4)"
+                    font-family="-apple-system,sans-serif" letter-spacing="0.05em" font-weight="500">
+                CONTEXT WINDOW ASSEMBLED HERE
+              </text>
+            </g>
+
+            <!-- Flow step indicators -->
+            <text x="96" y="136" text-anchor="middle" font-size="9" fill="rgba(88,166,255,0.35)"
+                  font-family="-apple-system,sans-serif" font-weight="700">①</text>
+            <text x="190" y="160" text-anchor="middle" font-size="9" fill="rgba(88,166,255,0.35)"
+                  font-family="-apple-system,sans-serif" font-weight="700">②</text>
+            <text x="413" y="160" text-anchor="middle" font-size="9" fill="rgba(210,153,34,0.5)"
+                  font-family="-apple-system,sans-serif" font-weight="700">③</text>
+            <text x="608" y="160" text-anchor="middle" font-size="9" fill="rgba(188,140,255,0.5)"
+                  font-family="-apple-system,sans-serif" font-weight="700">④</text>
+            <text x="853" y="220" text-anchor="middle" font-size="9" fill="rgba(63,185,80,0.5)"
+                  font-family="-apple-system,sans-serif" font-weight="700">⑤</text>
+          </svg>
+        </div>
+        <!-- end hero-diagram-wrap -->
+
+      </div>
+    </section>
+    <!-- end hero -->
+
+    <!-- =================================================================
+         Architecture Overview — Interactive Layered Diagram
+         ================================================================= -->
+    <section class="architecture-overview" aria-labelledby="arch-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">Architecture</p>
+          <h2 class="section-title" id="arch-title">Four Layers, One Request</h2>
+          <p class="section-desc">
+            Every Claude Code response passes through these four layers.
+            Click any component to explore it in depth.
+          </p>
+        </div>
+
+        <div class="arch-diagram reveal" role="region" aria-label="Architecture layer diagram">
+
+          <!-- Layer 1: Extensions -->
+          <div class="arch-layer" data-layer="1">
+            <div class="arch-layer-header">
+              <span class="arch-layer-number layer-purple">Layer 1</span>
+              <span class="arch-layer-title">Extensions &amp; Plugins</span>
+            </div>
+            <div class="arch-boxes">
+              <a href="plugins.html" class="arch-box purple"
+                 data-tooltip-js="Custom hooks and lifecycle callbacks that extend Claude Code's behavior">
+                Plugins
+                <span class="arch-box-tooltip">Custom hooks and lifecycle callbacks</span>
+              </a>
+              <a href="skills.html" class="arch-box purple"
+                 data-tooltip-js="Reusable instruction sets loaded from .claude/skills/">
+                Skills
+                <span class="arch-box-tooltip">Reusable instruction sets from .claude/skills/</span>
+              </a>
+              <a href="plugins.html#hooks" class="arch-box purple"
+                 data-tooltip-js="PreToolUse, PostToolUse, Stop, SubagentStop event hooks">
+                Hooks
+                <span class="arch-box-tooltip">PreToolUse · PostToolUse · Stop events</span>
+              </a>
+              <a href="mcp.html" class="arch-box purple"
+                 data-tooltip-js="Model Context Protocol servers expose custom tools and resources">
+                MCP Servers
+                <span class="arch-box-tooltip">Model Context Protocol — custom tools &amp; resources</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Layer 2: Context Assembly -->
+          <div class="arch-layer" data-layer="2">
+            <div class="arch-layer-header">
+              <span class="arch-layer-number layer-blue">Layer 2</span>
+              <span class="arch-layer-title">Context Assembly</span>
+            </div>
+            <div class="arch-boxes">
+              <a href="system-prompt.html" class="arch-box blue"
+                 data-tooltip-js="~8K token system prompt injected once, prompt-cached for efficiency">
+                System Prompt
+                <span class="arch-box-tooltip">~8K tokens · prompt-cached · injected once</span>
+              </a>
+              <a href="tools.html" class="arch-box blue"
+                 data-tooltip-js="57 built-in tools defined as JSON schemas in the tools array">
+                Tool Definitions
+                <span class="arch-box-tooltip">57 built-in tools as JSON schemas</span>
+              </a>
+              <a href="context-injection.html" class="arch-box blue"
+                 data-tooltip-js="System reminders and environment details injected per turn">
+                System Reminders
+                <span class="arch-box-tooltip">Per-turn injected context and environment data</span>
+              </a>
+              <a href="context-injection.html#environment" class="arch-box blue"
+                 data-tooltip-js="Working directory, git status, repo context injected automatically">
+                Environment Context
+                <span class="arch-box-tooltip">cwd · git status · repo context</span>
+              </a>
+              <a href="context-management.html" class="arch-box blue"
+                 data-tooltip-js="Conversation history management, compaction, and window tracking">
+                Message History
+                <span class="arch-box-tooltip">Conversation history · compaction · window tracking</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Layer 3: API Request -->
+          <div class="arch-layer" data-layer="3">
+            <div class="arch-layer-header">
+              <span class="arch-layer-number layer-orange">Layer 3</span>
+              <span class="arch-layer-title">API Request</span>
+            </div>
+            <div class="arch-boxes">
+              <a href="request-lifecycle.html#model" class="arch-box orange"
+                 data-tooltip-js="Model string e.g. claude-sonnet-4-5, claude-opus-4">
+                model
+                <span class="arch-box-tooltip">e.g. claude-sonnet-4-5 · claude-opus-4</span>
+              </a>
+              <a href="request-lifecycle.html#tokens" class="arch-box orange"
+                 data-tooltip-js="max_tokens cap — defaults to 32K, configurable">
+                max_tokens
+                <span class="arch-box-tooltip">Default 32K · configurable per request</span>
+              </a>
+              <a href="system-prompt.html" class="arch-box orange"
+                 data-tooltip-js="The system field carrying the full assembled system prompt">
+                system
+                <span class="arch-box-tooltip">Full assembled system prompt · prompt-cached blocks</span>
+              </a>
+              <a href="tools.html" class="arch-box orange"
+                 data-tooltip-js="tools array containing all 57+ JSON-schema tool definitions">
+                tools
+                <span class="arch-box-tooltip">57+ JSON-schema tool definitions</span>
+              </a>
+              <a href="request-lifecycle.html#messages" class="arch-box orange"
+                 data-tooltip-js="messages array — user turns, assistant turns, tool results">
+                messages
+                <span class="arch-box-tooltip">user · assistant · tool_result turns</span>
+              </a>
+              <a href="request-lifecycle.html#streaming" class="arch-box orange"
+                 data-tooltip-js="stream:true enables server-sent events for token-by-token output">
+                stream
+                <span class="arch-box-tooltip">SSE streaming · token-by-token output</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Layer 4: Response Handling -->
+          <div class="arch-layer" data-layer="4">
+            <div class="arch-layer-header">
+              <span class="arch-layer-number layer-green">Layer 4</span>
+              <span class="arch-layer-title">Response Handling</span>
+            </div>
+            <div class="arch-boxes">
+              <a href="request-lifecycle.html#text-blocks" class="arch-box green"
+                 data-tooltip-js="Text content blocks streamed as they are generated">
+                Text Blocks
+                <span class="arch-box-tooltip">Streamed content · rendered to terminal</span>
+              </a>
+              <a href="tools.html#tool-use" class="arch-box green"
+                 data-tooltip-js="tool_use blocks trigger local tool execution">
+                Tool Use
+                <span class="arch-box-tooltip">Triggers local tool execution · parallel supported</span>
+              </a>
+              <a href="tools.html#tool-result" class="arch-box green"
+                 data-tooltip-js="tool_result blocks feed execution output back into the next turn">
+                Tool Result
+                <span class="arch-box-tooltip">Execution output fed back · next API turn</span>
+              </a>
+              <a href="agents.html" class="arch-box green"
+                 data-tooltip-js="Sub-agents spawned for parallel or isolated task execution">
+                Sub-Agents
+                <span class="arch-box-tooltip">Parallel task execution · isolated contexts</span>
+              </a>
+              <a href="request-lifecycle.html#loop" class="arch-box green"
+                 data-tooltip-js="Agentic loop — continues until stop_reason is end_turn or max_turns">
+                Agentic Loop
+                <span class="arch-box-tooltip">Continues until end_turn or max_turns limit</span>
+              </a>
+              <a href="persistence.html" class="arch-box green"
+                 data-tooltip-js="Session state, transcript storage, and resumable sessions">
+                Persistence
+                <span class="arch-box-tooltip">Transcript storage · resumable sessions</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+        <!-- end arch-diagram -->
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         How to Read This Guide — 3-column intro cards
+         ================================================================= -->
+    <section class="guide-intro" aria-labelledby="guide-intro-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">About This Guide</p>
+          <h2 class="section-title" id="guide-intro-title">How to Read This Guide</h2>
+        </div>
+
+        <div class="intro-cards">
+
+          <div class="intro-card reveal">
+            <div class="intro-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="2" fill="#58a6ff" opacity="0.8"/>
+                <rect x="14" y="3" width="7" height="7" rx="2" fill="#58a6ff" opacity="0.4"/>
+                <rect x="3" y="14" width="7" height="7" rx="2" fill="#58a6ff" opacity="0.4"/>
+                <rect x="14" y="14" width="7" height="7" rx="2" fill="#58a6ff" opacity="0.6"/>
+                <line x1="7" y1="10" x2="7" y2="14" stroke="#58a6ff" stroke-width="1.5"/>
+                <line x1="17" y1="10" x2="17" y2="14" stroke="#58a6ff" stroke-width="1.5"/>
+                <line x1="7" y1="10" x2="17" y2="10" stroke="#58a6ff" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <h3 class="intro-card-title">Visual First</h3>
+            <p class="intro-card-desc">
+              Every concept is anchored to a diagram. Animated flows show
+              exactly what data moves where — no wall-of-text required.
+              Click any element to drill deeper.
+            </p>
+          </div>
+
+          <div class="intro-card reveal">
+            <div class="intro-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3L20 7V12C20 16.4 16.5 20.5 12 21C7.5 20.5 4 16.4 4 12V7L12 3Z"
+                      stroke="#bc8cff" stroke-width="1.5" fill="rgba(188,140,255,0.1)"/>
+                <path d="M9 12L11 14L15 10" stroke="#bc8cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="intro-card-title">Interactive</h3>
+            <p class="intro-card-desc">
+              Manipulate token counts, step through request lifecycles,
+              toggle tools on and off. Understanding comes from doing,
+              not just reading.
+            </p>
+          </div>
+
+          <div class="intro-card reveal">
+            <div class="intro-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="6" r="3" stroke="#39d2c0" stroke-width="1.5" fill="rgba(57,210,192,0.1)"/>
+                <circle cx="6" cy="18" r="3" stroke="#39d2c0" stroke-width="1.5" fill="rgba(57,210,192,0.07)"/>
+                <circle cx="18" cy="18" r="3" stroke="#39d2c0" stroke-width="1.5" fill="rgba(57,210,192,0.07)"/>
+                <line x1="12" y1="9" x2="6" y2="15" stroke="#39d2c0" stroke-width="1.2" opacity="0.6"/>
+                <line x1="12" y1="9" x2="18" y2="15" stroke="#39d2c0" stroke-width="1.2" opacity="0.6"/>
+              </svg>
+            </div>
+            <h3 class="intro-card-title">Progressive</h3>
+            <p class="intro-card-desc">
+              Overview first, depth on demand. Start here for the big picture,
+              then follow any thread into the detailed chapter that covers it.
+              Start anywhere, go everywhere.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Chapter Navigation Grid
+         ================================================================= -->
+    <section class="chapter-grid-section" aria-labelledby="chapters-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">All Chapters</p>
+          <h2 class="section-title" id="chapters-title">Explore the Guide</h2>
+          <p class="section-desc">
+            Eleven deep-dive chapters plus a fully interactive emulator.
+            Each chapter includes diagrams, code samples, and interactive elements.
+          </p>
+        </div>
+
+        <div class="chapter-grid">
+
+          <!-- 1. Request Lifecycle -->
+          <a href="request-lifecycle.html" class="chapter-card reveal">
+            <div class="chapter-card-number">01</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(88,166,255,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <circle cx="9" cy="9" r="7" stroke="#58a6ff" stroke-width="1.5"/>
+                  <path d="M6 9h6M11 7l2 2-2 2" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Request Lifecycle</span>
+            </div>
+            <p class="chapter-card-desc">
+              Trace a single keypress from terminal input through context assembly, API call, streaming response, and tool execution loop.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 2. System Prompt -->
+          <a href="system-prompt.html" class="chapter-card reveal">
+            <div class="chapter-card-number">02</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(188,140,255,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="2" y="2" width="14" height="14" rx="3" stroke="#bc8cff" stroke-width="1.5"/>
+                  <line x1="5" y1="6" x2="13" y2="6" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+                  <line x1="5" y1="9" x2="13" y2="9" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+                  <line x1="5" y1="12" x2="10" y2="12" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">System Prompt</span>
+            </div>
+            <p class="chapter-card-desc">
+              Anatomy of Claude Code's ~8K token system prompt — identity, capabilities, tool usage rules, and prompt-caching strategy.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 3. Tool Definitions -->
+          <a href="tools.html" class="chapter-card reveal">
+            <div class="chapter-card-number">03</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(57,210,192,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M3 9a1 1 0 011-1h2V6a1 1 0 011-1h4a1 1 0 011 1v2h2a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" stroke="#39d2c0" stroke-width="1.4"/>
+                  <circle cx="9" cy="11" r="1.5" fill="#39d2c0" opacity="0.7"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Tool Definitions</span>
+            </div>
+            <p class="chapter-card-desc">
+              All 57 built-in tools: Bash, Read, Write, Edit, Glob, Grep, and more. JSON schema format, input validation, and execution flow.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 4. Context Injection -->
+          <a href="context-injection.html" class="chapter-card reveal">
+            <div class="chapter-card-number">04</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(88,166,255,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M9 2v14M2 9h14" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+                  <circle cx="9" cy="9" r="4" stroke="#58a6ff" stroke-width="1.5"/>
+                  <circle cx="9" cy="9" r="1.5" fill="#58a6ff"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Context Injection</span>
+            </div>
+            <p class="chapter-card-desc">
+              How environment data, git status, working directory, and system reminders are injected into every API turn automatically.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 5. Skills System -->
+          <a href="skills.html" class="chapter-card reveal">
+            <div class="chapter-card-number">05</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(210,153,34,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M9 2L11.5 7H16.5L12.5 10.5L14 15.5L9 12.5L4 15.5L5.5 10.5L1.5 7H6.5L9 2Z"
+                        stroke="#d29922" stroke-width="1.4" fill="rgba(210,153,34,0.1)" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Skills System</span>
+            </div>
+            <p class="chapter-card-desc">
+              Reusable instruction files in <code style="font-size:0.8em;color:var(--text-secondary)">.claude/skills/</code> — how they're discovered, loaded, and merged into the context window.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 6. Plugins & Hooks -->
+          <a href="plugins.html" class="chapter-card reveal">
+            <div class="chapter-card-number">06</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(188,140,255,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="2" y="7" width="6" height="9" rx="2" stroke="#bc8cff" stroke-width="1.4"/>
+                  <rect x="10" y="2" width="6" height="9" rx="2" stroke="#bc8cff" stroke-width="1.4"/>
+                  <path d="M8 11h2M8 11V7M10 11V6" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Plugins &amp; Hooks</span>
+            </div>
+            <p class="chapter-card-desc">
+              Extending Claude Code with custom JavaScript plugins. PreToolUse, PostToolUse, Stop, and SubagentStop hook lifecycle events.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 7. Sub-Agents -->
+          <a href="agents.html" class="chapter-card reveal">
+            <div class="chapter-card-number">07</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(57,210,192,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <circle cx="9" cy="5" r="2.5" stroke="#39d2c0" stroke-width="1.4"/>
+                  <circle cx="4" cy="13" r="2" stroke="#39d2c0" stroke-width="1.3" opacity="0.7"/>
+                  <circle cx="14" cy="13" r="2" stroke="#39d2c0" stroke-width="1.3" opacity="0.7"/>
+                  <path d="M9 7.5L4 11M9 7.5L14 11" stroke="#39d2c0" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Sub-Agents</span>
+            </div>
+            <p class="chapter-card-desc">
+              Orchestrator and worker agent patterns. How the Task tool spawns isolated Claude instances for parallel execution.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 8. MCP Servers -->
+          <a href="mcp.html" class="chapter-card reveal">
+            <div class="chapter-card-number">08</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(63,185,80,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="2" y="4" width="14" height="10" rx="3" stroke="#3fb950" stroke-width="1.4"/>
+                  <circle cx="6" cy="9" r="1.5" fill="#3fb950" opacity="0.7"/>
+                  <circle cx="9" cy="9" r="1.5" fill="#3fb950" opacity="0.5"/>
+                  <circle cx="12" cy="9" r="1.5" fill="#3fb950" opacity="0.3"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">MCP Servers</span>
+            </div>
+            <p class="chapter-card-desc">
+              Model Context Protocol — how external servers expose tools, resources, and prompts to Claude Code over stdio or HTTP.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 9. Context Management -->
+          <a href="context-management.html" class="chapter-card reveal">
+            <div class="chapter-card-number">09</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(88,166,255,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M2 5h14M2 9h10M2 13h7" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                  <circle cx="15" cy="13" r="2.5" stroke="#58a6ff" stroke-width="1.4"/>
+                  <path d="M15 11.5v1.5l1 1" stroke="#58a6ff" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Context Management</span>
+            </div>
+            <p class="chapter-card-desc">
+              Token budget tracking, automatic compaction when approaching the 200K limit, and strategies for long-running sessions.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 10. Session Persistence -->
+          <a href="persistence.html" class="chapter-card reveal">
+            <div class="chapter-card-number">10</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(210,153,34,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="3" y="2" width="12" height="14" rx="2" stroke="#d29922" stroke-width="1.4"/>
+                  <path d="M6 6h6M6 9h6M6 12h4" stroke="#d29922" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+                  <path d="M11 2v5h3" stroke="#d29922" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Session Persistence</span>
+            </div>
+            <p class="chapter-card-desc">
+              How Claude Code stores transcripts, resumes sessions with <code style="font-size:0.8em;color:var(--text-secondary)">--resume</code>, and the JSONL session file format.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 11. Full Emulator (centerpiece) -->
+          <a href="emulator.html" class="chapter-card centerpiece reveal">
+            <div class="chapter-card-number">11</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(88,166,255,0.15);box-shadow:0 0 12px rgba(88,166,255,0.2)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="1" y="3" width="16" height="11" rx="2.5" stroke="#58a6ff" stroke-width="1.5"/>
+                  <path d="M5 14v2M13 14v2M3 16h12" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round"/>
+                  <path d="M5 8l2.5 2.5L5 13" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <line x1="10" y1="13" x2="13" y2="13" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Full Emulator</span>
+            </div>
+            <span class="chapter-badge">Centerpiece</span>
+            <p class="chapter-card-desc">
+              Live interactive emulator — send real messages, watch the context assemble, inspect the exact API payload, and follow every tool call in real time.
+            </p>
+            <span class="chapter-card-link" style="color:var(--accent-blue)">
+              Launch Emulator
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+        </div>
+        <!-- end chapter-grid -->
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =================================================================
+       Footer
+       ================================================================= -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <p class="site-footer-text">
+        <span>Claude Code Architecture Guide</span>
+        &nbsp;&bull;&nbsp; March 2026
+        &nbsp;&bull;&nbsp; Claude Code <span>v2.1.81</span>
+      </p>
+    </div>
+  </footer>
+
+  <script src="js/prism.min.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/diagrams.js"></script>
+  <script>
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+      /* ------------------------------------------------------------------
+         Hero animation — staggered node entrance
+      ------------------------------------------------------------------ */
+      const heroNodes = document.querySelectorAll(
+        '#node-user, #node-claude, #node-api-req, #node-anthropic, #node-response, #node-sysprompt, #node-tools, #node-reminders'
+      );
+
+      heroNodes.forEach(function (node, i) {
+        node.style.opacity = '0';
+        node.style.transition = 'opacity 400ms ease';
+
+        setTimeout(function () {
+          node.style.opacity = '1';
+        }, 200 + i * 120);
+      });
+
+      /* ------------------------------------------------------------------
+         Architecture diagram — keyboard navigation support
+      ------------------------------------------------------------------ */
+      var archBoxes = document.querySelectorAll('.arch-box');
+      archBoxes.forEach(function (box) {
+        if (!box.getAttribute('tabindex')) {
+          box.setAttribute('tabindex', '0');
+        }
+        box.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            var href = box.getAttribute('href');
+            if (href) window.location.href = href;
+          }
+        });
+      });
+
+      /* ------------------------------------------------------------------
+         Architecture layer — highlight whole layer on box hover
+      ------------------------------------------------------------------ */
+      archBoxes.forEach(function (box) {
+        var layer = box.closest('.arch-layer');
+        if (!layer) return;
+
+        box.addEventListener('mouseenter', function () {
+          layer.style.background = 'rgba(255,255,255,0.015)';
+        });
+        box.addEventListener('mouseleave', function () {
+          layer.style.background = '';
+        });
+      });
+
+      /* ------------------------------------------------------------------
+         Chapter cards — add subtle stagger animation on scroll-reveal
+      ------------------------------------------------------------------ */
+      var cards = document.querySelectorAll('.chapter-card');
+      cards.forEach(function (card, i) {
+        card.style.transitionDelay = (i % 3) * 60 + 'ms';
+      });
+
+    });
+  </script>
+
+</body>
+</html>

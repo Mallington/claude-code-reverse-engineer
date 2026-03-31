@@ -1,0 +1,83 @@
+{
+  "totalSkills": 9,
+  "skills": [
+    {
+      "name": "using-superpowers",
+      "description": "Bootstrap skill — auto-loaded at session start. Explains what skills are, how to invoke them, and what capabilities are available. Acts as the entry point for the agent's meta-cognition about its own toolset.",
+      "tokenCount": 1200,
+      "type": "bootstrap",
+      "whenToUse": "Automatically loaded at the start of every session. Not invoked manually.",
+      "tags": ["bootstrap", "meta", "orientation"]
+    },
+    {
+      "name": "brainstorming",
+      "description": "Structured divergent thinking before any creative work — features, components, new functionality, or system design. Guides the agent through a ideation process: explore problem space, generate options, evaluate trade-offs, select direction.",
+      "tokenCount": 2000,
+      "type": "process",
+      "whenToUse": "Before designing a new feature, component, or system. Before writing plans. When facing an open-ended problem with multiple valid approaches.",
+      "tags": ["design", "ideation", "planning"]
+    },
+    {
+      "name": "writing-plans",
+      "description": "Converts a specification or brief into a detailed, step-by-step implementation plan. Produces a structured document with numbered tasks, dependencies, acceptance criteria, and risk notes. Intended to be followed by subagent-driven-development.",
+      "tokenCount": 1500,
+      "type": "process",
+      "whenToUse": "When you have a clear spec and are about to start coding. After brainstorming and before touching any files.",
+      "tags": ["planning", "specification", "pre-code"]
+    },
+    {
+      "name": "subagent-driven-development",
+      "description": "Executing plans by decomposing work into independent tasks dispatched to sub-agents within the current session. Each task runs in parallel where possible. The orchestrator monitors progress, handles failures, and integrates results.",
+      "tokenCount": 3000,
+      "type": "process",
+      "whenToUse": "When executing a written plan. When the plan contains tasks that can be parallelised. For any work expected to take more than 3-4 tool calls.",
+      "tags": ["orchestration", "parallel", "execution"]
+    },
+    {
+      "name": "test-driven-development",
+      "description": "Write failing tests before writing implementation code. Defines the TDD loop: red → green → refactor. Includes guidance on test granularity, what to test, and how to structure test files alongside implementation.",
+      "tokenCount": 1800,
+      "type": "quality",
+      "whenToUse": "Before writing any implementation code for a new feature or function. When adding behaviour to an existing system.",
+      "tags": ["testing", "tdd", "quality"]
+    },
+    {
+      "name": "systematic-debugging",
+      "description": "A structured approach to diagnosing any bug, test failure, or unexpected behaviour. Steps: reproduce reliably → isolate → form hypothesis → verify → fix → confirm fix → add regression test.",
+      "tokenCount": 2200,
+      "type": "quality",
+      "whenToUse": "Any time a bug is encountered. When a test is failing unexpectedly. When behaviour doesn't match the spec.",
+      "tags": ["debugging", "diagnosis", "quality"]
+    },
+    {
+      "name": "verification-before-completion",
+      "description": "Checklist-driven verification pass run before claiming any task is complete. Covers: does it work end-to-end, do tests pass, is there no regressions, is the code clean, is documentation updated.",
+      "tokenCount": 800,
+      "type": "quality",
+      "whenToUse": "Before marking any task as done. Before telling the user work is complete. After a fix to verify no regressions.",
+      "tags": ["verification", "checklist", "quality-gate"]
+    },
+    {
+      "name": "requesting-code-review",
+      "description": "Prepares a code review request with context for the reviewer. Summarises: what changed, why, how to test it, known trade-offs, and areas of uncertainty. Produces either a PR description or a review-request message.",
+      "tokenCount": 1000,
+      "type": "collaboration",
+      "whenToUse": "After completing a task or major feature. When the implementation involves significant trade-offs worth discussing. When handing work off to a human reviewer.",
+      "tags": ["review", "collaboration", "handoff"]
+    },
+    {
+      "name": "finishing-a-development-branch",
+      "description": "End-of-branch checklist: all tests pass, no linting errors, feature branch is rebased on main, commit messages are clean, PR description is written, and the feature is manually verified against acceptance criteria.",
+      "tokenCount": 1200,
+      "type": "collaboration",
+      "whenToUse": "Implementation is complete and all tests pass. Before opening a pull request. Before marking the branch ready for merge.",
+      "tags": ["git", "pr", "completion", "collaboration"]
+    }
+  ],
+  "typeDescriptions": {
+    "bootstrap": "Loaded automatically at session start. Provides orientation and meta-capability awareness.",
+    "process": "Invoked to guide the agent through a structured multi-step process before or during work.",
+    "quality": "Invoked to enforce quality standards: testing, debugging, and verification.",
+    "collaboration": "Invoked when work crosses boundaries — review, handoff, or PR creation."
+  }
+}

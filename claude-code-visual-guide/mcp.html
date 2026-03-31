@@ -1,0 +1,2539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Servers — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(57,210,192,0.09) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 15% 60%, rgba(88,166,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 85% 60%, rgba(188,140,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      background: rgba(57,210,192,0.08);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 960px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-blue), transparent);
+      opacity: 0.5;
+    }
+
+    /* Hub-spoke SVG animations */
+    @keyframes hubPulse {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(57,210,192,0.7)); }
+      50%       { filter: drop-shadow(0 0 20px rgba(57,210,192,1)) drop-shadow(0 0 40px rgba(57,210,192,0.4)); }
+    }
+
+    @keyframes lineDash {
+      to { stroke-dashoffset: -20; }
+    }
+
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .hub-glow {
+      animation: hubPulse 2.5s ease-in-out infinite;
+    }
+
+    .spoke-line {
+      stroke-dasharray: 6 4;
+      animation: lineDash 1.4s linear infinite;
+      opacity: 0.6;
+    }
+
+    .spoke-line-slow {
+      stroke-dasharray: 6 4;
+      animation: lineDash 2.2s linear infinite;
+      opacity: 0.5;
+    }
+
+    .server-node {
+      animation: fadeInScale 0.6s ease both;
+    }
+
+    /* =====================================================================
+       Sections
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Discovery Animation
+       ===================================================================== */
+    .discovery-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .discovery-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      flex-wrap: wrap;
+      gap: var(--space-3);
+    }
+
+    .discovery-title-row {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .discovery-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .discovery-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .discovery-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .disc-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all var(--transition);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+
+    .disc-btn:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .disc-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .disc-btn-play {
+      background: rgba(57,210,192,0.1);
+      border-color: rgba(57,210,192,0.3);
+      color: var(--accent-cyan);
+    }
+
+    .disc-btn-play:hover:not(:disabled) {
+      background: rgba(57,210,192,0.18);
+      border-color: var(--accent-cyan);
+    }
+
+    .disc-btn-play.playing {
+      background: rgba(248,81,73,0.1);
+      border-color: rgba(248,81,73,0.3);
+      color: var(--accent-red);
+    }
+
+    .disc-step-counter {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      padding: var(--space-1) var(--space-2);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      min-width: 52px;
+      text-align: center;
+    }
+
+    .discovery-body {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 400px;
+    }
+
+    @media (max-width: 768px) {
+      .discovery-body { grid-template-columns: 1fr; }
+    }
+
+    .discovery-steps-sidebar {
+      border-right: 1px solid var(--border);
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      background: var(--bg-primary);
+    }
+
+    @media (max-width: 768px) {
+      .discovery-steps-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: var(--space-3);
+      }
+    }
+
+    .disc-step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .disc-step-item:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--border);
+    }
+
+    .disc-step-item.active {
+      background: rgba(57,210,192,0.08);
+      border-color: rgba(57,210,192,0.25);
+    }
+
+    .disc-step-item.completed {
+      opacity: 0.7;
+    }
+
+    .disc-step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      transition: all var(--transition);
+    }
+
+    .disc-step-item.active .disc-step-num {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      color: #0d1117;
+    }
+
+    .disc-step-item.completed .disc-step-num {
+      background: rgba(63,185,80,0.15);
+      border-color: rgba(63,185,80,0.4);
+      color: var(--accent-green);
+    }
+
+    .disc-step-text {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: 1.4;
+      padding-top: 2px;
+    }
+
+    .disc-step-item.active .disc-step-text {
+      color: var(--text-primary);
+    }
+
+    .discovery-content {
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .disc-panel {
+      display: none;
+      flex-direction: column;
+      gap: var(--space-4);
+      animation: fadeInUp 0.3s ease;
+    }
+
+    .disc-panel.active {
+      display: flex;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .disc-panel-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .disc-panel-title-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .disc-panel-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .callout-box {
+      background: rgba(57,210,192,0.06);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .callout-box strong {
+      color: var(--accent-cyan);
+    }
+
+    .callout-box-orange {
+      background: rgba(210,153,34,0.06);
+      border-color: rgba(210,153,34,0.2);
+    }
+
+    .callout-box-orange strong {
+      color: var(--accent-orange);
+    }
+
+    .callout-box-green {
+      background: rgba(63,185,80,0.06);
+      border-color: rgba(63,185,80,0.2);
+    }
+
+    .callout-box-green strong {
+      color: var(--accent-green);
+    }
+
+    .callout-box-blue {
+      background: rgba(88,166,255,0.06);
+      border-color: rgba(88,166,255,0.2);
+    }
+
+    .callout-box-blue strong {
+      color: var(--accent-blue);
+    }
+
+    .server-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+
+    .server-pill {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .server-pill-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+
+    .tool-list-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+    }
+
+    .tool-list-item {
+      padding: 3px var(--space-2);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      transition: background var(--transition-fast);
+    }
+
+    .tool-list-item.highlight-validate {
+      background: rgba(210,153,34,0.12);
+      color: var(--accent-orange);
+    }
+
+    .tool-list-item.highlight-done {
+      background: rgba(63,185,80,0.1);
+      color: var(--accent-green);
+    }
+
+    /* =====================================================================
+       80+ calls callout
+       ===================================================================== */
+    .api-calls-stat {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+      margin-top: var(--space-6);
+    }
+
+    .api-calls-number {
+      font-size: var(--text-5xl);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      color: var(--accent-orange);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .api-calls-detail {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .api-calls-label {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .api-calls-sub {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    /* =====================================================================
+       Deferred Loading Toggle
+       ===================================================================== */
+    .deferred-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .deferred-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      flex-wrap: wrap;
+      gap: var(--space-3);
+    }
+
+    .deferred-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .deferred-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .deferred-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .toggle-option {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      transition: color var(--transition);
+    }
+
+    .toggle-option.active {
+      color: var(--accent-cyan);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      cursor: pointer;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      transition: background var(--transition), border-color var(--transition);
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      transition: transform var(--transition), background var(--transition);
+    }
+
+    .toggle-switch input:checked ~ .toggle-track {
+      background: rgba(57,210,192,0.15);
+      border-color: rgba(57,210,192,0.4);
+    }
+
+    .toggle-switch input:checked ~ .toggle-thumb {
+      transform: translateX(24px);
+      background: var(--accent-cyan);
+    }
+
+    .deferred-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 700px) {
+      .deferred-body { grid-template-columns: 1fr; }
+    }
+
+    .deferred-pane {
+      padding: var(--space-5) var(--space-6);
+      transition: opacity var(--transition), filter var(--transition);
+      position: relative;
+    }
+
+    .deferred-pane + .deferred-pane {
+      border-left: 1px solid var(--border);
+    }
+
+    @media (max-width: 700px) {
+      .deferred-pane + .deferred-pane {
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+    }
+
+    .deferred-pane.dimmed {
+      opacity: 0.35;
+      filter: blur(0.5px);
+      pointer-events: none;
+    }
+
+    .deferred-pane-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-3);
+    }
+
+    .deferred-pane-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.05em;
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      margin-left: var(--space-2);
+      vertical-align: middle;
+    }
+
+    .badge-off {
+      background: rgba(248,81,73,0.12);
+      color: var(--accent-red);
+      border: 1px solid rgba(248,81,73,0.25);
+    }
+
+    .badge-on {
+      background: rgba(57,210,192,0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(57,210,192,0.25);
+    }
+
+    .token-meter {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+      padding: var(--space-3);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    .token-meter-val {
+      font-size: var(--text-lg);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+
+    .token-meter-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .token-meter-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.6s ease;
+    }
+
+    .token-meter-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* =====================================================================
+       Naming Convention Diagram
+       ===================================================================== */
+    .naming-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8) var(--space-10);
+      text-align: center;
+      overflow: hidden;
+    }
+
+    @media (max-width: 640px) {
+      .naming-wrap { padding: var(--space-5); }
+    }
+
+    .naming-tool-name {
+      font-family: var(--font-mono);
+      font-size: clamp(1rem, 3vw, 1.5rem);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin-bottom: var(--space-8);
+    }
+
+    .naming-segment {
+      position: relative;
+      display: inline-block;
+    }
+
+    .naming-segment-mcp {
+      color: var(--accent-cyan);
+      padding: var(--space-1) var(--space-2);
+      background: rgba(57,210,192,0.1);
+      border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+      border: 1px solid rgba(57,210,192,0.25);
+    }
+
+    .naming-sep {
+      color: var(--text-secondary);
+      padding: var(--space-1) 2px;
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .naming-segment-server {
+      color: var(--accent-purple);
+      padding: var(--space-1) var(--space-2);
+      background: rgba(188,140,255,0.1);
+      border-top: 1px solid rgba(188,140,255,0.25);
+      border-bottom: 1px solid rgba(188,140,255,0.25);
+    }
+
+    .naming-segment-tool {
+      color: var(--accent-blue);
+      padding: var(--space-1) var(--space-2);
+      background: rgba(88,166,255,0.1);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      border: 1px solid rgba(88,166,255,0.25);
+    }
+
+    .naming-annotations {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-6);
+      margin-top: var(--space-4);
+    }
+
+    @media (max-width: 640px) {
+      .naming-annotations { grid-template-columns: 1fr; }
+    }
+
+    .naming-annotation {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      text-align: center;
+    }
+
+    .naming-annotation-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .naming-annotation-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .naming-annotation-value {
+      font-size: var(--text-sm);
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    .naming-annotation-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    /* Examples row */
+    .naming-examples {
+      margin-top: var(--space-6);
+      padding-top: var(--space-6);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      text-align: left;
+    }
+
+    .naming-example {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+    }
+
+    .naming-example-mcp { color: var(--accent-cyan); }
+    .naming-example-sep { color: var(--text-secondary); opacity: 0.5; }
+    .naming-example-server { color: var(--accent-purple); }
+    .naming-example-tool { color: var(--accent-blue); }
+
+    /* =====================================================================
+       Server Catalog
+       ===================================================================== */
+    .server-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--space-5);
+    }
+
+    .server-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .server-card:hover {
+      border-color: rgba(57,210,192,0.3);
+      box-shadow: 0 4px 20px rgba(57,210,192,0.08);
+    }
+
+    .server-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-3);
+    }
+
+    .server-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .server-card-icon-local {
+      background: rgba(88,166,255,0.12);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .server-card-icon-cloud {
+      background: rgba(188,140,255,0.12);
+      border: 1px solid rgba(188,140,255,0.2);
+    }
+
+    .server-card-badges {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-1);
+    }
+
+    .badge-type {
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge-local {
+      background: rgba(88,166,255,0.12);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .badge-cloud {
+      background: rgba(188,140,255,0.12);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.2);
+    }
+
+    .badge-tool-count {
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      font-family: var(--font-mono);
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .server-card-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .server-card-purpose {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .server-card-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: auto;
+    }
+
+    .server-card-tools-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-2);
+    }
+
+    .server-tool-example {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      padding: 3px var(--space-2);
+      background: var(--bg-primary);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* =====================================================================
+       Resources Section
+       ===================================================================== */
+    .resources-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+    }
+
+    @media (max-width: 700px) {
+      .resources-grid { grid-template-columns: 1fr; }
+    }
+
+    .resource-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .resource-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .resource-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .resource-card-icon-list {
+      background: rgba(88,166,255,0.12);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .resource-card-icon-read {
+      background: rgba(57,210,192,0.12);
+      border: 1px solid rgba(57,210,192,0.2);
+    }
+
+    .resource-card-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .resource-card-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Code blocks
+       ===================================================================== */
+    .code-block {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-2) var(--space-4);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-block-lang {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .code-block pre {
+      margin: 0;
+      padding: var(--space-4);
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.7;
+      color: var(--text-primary);
+    }
+
+    /* =====================================================================
+       Nav footer
+       ===================================================================== */
+    .nav-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-8) 0;
+    }
+
+    .nav-footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .nav-footer-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all var(--transition);
+    }
+
+    .nav-footer-link:hover {
+      color: var(--accent-cyan);
+      border-color: rgba(57,210,192,0.3);
+      background: rgba(57,210,192,0.05);
+      text-decoration: none;
+    }
+
+    .nav-footer-center {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+    }
+
+    /* =====================================================================
+       Misc
+       ===================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-8) 0;
+      text-align: center;
+    }
+
+    .site-footer-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 640px) {
+      .nav-footer-center { display: none; }
+    }
+
+    /* info callout strip */
+    .info-strip {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-4);
+      background: rgba(88,166,255,0.05);
+      border: 1px solid rgba(88,166,255,0.15);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .info-strip-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* system-reminder block style */
+    .system-reminder-block {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      color: var(--text-secondary);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .system-reminder-block .tag {
+      color: var(--accent-purple);
+    }
+
+    .system-reminder-block .content {
+      color: var(--text-secondary);
+    }
+
+    /* two-col prose grid */
+    .prose-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-8);
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .prose-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <div class="nav-inner">
+
+        <a href="index.html" class="nav-brand" aria-label="Claude Code Architecture Home">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="22" height="22" rx="6" fill="rgba(88,166,255,0.15)"/>
+            <circle cx="11" cy="11" r="3.5" stroke="#58a6ff" stroke-width="1.5"/>
+            <path d="M11 4v2M11 16v2M4 11h2M16 11h2" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6.5 6.5l1.5 1.5M14 14l1.5 1.5M14 6.5l-1.5 1.5M8 14l-1.5 1.5" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <span>Claude Code Architecture</span>
+        </a>
+
+        <div class="nav-links" role="list">
+          <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+          <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+          <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+          <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+          <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+          <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+          <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+          <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+          <a href="mcp.html" class="nav-link active" role="listitem">MCP</a>
+          <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+          <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+          <a href="emulator.html" class="nav-link" role="listitem">Emulator</a>
+        </div>
+
+        <button class="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+    <a href="index.html" class="nav-link">The Big Picture</a>
+    <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+    <a href="system-prompt.html" class="nav-link">System Prompt</a>
+    <a href="tools.html" class="nav-link">Tools</a>
+    <a href="context-injection.html" class="nav-link">Context Injection</a>
+    <a href="skills.html" class="nav-link">Skills</a>
+    <a href="plugins.html" class="nav-link">Plugins</a>
+    <a href="agents.html" class="nav-link">Agents</a>
+    <a href="mcp.html" class="nav-link active">MCP</a>
+    <a href="context-management.html" class="nav-link">Context Mgmt</a>
+    <a href="persistence.html" class="nav-link">Persistence</a>
+    <a href="emulator.html" class="nav-link">Emulator</a>
+  </div>
+
+  <main>
+
+    <!-- ===================================================================
+         Hero
+         =================================================================== -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+
+        <div class="hero-eyebrow" aria-hidden="true">
+          <span class="hero-eyebrow-dot"></span>
+          Chapter 9 — Model Context Protocol
+        </div>
+
+        <h1 class="hero-title" id="hero-title">
+          <span class="hero-title-accent">MCP Servers</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          External tools and data sources via the Model Context Protocol — an open standard for connecting AI models to services like Playwright, Slack, Jira, CircleCI and more.
+        </p>
+
+        <!-- Hub-and-spoke diagram -->
+        <div class="hero-diagram-wrap reveal" id="hero-diagram-wrap">
+          <svg id="hub-svg" viewBox="0 0 900 360" width="100%" style="display:block;"
+               role="img" aria-label="Claude Code at center connecting to six MCP servers: playwright, circleci, langchain-docs (local) and Amplitude, Slack, Jira/Confluence (cloud)">
+            <title>Hub-and-spoke MCP server diagram</title>
+            <defs>
+              <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+              </filter>
+              <radialGradient id="hub-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(57,210,192,0.25)"/>
+                <stop offset="100%" stop-color="rgba(57,210,192,0.05)"/>
+              </radialGradient>
+              <radialGradient id="local-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(88,166,255,0.2)"/>
+                <stop offset="100%" stop-color="rgba(88,166,255,0.04)"/>
+              </radialGradient>
+              <radialGradient id="cloud-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(188,140,255,0.2)"/>
+                <stop offset="100%" stop-color="rgba(188,140,255,0.04)"/>
+              </radialGradient>
+            </defs>
+
+            <!-- Background zone labels -->
+            <text x="450" y="32" text-anchor="middle" fill="#8b949e" font-size="11"
+                  font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-weight="600"
+                  letter-spacing="0.08em" text-transform="uppercase">LOCAL SERVERS</text>
+            <text x="450" y="338" text-anchor="middle" fill="#8b949e" font-size="11"
+                  font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-weight="600"
+                  letter-spacing="0.08em">CLOUD SERVERS</text>
+
+            <!-- Zone divider lines -->
+            <line x1="40" y1="48" x2="860" y2="48" stroke="#30363d" stroke-width="1" stroke-dasharray="4 6" opacity="0.5"/>
+            <line x1="40" y1="314" x2="860" y2="314" stroke="#30363d" stroke-width="1" stroke-dasharray="4 6" opacity="0.5"/>
+
+            <!-- ---- Spoke lines: local servers (top) ---- -->
+            <!-- playwright line -->
+            <line id="line-playwright" x1="200" y1="116" x2="378" y2="168"
+                  stroke="#58a6ff" stroke-width="1.5" class="spoke-line"/>
+            <!-- circleci line -->
+            <line id="line-circleci" x1="450" y1="104" x2="450" y2="160"
+                  stroke="#58a6ff" stroke-width="1.5" class="spoke-line"/>
+            <!-- langchain line -->
+            <line id="line-langchain" x1="700" y1="116" x2="522" y2="168"
+                  stroke="#58a6ff" stroke-width="1.5" class="spoke-line-slow"/>
+
+            <!-- ---- Spoke lines: cloud servers (bottom) ---- -->
+            <!-- amplitude line -->
+            <line id="line-amplitude" x1="200" y1="248" x2="378" y2="196"
+                  stroke="#bc8cff" stroke-width="1.5" class="spoke-line-slow"/>
+            <!-- slack line -->
+            <line id="line-slack" x1="450" y1="260" x2="450" y2="204"
+                  stroke="#bc8cff" stroke-width="1.5" class="spoke-line"/>
+            <!-- jira line -->
+            <line id="line-jira" x1="700" y1="248" x2="522" y2="196"
+                  stroke="#bc8cff" stroke-width="1.5" class="spoke-line-slow"/>
+
+            <!-- =====================================================
+                 Hub: Claude Code (center)
+                 ===================================================== -->
+            <g id="hub-node" class="hub-glow">
+              <circle cx="450" cy="182" r="52" fill="url(#hub-grad)" stroke="rgba(57,210,192,0.5)" stroke-width="1.5"/>
+              <circle cx="450" cy="182" r="44" fill="rgba(57,210,192,0.06)" stroke="rgba(57,210,192,0.25)" stroke-width="1"/>
+              <text x="450" y="178" text-anchor="middle" fill="#39d2c0"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="700" letter-spacing="-0.01em">Claude</text>
+              <text x="450" y="192" text-anchor="middle" fill="#39d2c0"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="700" letter-spacing="-0.01em">Code</text>
+            </g>
+
+            <!-- =====================================================
+                 Local Server Nodes (top row)
+                 ===================================================== -->
+            <!-- playwright -->
+            <g class="server-node" style="animation-delay:0.1s">
+              <rect x="132" y="72" width="136" height="64" rx="10"
+                    fill="url(#local-grad)" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+              <text x="200" y="96" text-anchor="middle" fill="#e6edf3"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="600">playwright</text>
+              <text x="200" y="113" text-anchor="middle" fill="#8b949e"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="10">Browser automation</text>
+              <!-- tool count badge -->
+              <rect x="172" y="124" width="56" height="16" rx="8"
+                    fill="rgba(88,166,255,0.15)" stroke="rgba(88,166,255,0.3)" stroke-width="1"/>
+              <text x="200" y="135" text-anchor="middle" fill="#58a6ff"
+                    font-family="monospace" font-size="9" font-weight="700">23 tools</text>
+            </g>
+
+            <!-- circleci -->
+            <g class="server-node" style="animation-delay:0.2s">
+              <rect x="382" y="60" width="136" height="64" rx="10"
+                    fill="url(#local-grad)" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+              <text x="450" y="84" text-anchor="middle" fill="#e6edf3"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="600">circleci</text>
+              <text x="450" y="101" text-anchor="middle" fill="#8b949e"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="10">CI/CD pipeline</text>
+              <rect x="422" y="112" width="56" height="16" rx="8"
+                    fill="rgba(88,166,255,0.15)" stroke="rgba(88,166,255,0.3)" stroke-width="1"/>
+              <text x="450" y="123" text-anchor="middle" fill="#58a6ff"
+                    font-family="monospace" font-size="9" font-weight="700">15 tools</text>
+            </g>
+
+            <!-- langchain -->
+            <g class="server-node" style="animation-delay:0.3s">
+              <rect x="632" y="72" width="136" height="64" rx="10"
+                    fill="url(#local-grad)" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+              <text x="700" y="96" text-anchor="middle" fill="#e6edf3"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="600">langchain-docs</text>
+              <text x="700" y="113" text-anchor="middle" fill="#8b949e"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="10">LangChain docs</text>
+              <rect x="672" y="124" width="56" height="16" rx="8"
+                    fill="rgba(88,166,255,0.15)" stroke="rgba(88,166,255,0.3)" stroke-width="1"/>
+              <text x="700" y="135" text-anchor="middle" fill="#58a6ff"
+                    font-family="monospace" font-size="9" font-weight="700">1 tool</text>
+            </g>
+
+            <!-- =====================================================
+                 Cloud Server Nodes (bottom row)
+                 ===================================================== -->
+            <!-- amplitude -->
+            <g class="server-node" style="animation-delay:0.4s">
+              <rect x="132" y="228" width="136" height="64" rx="10"
+                    fill="url(#cloud-grad)" stroke="rgba(188,140,255,0.4)" stroke-width="1.5"/>
+              <text x="200" y="252" text-anchor="middle" fill="#e6edf3"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="600">Amplitude</text>
+              <text x="200" y="269" text-anchor="middle" fill="#8b949e"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="10">Product analytics</text>
+              <rect x="172" y="280" width="56" height="16" rx="8"
+                    fill="rgba(188,140,255,0.15)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+              <text x="200" y="291" text-anchor="middle" fill="#bc8cff"
+                    font-family="monospace" font-size="9" font-weight="700">25+ tools</text>
+            </g>
+
+            <!-- slack -->
+            <g class="server-node" style="animation-delay:0.5s">
+              <rect x="382" y="240" width="136" height="64" rx="10"
+                    fill="url(#cloud-grad)" stroke="rgba(188,140,255,0.4)" stroke-width="1.5"/>
+              <text x="450" y="264" text-anchor="middle" fill="#e6edf3"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="600">Slack</text>
+              <text x="450" y="281" text-anchor="middle" fill="#8b949e"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="10">Messaging</text>
+              <rect x="422" y="292" width="56" height="16" rx="8"
+                    fill="rgba(188,140,255,0.15)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+              <text x="450" y="303" text-anchor="middle" fill="#bc8cff"
+                    font-family="monospace" font-size="9" font-weight="700">12+ tools</text>
+            </g>
+
+            <!-- jira -->
+            <g class="server-node" style="animation-delay:0.6s">
+              <rect x="632" y="228" width="136" height="64" rx="10"
+                    fill="url(#cloud-grad)" stroke="rgba(188,140,255,0.4)" stroke-width="1.5"/>
+              <text x="700" y="252" text-anchor="middle" fill="#e6edf3"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="12" font-weight="600">Jira / Confluence</text>
+              <text x="700" y="269" text-anchor="middle" fill="#8b949e"
+                    font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                    font-size="10">Project management</text>
+              <rect x="672" y="280" width="56" height="16" rx="8"
+                    fill="rgba(188,140,255,0.15)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+              <text x="700" y="291" text-anchor="middle" fill="#bc8cff"
+                    font-family="monospace" font-size="9" font-weight="700">30+ tools</text>
+            </g>
+
+          </svg>
+        </div><!-- /hero-diagram-wrap -->
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Tool Discovery Animation
+         =================================================================== -->
+    <section class="page-section" id="discovery">
+      <div class="container">
+
+        <div class="section-header">
+          <div class="section-label">Session Startup</div>
+          <h2 class="section-title">Tool Discovery</h2>
+          <p class="section-desc">
+            When Claude Code starts, it runs an 80+ API call initialization sequence to connect to MCP servers, validate each tool's JSON schema, and generate human-readable descriptions.
+          </p>
+        </div>
+
+        <div class="discovery-wrap reveal">
+          <div class="discovery-header">
+            <div class="discovery-title-row">
+              <span class="discovery-label">Initialization sequence</span>
+              <span class="discovery-name">MCP Tool Discovery</span>
+            </div>
+            <div class="discovery-controls">
+              <button class="disc-btn" id="disc-prev" disabled aria-label="Previous step">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M8 2L3 6l5 4"/></svg>
+                Prev
+              </button>
+              <span class="disc-step-counter" id="disc-counter">0 / 9</span>
+              <button class="disc-btn" id="disc-next" aria-label="Next step">
+                Next
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4"/></svg>
+              </button>
+              <button class="disc-btn disc-btn-play" id="disc-play" aria-label="Auto-play">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" id="disc-play-icon"><path d="M2 2.5l8 3.5-8 3.5V2.5z"/></svg>
+                <span id="disc-play-label">Play</span>
+              </button>
+              <button class="disc-btn" id="disc-reset" aria-label="Reset">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 6a4 4 0 1 1 4 4V8.5l-2 1.5 2 1.5V10A5 5 0 1 0 1 6h1z"/></svg>
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <div class="discovery-body">
+
+            <!-- Steps sidebar -->
+            <div class="discovery-steps-sidebar" id="disc-sidebar">
+              <!-- Steps populated by JS -->
+            </div>
+
+            <!-- Content panel -->
+            <div class="discovery-content" id="disc-content">
+              <!-- Panels populated by JS -->
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 80+ API calls callout -->
+        <div class="api-calls-stat reveal mt-8">
+          <div class="api-calls-number">80+</div>
+          <div class="api-calls-detail">
+            <div class="api-calls-label">API calls on session startup</div>
+            <div class="api-calls-sub">Most are MCP tool validation (one per tool, using <code>opus</code>) plus description generation (one per tool, using <code>claude-3-5-haiku</code>). With 39 MCP tools configured, that's 39 validation + 39 description = 78 calls before any user prompt is processed.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Deferred Loading Toggle
+         =================================================================== -->
+    <section class="page-section" id="deferred">
+      <div class="container">
+
+        <div class="section-header">
+          <div class="section-label">Token Optimization</div>
+          <h2 class="section-title">Deferred Loading</h2>
+          <p class="section-desc">
+            When many MCP tools are configured, sending all full schemas on every API call wastes ~20,000 tokens per turn. Deferred loading solves this by only including tool names upfront, loading full schemas on demand via <code>ToolSearch</code>.
+          </p>
+        </div>
+
+        <div class="deferred-wrap reveal">
+          <div class="deferred-header">
+            <div class="deferred-header-left">
+              <span class="deferred-label">Interactive demo</span>
+              <span class="deferred-title">Deferred Tool Loading</span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-option active" id="toggle-off-label">OFF</span>
+              <label class="toggle-switch" for="deferred-toggle" aria-label="Toggle deferred loading">
+                <input type="checkbox" id="deferred-toggle">
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+              <span class="toggle-option" id="toggle-on-label">ON</span>
+            </div>
+          </div>
+
+          <div class="deferred-body">
+
+            <!-- Left pane: OFF state -->
+            <div class="deferred-pane" id="pane-off">
+              <div class="deferred-pane-label" style="color: var(--accent-red);">
+                Deferred OFF
+                <span class="deferred-pane-badge badge-off">Default when few tools</span>
+              </div>
+              <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); line-height: var(--leading-relaxed);">
+                Every API call includes the full JSON schema for all registered tools in the <code>tools</code> array.
+              </p>
+
+              <div class="code-block">
+                <div class="code-block-header">
+                  <span class="code-block-lang">Request (truncated)</span>
+                </div>
+                <pre data-lang="json">{
+  "model": "claude-opus-4-5",
+  "tools": [
+    {
+      "name": "mcp__playwright__browser_click",
+      "description": "Click an element...",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "selector": { "type": "string" },
+          "button": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "mcp__playwright__browser_fill_form",
+      "input_schema": { "...full schema..." }
+    },
+    // ... 55 more full schemas ...
+  ]
+}</pre>
+              </div>
+
+              <div class="token-meter" id="meter-off">
+                <span class="token-meter-val" style="color: var(--accent-red);">~20K</span>
+                <div class="token-meter-bar">
+                  <div class="token-meter-fill" id="fill-off"
+                       style="width:95%; background: var(--accent-red);"></div>
+                </div>
+                <span class="token-meter-label">tokens / turn (tools)</span>
+              </div>
+            </div>
+
+            <!-- Right pane: ON state -->
+            <div class="deferred-pane dimmed" id="pane-on">
+              <div class="deferred-pane-label" style="color: var(--accent-cyan);">
+                Deferred ON
+                <span class="deferred-pane-badge badge-on">Active in this system</span>
+              </div>
+              <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); line-height: var(--leading-relaxed);">
+                Tool names listed in <code>&lt;available-deferred-tools&gt;</code>. Only the <code>ToolSearch</code> schema is in the <code>tools</code> array. Full schemas loaded on demand.
+              </p>
+
+              <div class="code-block">
+                <div class="code-block-header">
+                  <span class="code-block-lang">Request (simplified)</span>
+                </div>
+                <pre data-lang="json">{
+  "model": "claude-opus-4-5",
+  "system": "...\n&lt;available-deferred-tools&gt;\nmcp__playwright__browser_click\nmcp__playwright__browser_fill_form\nmcp__circleci-mcp-server__get_build_failure_logs\nmcp__claude_ai_Slack__slack_send_message\n... 53 more names ...\n&lt;/available-deferred-tools&gt;",
+  "tools": [
+    {
+      "name": "ToolSearch",
+      "description": "Fetch full schemas for deferred tools",
+      "input_schema": { "...compact schema..." }
+    }
+  ]
+}</pre>
+              </div>
+
+              <div class="token-meter" id="meter-on">
+                <span class="token-meter-val" style="color: var(--accent-cyan);">~500</span>
+                <div class="token-meter-bar">
+                  <div class="token-meter-fill" id="fill-on"
+                       style="width:3%; background: var(--accent-cyan);"></div>
+                </div>
+                <span class="token-meter-label">tokens / turn (+ load on demand)</span>
+              </div>
+            </div>
+
+          </div><!-- /deferred-body -->
+        </div><!-- /deferred-wrap -->
+
+        <!-- ToolSearch call example -->
+        <div class="reveal mt-8">
+          <div class="section-header" style="margin-bottom: var(--space-6);">
+            <div class="section-label">On-demand loading</div>
+            <h3 style="font-size: var(--text-xl); font-weight: var(--font-semibold); color: var(--text-primary); margin-bottom: var(--space-3);">
+              ToolSearch — Loading a Schema on Demand
+            </h3>
+            <p class="section-desc">
+              When Claude needs to use an MCP tool, it first calls <code>ToolSearch</code> to fetch the full schema, then calls the actual tool.
+            </p>
+          </div>
+
+          <div class="prose-grid">
+            <div class="code-block">
+              <div class="code-block-header">
+                <span class="code-block-lang">ToolSearch call</span>
+              </div>
+              <pre data-lang="json">{
+  "name": "ToolSearch",
+  "input": {
+    "query": "select:mcp__claude_ai_Slack__slack_send_message",
+    "max_results": 1
+  }
+}</pre>
+            </div>
+            <div class="code-block">
+              <div class="code-block-header">
+                <span class="code-block-lang">Result — full schema now available</span>
+              </div>
+              <pre data-lang="json">{
+  "name": "mcp__claude_ai_Slack__slack_send_message",
+  "description": "Send a message to a Slack channel...",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "channel_id": { "type": "string" },
+      "text": { "type": "string" },
+      "thread_ts": { "type": "string" }
+    },
+    "required": ["channel_id", "text"]
+  }
+}</pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         MCP Naming Convention
+         =================================================================== -->
+    <section class="page-section" id="naming">
+      <div class="container">
+
+        <div class="section-header">
+          <div class="section-label">Tool Naming</div>
+          <h2 class="section-title">Naming Convention</h2>
+          <p class="section-desc">
+            Every MCP tool name follows a consistent three-part pattern using double-underscore separators, making it easy to identify the originating server from any tool name.
+          </p>
+        </div>
+
+        <div class="naming-wrap reveal">
+          <div class="naming-tool-name" aria-label="mcp double-underscore claude_ai_Slack double-underscore slack_send_message">
+            <span class="naming-segment naming-segment-mcp">mcp</span>
+            <span class="naming-sep">__</span>
+            <span class="naming-segment naming-segment-server">claude_ai_Slack</span>
+            <span class="naming-sep">__</span>
+            <span class="naming-segment naming-segment-tool">slack_send_message</span>
+          </div>
+
+          <div class="naming-annotations">
+            <div class="naming-annotation">
+              <span class="naming-annotation-dot" style="background: var(--accent-cyan);"></span>
+              <span class="naming-annotation-label" style="color: var(--accent-cyan);">Prefix</span>
+              <span class="naming-annotation-value">mcp</span>
+              <span class="naming-annotation-desc">Always "mcp" — identifies this as an MCP tool vs built-in or plugin tool</span>
+            </div>
+            <div class="naming-annotation">
+              <span class="naming-annotation-dot" style="background: var(--accent-purple);"></span>
+              <span class="naming-annotation-label" style="color: var(--accent-purple);">Server name</span>
+              <span class="naming-annotation-value">claude_ai_Slack</span>
+              <span class="naming-annotation-desc">The MCP server identifier, taken from the server configuration</span>
+            </div>
+            <div class="naming-annotation">
+              <span class="naming-annotation-dot" style="background: var(--accent-blue);"></span>
+              <span class="naming-annotation-label" style="color: var(--accent-blue);">Tool name</span>
+              <span class="naming-annotation-value">slack_send_message</span>
+              <span class="naming-annotation-desc">The specific capability exposed by that server</span>
+            </div>
+          </div>
+
+          <!-- Examples -->
+          <div class="naming-examples">
+            <div class="naming-example">
+              <span class="naming-example-mcp">mcp</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-server">playwright</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-tool">browser_click</span>
+            </div>
+            <div class="naming-example">
+              <span class="naming-example-mcp">mcp</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-server">circleci-mcp-server</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-tool">get_build_failure_logs</span>
+            </div>
+            <div class="naming-example">
+              <span class="naming-example-mcp">mcp</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-server">claude_ai_Slack</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-tool">slack_send_message</span>
+            </div>
+            <div class="naming-example">
+              <span class="naming-example-mcp">mcp</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-server">claude_ai_Atlassian_JIRA_Confluence</span>
+              <span class="naming-example-sep">__</span>
+              <span class="naming-example-tool">getJiraIssue</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Server instructions -->
+        <div class="reveal mt-8">
+          <div class="section-header" style="margin-bottom: var(--space-6);">
+            <div class="section-label">System context</div>
+            <h3 style="font-size: var(--text-xl); font-weight: var(--font-semibold); color: var(--text-primary); margin-bottom: var(--space-3);">
+              MCP Server Instructions
+            </h3>
+            <p class="section-desc">
+              Each MCP server provides usage instructions that are injected into the session as a <code>&lt;system-reminder&gt;</code> block, giving Claude context about how to use that server's tools effectively.
+            </p>
+          </div>
+
+          <div class="code-block">
+            <div class="code-block-header">
+              <span class="code-block-lang">System prompt injection (system-reminder)</span>
+            </div>
+            <pre style="white-space: pre-wrap; word-break: break-word; padding: var(--space-4); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-secondary); background: var(--bg-primary); margin: 0; line-height: 1.7;"><span style="color: var(--accent-purple);">&lt;system-reminder&gt;</span>
+<span style="color: var(--text-secondary);">## claude.ai Amplitude
+Amplitude is a product analytics platform. Most tools require a
+projectId (appId). At the start of a session, call 'get_context'
+to see the user's organization and available projects.
+
+## claude.ai Slack
+Use channel IDs (not names) for all channel operations. Call
+slack_search_channels to find a channel ID from a name.
+
+## circleci-mcp-server
+Use get_latest_pipeline_status to check the current state of a
+pipeline before triggering a rerun.</span>
+<span style="color: var(--accent-purple);">&lt;/system-reminder&gt;</span></pre>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Server Catalog
+         =================================================================== -->
+    <section class="page-section" id="servers">
+      <div class="container">
+
+        <div class="section-header">
+          <div class="section-label">Configured Servers</div>
+          <h2 class="section-title">Server Catalog</h2>
+          <p class="section-desc">
+            Six MCP servers are configured in this system — three running locally via <code>npx</code>, three hosted by claude.ai.
+          </p>
+        </div>
+
+        <div class="server-cards-grid">
+
+          <!-- playwright -->
+          <div class="server-card reveal">
+            <div class="server-card-header">
+              <div class="server-card-icon server-card-icon-local">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="8" stroke="#58a6ff" stroke-width="1.5"/>
+                  <path d="M7 10h6M10 7v6" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="server-card-badges">
+                <span class="badge-type badge-local">Local</span>
+                <span class="badge-tool-count">23 tools</span>
+              </div>
+            </div>
+            <div class="server-card-name">playwright</div>
+            <div class="server-card-purpose">Full browser automation — navigate, click, type, screenshot, evaluate JS, handle dialogs, manage tabs and network.</div>
+            <div class="server-card-tools">
+              <div class="server-card-tools-label">Example tools</div>
+              <div class="server-tool-example">mcp__playwright__browser_navigate</div>
+              <div class="server-tool-example">mcp__playwright__browser_click</div>
+              <div class="server-tool-example">mcp__playwright__browser_take_screenshot</div>
+            </div>
+          </div>
+
+          <!-- circleci -->
+          <div class="server-card reveal">
+            <div class="server-card-header">
+              <div class="server-card-icon server-card-icon-local">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="3" fill="#58a6ff"/>
+                  <circle cx="10" cy="10" r="7" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>
+                </svg>
+              </div>
+              <div class="server-card-badges">
+                <span class="badge-type badge-local">Local</span>
+                <span class="badge-tool-count">15 tools</span>
+              </div>
+            </div>
+            <div class="server-card-name">circleci-mcp-server</div>
+            <div class="server-card-purpose">CI/CD pipeline management — check build status, view failure logs, rerun workflows, analyze diffs, find flaky tests.</div>
+            <div class="server-card-tools">
+              <div class="server-card-tools-label">Example tools</div>
+              <div class="server-tool-example">mcp__circleci-mcp-server__get_build_failure_logs</div>
+              <div class="server-tool-example">mcp__circleci-mcp-server__get_latest_pipeline_status</div>
+              <div class="server-tool-example">mcp__circleci-mcp-server__rerun_workflow</div>
+            </div>
+          </div>
+
+          <!-- langchain-docs -->
+          <div class="server-card reveal">
+            <div class="server-card-header">
+              <div class="server-card-icon server-card-icon-local">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <rect x="3" y="4" width="14" height="2" rx="1" fill="#58a6ff"/>
+                  <rect x="3" y="9" width="10" height="2" rx="1" fill="#58a6ff" opacity="0.7"/>
+                  <rect x="3" y="14" width="12" height="2" rx="1" fill="#58a6ff" opacity="0.5"/>
+                </svg>
+              </div>
+              <div class="server-card-badges">
+                <span class="badge-type badge-local">Local</span>
+                <span class="badge-tool-count">1 tool</span>
+              </div>
+            </div>
+            <div class="server-card-name">langchain-docs</div>
+            <div class="server-card-purpose">Semantic search over LangChain documentation. Useful when building or debugging LangChain-based pipelines.</div>
+            <div class="server-card-tools">
+              <div class="server-card-tools-label">Example tools</div>
+              <div class="server-tool-example">mcp__langchain-docs__search_docs_by_lang_chain</div>
+            </div>
+          </div>
+
+          <!-- Amplitude -->
+          <div class="server-card reveal">
+            <div class="server-card-header">
+              <div class="server-card-icon server-card-icon-cloud">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M3 14l4-6 3 4 3-7 4 9" stroke="#bc8cff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="server-card-badges">
+                <span class="badge-type badge-cloud">Cloud</span>
+                <span class="badge-tool-count">25+ tools</span>
+              </div>
+            </div>
+            <div class="server-card-name">claude_ai_Amplitude</div>
+            <div class="server-card-purpose">Product analytics platform. Query charts, create experiments, manage cohorts, view session replays, read feedback.</div>
+            <div class="server-card-tools">
+              <div class="server-card-tools-label">Example tools</div>
+              <div class="server-tool-example">mcp__claude_ai_Amplitude__query_chart</div>
+              <div class="server-tool-example">mcp__claude_ai_Amplitude__get_session_replays</div>
+              <div class="server-tool-example">mcp__claude_ai_Amplitude__create_experiment</div>
+            </div>
+          </div>
+
+          <!-- Slack -->
+          <div class="server-card reveal">
+            <div class="server-card-header">
+              <div class="server-card-icon server-card-icon-cloud">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M8 5a2 2 0 0 1 4 0v4H8V5zM5 8a2 2 0 0 1 0 4H9V8H5z" stroke="#bc8cff" stroke-width="1.4" stroke-linejoin="round"/>
+                  <path d="M12 15a2 2 0 0 1-4 0v-3h4v3zM15 12a2 2 0 0 1 0-4h-3v4h3z" stroke="#bc8cff" stroke-width="1.4" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="server-card-badges">
+                <span class="badge-type badge-cloud">Cloud</span>
+                <span class="badge-tool-count">12+ tools</span>
+              </div>
+            </div>
+            <div class="server-card-name">claude_ai_Slack</div>
+            <div class="server-card-purpose">Full Slack integration — send messages, read channels and threads, search messages, manage canvases, schedule messages.</div>
+            <div class="server-card-tools">
+              <div class="server-card-tools-label">Example tools</div>
+              <div class="server-tool-example">mcp__claude_ai_Slack__slack_send_message</div>
+              <div class="server-tool-example">mcp__claude_ai_Slack__slack_read_channel</div>
+              <div class="server-tool-example">mcp__claude_ai_Slack__slack_search_public</div>
+            </div>
+          </div>
+
+          <!-- Jira/Confluence -->
+          <div class="server-card reveal">
+            <div class="server-card-header">
+              <div class="server-card-icon server-card-icon-cloud">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <rect x="3" y="3" width="6" height="6" rx="1.5" stroke="#bc8cff" stroke-width="1.4"/>
+                  <rect x="11" y="3" width="6" height="6" rx="1.5" stroke="#bc8cff" stroke-width="1.4"/>
+                  <rect x="3" y="11" width="6" height="6" rx="1.5" stroke="#bc8cff" stroke-width="1.4"/>
+                  <rect x="11" y="11" width="6" height="6" rx="1.5" stroke="#bc8cff" stroke-width="1.4" opacity="0.5"/>
+                </svg>
+              </div>
+              <div class="server-card-badges">
+                <span class="badge-type badge-cloud">Cloud</span>
+                <span class="badge-tool-count">30+ tools</span>
+              </div>
+            </div>
+            <div class="server-card-name">claude_ai_Atlassian_JIRA_Confluence</div>
+            <div class="server-card-purpose">Complete Jira and Confluence integration — create/edit issues, manage sprints, read/write pages, add comments, link issues.</div>
+            <div class="server-card-tools">
+              <div class="server-card-tools-label">Example tools</div>
+              <div class="server-tool-example">mcp__claude_ai_Atlassian_JIRA_Confluence__getJiraIssue</div>
+              <div class="server-tool-example">mcp__claude_ai_Atlassian_JIRA_Confluence__createJiraIssue</div>
+              <div class="server-tool-example">mcp__claude_ai_Atlassian_JIRA_Confluence__getConfluencePage</div>
+            </div>
+          </div>
+
+        </div><!-- /server-cards-grid -->
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         MCP Configuration
+         =================================================================== -->
+    <section class="page-section" id="config">
+      <div class="container">
+
+        <div class="section-header">
+          <div class="section-label">Configuration</div>
+          <h2 class="section-title">How Local Servers Are Configured</h2>
+          <p class="section-desc">
+            Local MCP servers are defined as gateway scripts. Claude Code runs these scripts to spawn the MCP server process, then communicates via stdio.
+          </p>
+        </div>
+
+        <div class="prose-grid reveal">
+          <div>
+            <div class="code-block">
+              <div class="code-block-header">
+                <span class="code-block-lang">~/.claude/mcp-gateway-playwright.sh</span>
+              </div>
+              <pre style="padding: var(--space-4); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-primary); background: var(--bg-primary); margin: 0; line-height: 1.7; white-space: pre-wrap;">#!/bin/bash
+npx @anthropic-ai/mcp-playwright</pre>
+            </div>
+
+            <div class="info-strip mt-4">
+              <span class="info-strip-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 3a.75.75 0 1 1 0 1.5A.75.75 0 0 1 8 4zm-.25 2.5h1.5v5h-1.5v-5z"/></svg>
+              </span>
+              <span>The gateway script is a thin wrapper that launches the actual MCP server. Claude Code discovers it, executes it, and then communicates over stdio using the MCP protocol to enumerate tools and handle calls.</span>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-4">
+            <div class="callout-box">
+              <strong>Local servers</strong> run as child processes on the same machine. They have access to the local filesystem, browser, and any locally installed tools.
+            </div>
+            <div class="callout-box" style="background: rgba(188,140,255,0.06); border-color: rgba(188,140,255,0.2);">
+              <strong style="color: var(--accent-purple);">Cloud servers</strong> (Amplitude, Slack, Jira) run remotely as claude.ai integrations. They authenticate via OAuth and proxy calls to the respective external APIs.
+            </div>
+            <div class="callout-box callout-box-orange">
+              <strong>Startup cost:</strong> Each configured MCP server adds validation + description calls on startup. With 6 servers totaling 39 tools, that is 78 initialization calls before the first user message is processed.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Resources
+         =================================================================== -->
+    <section class="page-section" id="resources">
+      <div class="container">
+
+        <div class="section-header">
+          <div class="section-label">MCP Resources</div>
+          <h2 class="section-title">Resources vs Tools</h2>
+          <p class="section-desc">
+            Beyond tools, MCP servers can expose <strong>resources</strong> — structured data objects the model can read directly. Two built-in tools provide access to MCP resources.
+          </p>
+        </div>
+
+        <div class="resources-grid reveal">
+
+          <div class="resource-card">
+            <div class="resource-card-header">
+              <div class="resource-card-icon resource-card-icon-list">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="2" y="3" width="14" height="2" rx="1" fill="#58a6ff"/>
+                  <rect x="2" y="8" width="10" height="2" rx="1" fill="#58a6ff" opacity="0.7"/>
+                  <rect x="2" y="13" width="12" height="2" rx="1" fill="#58a6ff" opacity="0.5"/>
+                </svg>
+              </div>
+              <div class="resource-card-name">ListMcpResourcesTool</div>
+            </div>
+            <div class="resource-card-desc">
+              Enumerate all resources exposed by connected MCP servers. Returns a list of resource URIs and their metadata (name, MIME type, description).
+            </div>
+            <div class="code-block">
+              <div class="code-block-header">
+                <span class="code-block-lang">Call</span>
+              </div>
+              <pre data-lang="json">{
+  "name": "ListMcpResourcesTool",
+  "input": {}
+}</pre>
+            </div>
+          </div>
+
+          <div class="resource-card">
+            <div class="resource-card-header">
+              <div class="resource-card-icon resource-card-icon-read">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="3" y="2" width="12" height="14" rx="2" stroke="#39d2c0" stroke-width="1.5"/>
+                  <path d="M6 6h6M6 9h6M6 12h4" stroke="#39d2c0" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="resource-card-name">ReadMcpResourceTool</div>
+            </div>
+            <div class="resource-card-desc">
+              Read the contents of a specific MCP resource by URI. Returns the resource content — which may be text, JSON, or binary data depending on the server.
+            </div>
+            <div class="code-block">
+              <div class="code-block-header">
+                <span class="code-block-lang">Call</span>
+              </div>
+              <pre data-lang="json">{
+  "name": "ReadMcpResourceTool",
+  "input": {
+    "server_name": "playwright",
+    "uri": "playwright://docs/api"
+  }
+}</pre>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="info-strip reveal mt-6">
+          <span class="info-strip-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 3a.75.75 0 1 1 0 1.5A.75.75 0 0 1 8 4zm-.25 2.5h1.5v5h-1.5v-5z"/></svg>
+          </span>
+          <span>Resources are distinct from tools: <strong>tools</strong> perform actions (click, send message, run pipeline), while <strong>resources</strong> expose data that can be read passively (documentation, configuration, reference data). Not all MCP servers expose resources — most only expose tools.</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Navigation Footer
+         =================================================================== -->
+    <div class="nav-footer">
+      <div class="container">
+        <div class="nav-footer-inner">
+          <a href="agents.html" class="nav-footer-link">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M9 2L4 7l5 5"/></svg>
+            Sub-Agents
+          </a>
+          <span class="nav-footer-center">Chapter 9 of 12</span>
+          <a href="context-management.html" class="nav-footer-link">
+            Context Management
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M5 2l5 5-5 5"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="site-footer-text">Claude Code Visual Guide — MCP Servers</p>
+    </div>
+  </footer>
+
+  <script src="js/prism.min.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/diagrams.js"></script>
+  <script>
+  'use strict';
+
+  /* ========================================================================
+     Discovery Animation
+     ======================================================================== */
+
+  (function initDiscovery() {
+    const STEPS = [
+      {
+        label: 'Claude Code launches',
+        icon: '🚀',
+        iconBg: 'rgba(57,210,192,0.12)',
+        title: 'Session Startup',
+        desc: 'Claude Code starts a new session. Before any user message is processed, it must connect to all configured MCP servers and register their tools.',
+        content: `
+          <div class="callout-box">
+            <strong>6 MCP servers configured</strong><br>
+            playwright &bull; circleci-mcp-server &bull; langchain-docs &bull; claude_ai_Amplitude &bull; claude_ai_Slack &bull; claude_ai_Atlassian_JIRA_Confluence
+          </div>
+          <div class="callout-box callout-box-blue" style="margin-top: 12px;">
+            <strong>What happens next:</strong> Claude Code connects to each server, enumerates available tools, then validates and describes each one individually.
+          </div>
+        `
+      },
+      {
+        label: 'Connect to MCP servers',
+        icon: '🔌',
+        iconBg: 'rgba(88,166,255,0.12)',
+        title: 'Connect — Enumerate Tools',
+        desc: 'Claude Code connects to each configured MCP server and asks it to list available tools.',
+        content: `
+          <div class="server-pills">
+            <span class="server-pill"><span class="server-pill-dot" style="background: var(--accent-blue);"></span>playwright (23)</span>
+            <span class="server-pill"><span class="server-pill-dot" style="background: var(--accent-blue);"></span>circleci (15)</span>
+            <span class="server-pill"><span class="server-pill-dot" style="background: var(--accent-blue);"></span>langchain (1)</span>
+            <span class="server-pill"><span class="server-pill-dot" style="background: var(--accent-purple);"></span>Amplitude (25+)</span>
+            <span class="server-pill"><span class="server-pill-dot" style="background: var(--accent-purple);"></span>Slack (12+)</span>
+            <span class="server-pill"><span class="server-pill-dot" style="background: var(--accent-purple);"></span>Jira (30+)</span>
+          </div>
+          <div class="callout-box mt-4">
+            <strong>Result:</strong> ~39 tool names enumerated across all servers. Each tool comes with a raw JSON schema.
+          </div>
+        `
+      },
+      {
+        label: 'Send validation requests',
+        icon: '🔍',
+        iconBg: 'rgba(210,153,34,0.12)',
+        title: 'Validate Each Tool Schema',
+        desc: 'For each tool, Claude Code sends a minimal API call to validate the JSON schema is well-formed. Uses the <code>opus</code> model. One call per tool.',
+        content: `
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-block-lang">Entries 3–41: Schema validation (one per tool)</span></div>
+            <pre data-lang="json" style="font-size: 12px;">{
+  "model": "claude-opus-4-5",
+  "tools": [{
+    "name": "mcp__playwright__browser_press_key",
+    "input_schema": { "type": "object", "properties": { "key": { "type": "string" } } }
+  }],
+  "messages": [{ "role": "user", "content": "foo" }]
+}</pre>
+          </div>
+        `
+      },
+      {
+        label: 'Validation passes',
+        icon: '✅',
+        iconBg: 'rgba(63,185,80,0.12)',
+        title: 'Schema Valid',
+        desc: 'The validation call returns successfully, confirming the schema is acceptable. Any tool with an invalid schema would be skipped.',
+        content: `
+          <div class="tool-list-preview">
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_click</span>
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_navigate</span>
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_fill_form</span>
+            <span class="tool-list-item highlight-validate">... validating mcp__playwright__browser_press_key ...</span>
+            <span class="tool-list-item" style="color: var(--text-secondary); opacity:0.4">mcp__playwright__browser_screenshot</span>
+            <span class="tool-list-item" style="color: var(--text-secondary); opacity:0.4">mcp__circleci-mcp-server__get_build_failure_logs</span>
+          </div>
+          <div class="callout-box callout-box-green mt-4">
+            <strong>39 tools validated</strong> — all schemas passed. Any schema validation failure silently drops that tool.
+          </div>
+        `
+      },
+      {
+        label: 'Generate descriptions',
+        icon: '✍️',
+        iconBg: 'rgba(188,140,255,0.12)',
+        title: 'Generate Human-Readable Descriptions',
+        desc: 'For each valid tool, a second API call generates a human-readable description using <code>claude-3-5-haiku</code>. This is what appears in the tool list Claude sees.',
+        content: `
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-block-lang">Entries 42–80: Description generation (one per tool)</span></div>
+            <pre data-lang="json" style="font-size: 12px;">{
+  "model": "claude-3-5-haiku-20241022",
+  "tools": [{
+    "name": "mcp__playwright__browser_press_key",
+    "input_schema": { "type": "object", "properties": { "key": { "type": "string" } } }
+  }],
+  "messages": [{ "role": "user", "content": "foo" }]
+}</pre>
+          </div>
+        `
+      },
+      {
+        label: 'Description generated',
+        icon: '📝',
+        iconBg: 'rgba(188,140,255,0.12)',
+        title: 'Description Ready',
+        desc: 'The haiku model returns a concise description that explains what the tool does in plain language. This description is stored for use in future API calls.',
+        content: `
+          <div class="callout-box" style="background: rgba(188,140,255,0.06); border-color: rgba(188,140,255,0.2);">
+            <strong style="color: var(--accent-purple);">Generated description example:</strong><br><br>
+            <em style="color: var(--text-secondary); font-style: italic;">"Press a keyboard key in the browser. Supports special keys like Enter, Escape, Tab, Arrow keys, F-keys, and modifier combinations like Control+A."</em>
+          </div>
+          <div class="callout-box callout-box-blue mt-3">
+            Haiku is used here (not opus) because description generation is a lightweight summarization task — using a smaller model keeps the startup cost reasonable.
+          </div>
+        `
+      },
+      {
+        label: 'Tool registered',
+        icon: '📋',
+        iconBg: 'rgba(57,210,192,0.12)',
+        title: 'Tool Added to Registry',
+        desc: 'The validated, described tool is added to the tools registry. It will appear in the <code>tools</code> array of all future API calls (or in the deferred list if deferred loading is on).',
+        content: `
+          <div class="tool-list-preview">
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_click</span>
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_navigate</span>
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_fill_form</span>
+            <span class="tool-list-item highlight-done">✓ mcp__playwright__browser_press_key</span>
+            <span class="tool-list-item" style="color: var(--text-secondary); opacity: 0.45">... 35 more tools ...</span>
+          </div>
+        `
+      },
+      {
+        label: 'Repeat for all tools',
+        icon: '🔄',
+        iconBg: 'rgba(88,166,255,0.12)',
+        title: 'Repeat × 39 Tools',
+        desc: 'Steps 3–7 are repeated for every MCP tool across all servers. Each tool gets its own validation call and description generation call.',
+        content: `
+          <div class="api-calls-stat" style="margin-top: 0; background: var(--bg-primary);">
+            <div class="api-calls-number" style="font-size: 2.5rem;">78</div>
+            <div class="api-calls-detail">
+              <div class="api-calls-label">MCP initialization calls</div>
+              <div class="api-calls-sub">39 validation (opus) + 39 description (haiku) = 78 calls, before any user prompt is processed</div>
+            </div>
+          </div>
+          <div class="callout-box callout-box-orange mt-4">
+            <strong>Plus ~5 more calls</strong> for session setup, system prompt assembly, and context injection — bringing the total to 80+ API calls on startup.
+          </div>
+        `
+      },
+      {
+        label: 'All tools ready',
+        icon: '🎉',
+        iconBg: 'rgba(63,185,80,0.12)',
+        title: 'Tools Available — Session Ready',
+        desc: 'All 39 MCP tools are registered and available. Claude Code is now ready to process the first user message, with full MCP tool access.',
+        content: `
+          <div class="callout-box callout-box-green">
+            <strong>39 MCP tools registered across 6 servers</strong><br><br>
+            <div class="tool-list-preview" style="margin-top: 8px;">
+              <span class="tool-list-item highlight-done">playwright — 23 tools</span>
+              <span class="tool-list-item highlight-done">circleci — 15 tools</span>
+              <span class="tool-list-item highlight-done">langchain-docs — 1 tool</span>
+              <span class="tool-list-item highlight-done" style="color: var(--accent-purple);">Amplitude — 25+ tools (deferred)</span>
+              <span class="tool-list-item highlight-done" style="color: var(--accent-purple);">Slack — 12+ tools (deferred)</span>
+              <span class="tool-list-item highlight-done" style="color: var(--accent-purple);">Jira/Confluence — 30+ tools (deferred)</span>
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    const sidebar = document.getElementById('disc-sidebar');
+    const content = document.getElementById('disc-content');
+    const counter = document.getElementById('disc-counter');
+    const prevBtn = document.getElementById('disc-prev');
+    const nextBtn = document.getElementById('disc-next');
+    const playBtn = document.getElementById('disc-play');
+    const playIcon = document.getElementById('disc-play-icon');
+    const playLabel = document.getElementById('disc-play-label');
+    const resetBtn = document.getElementById('disc-reset');
+
+    if (!sidebar || !content) return;
+
+    let currentStep = -1;
+    let playing = false;
+    let playTimer = null;
+
+    // Build sidebar items
+    STEPS.forEach((step, i) => {
+      const item = document.createElement('div');
+      item.className = 'disc-step-item';
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-label', `Step ${i + 1}: ${step.label}`);
+      item.innerHTML = `
+        <span class="disc-step-num">${i + 1}</span>
+        <span class="disc-step-text">${step.label}</span>
+      `;
+      item.addEventListener('click', () => goTo(i));
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo(i); }
+      });
+      sidebar.appendChild(item);
+    });
+
+    // Build content panels
+    STEPS.forEach((step, i) => {
+      const panel = document.createElement('div');
+      panel.className = 'disc-panel';
+      panel.id = `disc-panel-${i}`;
+      panel.innerHTML = `
+        <div class="disc-panel-title">
+          <span class="disc-panel-title-icon" style="background: ${step.iconBg};">${step.icon}</span>
+          ${step.title}
+        </div>
+        <div class="disc-panel-desc">${step.desc}</div>
+        ${step.content}
+      `;
+      content.appendChild(panel);
+    });
+
+    // Also add a placeholder panel shown before any step
+    const placeholder = document.createElement('div');
+    placeholder.className = 'disc-panel active';
+    placeholder.id = 'disc-panel-idle';
+    placeholder.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; padding: 40px 20px; text-align: center;">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="20" stroke="rgba(57,210,192,0.3)" stroke-width="2"/>
+          <path d="M16 24l6 6 10-12" stroke="rgba(57,210,192,0.6)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="font-size: 15px; font-weight: 600; color: var(--text-primary);">MCP Tool Discovery</div>
+        <div style="font-size: 13px; color: var(--text-secondary); max-width: 280px; line-height: 1.6;">
+          Press Play or step through to see how Claude Code discovers and registers MCP tools at session startup.
+        </div>
+      </div>
+    `;
+    content.insertBefore(placeholder, content.firstChild);
+
+    function render() {
+      const items = sidebar.querySelectorAll('.disc-step-item');
+      const panels = content.querySelectorAll('.disc-panel');
+
+      items.forEach((item, i) => {
+        item.classList.toggle('active', i === currentStep);
+        item.classList.toggle('completed', i < currentStep);
+        item.querySelector('.disc-step-num').textContent =
+          i < currentStep ? '✓' : String(i + 1);
+      });
+
+      panels.forEach((panel, i) => {
+        // i=0 is placeholder, steps are i=1..N
+        if (panel.id === 'disc-panel-idle') {
+          panel.classList.toggle('active', currentStep === -1);
+        } else {
+          const stepIdx = parseInt(panel.id.replace('disc-panel-', ''), 10);
+          panel.classList.toggle('active', stepIdx === currentStep);
+        }
+      });
+
+      counter.textContent = `${Math.max(0, currentStep + 1)} / ${STEPS.length}`;
+      prevBtn.disabled = currentStep <= 0;
+      nextBtn.disabled = currentStep >= STEPS.length - 1;
+
+      // Re-highlight any JSON blocks in active panel
+      if (currentStep >= 0 && window.PrismLite) {
+        const activePanel = document.getElementById(`disc-panel-${currentStep}`);
+        if (activePanel) {
+          activePanel.querySelectorAll('pre[data-lang="json"]').forEach(pre => {
+            if (!pre.dataset.highlighted) {
+              pre.innerHTML = window.PrismLite.highlightJSON(
+                window.GuideUtils.escapeHtml(pre.textContent)
+              );
+              pre.dataset.highlighted = '1';
+            }
+          });
+        }
+      }
+    }
+
+    function goTo(idx) {
+      currentStep = Math.max(-1, Math.min(idx, STEPS.length - 1));
+      render();
+    }
+
+    function stopPlay() {
+      playing = false;
+      clearTimeout(playTimer);
+      playBtn.classList.remove('playing');
+      playIcon.innerHTML = '<path d="M2 2.5l8 3.5-8 3.5V2.5z"/>';
+      playLabel.textContent = 'Play';
+    }
+
+    function startPlay() {
+      if (currentStep >= STEPS.length - 1) goTo(-1);
+      playing = true;
+      playBtn.classList.add('playing');
+      playIcon.innerHTML = '<rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/>';
+      playLabel.textContent = 'Pause';
+
+      function tick() {
+        if (!playing) return;
+        if (currentStep >= STEPS.length - 1) {
+          stopPlay();
+          return;
+        }
+        goTo(currentStep + 1);
+        playTimer = setTimeout(tick, 1600);
+      }
+      playTimer = setTimeout(tick, 400);
+    }
+
+    prevBtn.addEventListener('click', () => { stopPlay(); goTo(currentStep - 1); });
+    nextBtn.addEventListener('click', () => { stopPlay(); goTo(currentStep + 1); });
+    playBtn.addEventListener('click', () => { playing ? stopPlay() : startPlay(); });
+    resetBtn.addEventListener('click', () => { stopPlay(); goTo(-1); });
+
+    render();
+  })();
+
+  /* ========================================================================
+     Deferred Loading Toggle
+     ======================================================================== */
+
+  (function initDeferredToggle() {
+    const toggle = document.getElementById('deferred-toggle');
+    const paneOff = document.getElementById('pane-off');
+    const paneOn = document.getElementById('pane-on');
+    const labelOff = document.getElementById('toggle-off-label');
+    const labelOn = document.getElementById('toggle-on-label');
+
+    if (!toggle) return;
+
+    toggle.addEventListener('change', () => {
+      const on = toggle.checked;
+      paneOff.classList.toggle('dimmed', on);
+      paneOn.classList.toggle('dimmed', !on);
+      labelOff.classList.toggle('active', !on);
+      labelOn.classList.toggle('active', on);
+    });
+  })();
+
+  </script>
+
+</body>
+</html>

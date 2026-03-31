@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Emulator — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Layout — full-height 3-column + bottom bar
+       ===================================================================== */
+
+    body {
+      overflow-x: hidden;
+    }
+
+    .emulator-wrap {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - var(--nav-height));
+      margin-top: var(--nav-height);
+    }
+
+    .emulator-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      flex: 1;
+      min-height: 0;
+      gap: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    /* =====================================================================
+       Panel Shared
+       ===================================================================== */
+
+    .emulator-panel {
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .emulator-panel:last-child {
+      border-right: none;
+    }
+
+    .emulator-panel-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-3) var(--space-4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-shrink: 0;
+    }
+
+    .emulator-panel-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .emulator-panel-body {
+      padding: var(--space-4);
+      flex: 1;
+    }
+
+    /* =====================================================================
+       Left Panel — Configuration
+       ===================================================================== */
+
+    #emulator-left .emulator-panel-body {
+      padding: var(--space-3) var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .ep-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .ep-section-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: var(--space-1);
+      border-bottom: 1px solid rgba(48,54,61,0.6);
+    }
+
+    /* Model radios */
+    .ep-model-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .ep-radio {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+      background: var(--bg-secondary);
+      user-select: none;
+    }
+
+    .ep-radio input[type="radio"] {
+      accent-color: var(--accent-blue);
+    }
+
+    .ep-radio:hover {
+      border-color: rgba(88,166,255,0.4);
+    }
+
+    .ep-radio.active {
+      border-color: var(--accent-blue);
+      background: rgba(88,166,255,0.06);
+    }
+
+    .ep-radio-label {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: var(--font-medium);
+      flex: 1;
+    }
+
+    .ep-radio-sub {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    /* Context toggles */
+    .ep-toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .ep-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-2);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      user-select: none;
+    }
+
+    .ep-toggle:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .ep-toggle input[type="checkbox"] {
+      display: none;
+    }
+
+    .ep-toggle-track {
+      width: 28px;
+      height: 16px;
+      border-radius: var(--radius-full);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      position: relative;
+      flex-shrink: 0;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .ep-toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-secondary);
+      transition: transform var(--transition-fast), background var(--transition-fast);
+    }
+
+    .ep-toggle input:checked + .ep-toggle-track {
+      background: rgba(63,185,80,0.2);
+      border-color: var(--accent-green);
+    }
+
+    .ep-toggle input:checked + .ep-toggle-track .ep-toggle-thumb {
+      transform: translateX(12px);
+      background: var(--accent-green);
+    }
+
+    .ep-toggle-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+    }
+
+    .ep-toggle-name {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+
+    .ep-toggle-tokens {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    /* Scenario buttons */
+    .ep-scenario-btns {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .ep-scenario-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+      text-align: left;
+      width: 100%;
+    }
+
+    .ep-scenario-btn:hover {
+      border-color: rgba(88,166,255,0.4);
+      background: rgba(88,166,255,0.04);
+    }
+
+    .ep-scenario-btn.active {
+      border-color: var(--accent-orange);
+      background: rgba(210,153,34,0.08);
+    }
+
+    .ep-scenario-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .ep-scenario-text {
+      font-size: var(--text-sm);
+    }
+
+    /* Textarea + actions */
+    .ep-textarea {
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      padding: var(--space-3);
+      resize: vertical;
+      transition: border-color var(--transition-fast);
+      min-height: 80px;
+    }
+
+    .ep-textarea:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .ep-textarea::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .ep-input-actions {
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    /* Buttons */
+    .ep-btn {
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .ep-btn-sm {
+      padding: var(--space-1) var(--space-2);
+      font-size: var(--text-xs);
+    }
+
+    .ep-btn-primary {
+      background: var(--accent-blue);
+      color: #0d1117;
+      border-color: var(--accent-blue);
+    }
+
+    .ep-btn-primary:hover:not(:disabled) {
+      background: #79b8ff;
+    }
+
+    .ep-btn-primary.active {
+      background: var(--accent-orange);
+      border-color: var(--accent-orange);
+    }
+
+    .ep-btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .ep-btn-ghost:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .ep-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .ep-btn.active {
+      border-color: var(--accent-orange);
+      color: var(--accent-orange);
+    }
+
+    /* =====================================================================
+       Center Panel — Request Builder
+       ===================================================================== */
+
+    #emulator-center {
+      background: var(--bg-primary);
+    }
+
+    #emulator-center .emulator-panel-body {
+      padding: 0;
+    }
+
+    /* Idle state */
+    .ec-idle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: var(--space-4);
+      padding: var(--space-8);
+      text-align: center;
+    }
+
+    .ec-idle-icon {
+      font-size: 48px;
+      color: var(--bg-tertiary);
+      line-height: 1;
+    }
+
+    .ec-idle-text {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      max-width: 280px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* Request display */
+    .ec-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-5);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      transition: background 0.3s ease;
+    }
+
+    .ec-header.sending {
+      background: rgba(210,153,34,0.15);
+      border-bottom-color: var(--accent-orange);
+    }
+
+    .ec-header.sent {
+      background: rgba(63,185,80,0.08);
+      border-bottom-color: var(--accent-green);
+    }
+
+    .ec-method {
+      font-weight: var(--font-bold);
+      color: var(--accent-orange);
+    }
+
+    .ec-endpoint {
+      color: var(--text-primary);
+    }
+
+    .ec-beta-badge {
+      font-size: var(--text-xs);
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      background: rgba(188,140,255,0.15);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.3);
+    }
+
+    .ec-request-body {
+      padding: var(--space-4) var(--space-5);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    /* Sections */
+    .ec-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .ec-section-key {
+      color: var(--accent-blue);
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+    }
+
+    .ec-section-bracket {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+    }
+
+    .ec-section-content {
+      padding-left: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    /* Request blocks */
+    .ec-req-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ec-req-block-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .ec-req-block-label {
+      color: var(--text-primary);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+    }
+
+    .ec-req-block-tokens {
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .ec-cache-badge {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: var(--radius-full);
+      background: rgba(63,185,80,0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.35);
+      letter-spacing: 0.05em;
+      box-shadow: 0 0 8px rgba(63,185,80,0.2);
+    }
+
+    .ec-req-block-preview {
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Tools bar */
+    .ec-tools-bar {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .ec-tools-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+
+    .ec-tool-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+    }
+
+    .ec-tool-badge.built-in {
+      background: rgba(88,166,255,0.12);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.25);
+    }
+
+    .ec-tool-badge.plugin {
+      background: rgba(188,140,255,0.12);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.25);
+    }
+
+    .ec-tool-badge.mcp {
+      background: rgba(57,210,192,0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(57,210,192,0.25);
+    }
+
+    .ec-tools-total {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Turn rows in messages */
+    .ec-turn {
+      margin-bottom: var(--space-3);
+    }
+
+    .ec-turn-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-1);
+    }
+
+    .ec-role {
+      font-weight: var(--font-semibold);
+    }
+
+    .ec-role.user      { color: var(--accent-blue); }
+    .ec-role.assistant { color: var(--accent-purple); }
+
+    .ec-message-block {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      padding: var(--space-1) var(--space-2);
+      background: var(--bg-secondary);
+      border: 1px solid rgba(48,54,61,0.6);
+      border-radius: var(--radius);
+      margin-bottom: 3px;
+      font-size: 11px;
+      overflow: hidden;
+    }
+
+    .ec-block-type {
+      flex-shrink: 0;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      background: rgba(88,166,255,0.12);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.2);
+      white-space: nowrap;
+    }
+
+    .ec-block-type.tool {
+      background: rgba(210,153,34,0.12);
+      color: var(--accent-orange);
+      border-color: rgba(210,153,34,0.2);
+    }
+
+    .ec-block-type.result {
+      background: rgba(63,185,80,0.12);
+      color: var(--accent-green);
+      border-color: rgba(63,185,80,0.2);
+    }
+
+    .ec-block-content {
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .ec-block-content.muted {
+      color: var(--text-secondary);
+    }
+
+    /* Accordion blocks */
+    .ec-accordion {
+      border: 1px solid rgba(48,54,61,0.6);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 3px;
+    }
+
+    .ec-accordion-trigger {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      width: 100%;
+      padding: var(--space-1) var(--space-2);
+      background: var(--bg-secondary);
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: left;
+      transition: background var(--transition-fast);
+    }
+
+    .ec-accordion-trigger:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .ec-accordion-chevron {
+      font-size: 8px;
+      transition: transform var(--transition-fast);
+      color: var(--text-secondary);
+    }
+
+    .ec-accordion-type {
+      color: var(--accent-cyan);
+    }
+
+    .ec-accordion-tokens {
+      margin-left: auto;
+      color: var(--text-secondary);
+    }
+
+    .ec-accordion-body {
+      background: var(--bg-primary);
+      border-top: 1px solid rgba(48,54,61,0.6);
+    }
+
+    .ec-accordion-content {
+      padding: var(--space-2) var(--space-3);
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Right Panel — Response Stream
+       ===================================================================== */
+
+    #emulator-right {
+      background: var(--bg-secondary);
+    }
+
+    #emulator-right .emulator-panel-body {
+      padding: 0;
+    }
+
+    .er-idle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: var(--space-4);
+      padding: var(--space-8);
+      text-align: center;
+    }
+
+    .er-idle-icon {
+      color: var(--bg-tertiary);
+      opacity: 0.6;
+    }
+
+    .er-idle-text {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      max-width: 220px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* Stream layout */
+    .er-stream-header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .er-stream-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+
+    .er-stream-indicator {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .er-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      animation: er-bounce 1.2s ease-in-out infinite;
+    }
+
+    .er-dot:nth-child(2) { animation-delay: 0.2s; }
+    .er-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes er-bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40%           { transform: scale(1);   opacity: 1;   }
+    }
+
+    .er-stream-body {
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      overflow-y: auto;
+      max-height: calc(100% - 44px);
+    }
+
+    /* Text block */
+    .er-text-block {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+    }
+
+    .er-text-block pre {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      line-height: var(--leading-relaxed);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Tool use card */
+    .er-tool-block {
+      background: var(--bg-tertiary);
+      border: 1px solid rgba(210,153,34,0.3);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 0 12px rgba(210,153,34,0.1);
+    }
+
+    .er-tool-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background: rgba(210,153,34,0.08);
+      border-bottom: 1px solid rgba(210,153,34,0.2);
+    }
+
+    .er-tool-icon {
+      font-size: 12px;
+      color: var(--accent-orange);
+    }
+
+    .er-tool-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--accent-orange);
+      font-family: var(--font-mono);
+    }
+
+    .er-tool-type {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .er-tool-input {
+      padding: var(--space-3) var(--space-4);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+      background: transparent;
+      border: none;
+    }
+
+    /* Divider */
+    .er-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .er-divider::before,
+    .er-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Tool result */
+    .er-result-block {
+      background: var(--bg-primary);
+      border: 1px solid rgba(63,185,80,0.25);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+    }
+
+    .er-result-block pre {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--accent-green);
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+    }
+
+    /* Loop badge */
+    .er-loop-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background: rgba(88,166,255,0.08);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--accent-blue);
+    }
+
+    .er-loop-arrow {
+      font-size: 16px;
+      animation: er-spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes er-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Done badge */
+    .er-done-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background: rgba(63,185,80,0.1);
+      border: 1px solid rgba(63,185,80,0.3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--accent-green);
+      box-shadow: var(--glow-green);
+    }
+
+    .er-done-check {
+      font-size: 16px;
+    }
+
+    /* =====================================================================
+       Bottom Status Bar
+       ===================================================================== */
+
+    .emulator-bottom {
+      border-top: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      flex-shrink: 0;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+    }
+
+    #emulator-status {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: var(--space-6);
+      padding: var(--space-2) var(--space-5);
+      flex-wrap: wrap;
+    }
+
+    .esb-tokens {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .esb-token-count {
+      color: var(--text-primary);
+      font-weight: var(--font-semibold);
+    }
+
+    .esb-token-sep  { color: var(--text-secondary); }
+    .esb-token-max  { color: var(--text-secondary); }
+    .esb-token-label {
+      color: var(--text-secondary);
+      margin-left: 4px;
+    }
+
+    .esb-bar-track {
+      width: 120px;
+      height: 6px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      margin-left: var(--space-2);
+    }
+
+    .esb-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      background: var(--accent-blue);
+      transition: width 0.4s ease, background 0.4s ease;
+    }
+
+    .esb-badges {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .esb-cache {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      font-family: var(--font-mono);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.05em;
+    }
+
+    .esb-cache.hit {
+      background: rgba(63,185,80,0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.35);
+      box-shadow: 0 0 8px rgba(63,185,80,0.25);
+    }
+
+    .esb-cache.miss {
+      background: rgba(139,148,158,0.1);
+      color: var(--text-secondary);
+      border: 1px solid rgba(139,148,158,0.2);
+    }
+
+    .esb-state {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .esb-controls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    /* Status bar pulse animation */
+    @keyframes sb-pulse {
+      0%   { box-shadow: none; }
+      50%  { box-shadow: inset 0 0 0 1px rgba(88,166,255,0.2); }
+      100% { box-shadow: none; }
+    }
+
+    .emulator-bottom.pulse {
+      animation: sb-pulse 0.4s ease;
+    }
+
+    /* =====================================================================
+       Raw JSON modal
+       ===================================================================== */
+
+    .nav-raw-btn {
+      margin-left: auto;
+      font-size: var(--text-xs);
+      padding: var(--space-1) var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all var(--transition-fast);
+    }
+
+    .nav-raw-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .json-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-6);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .json-modal-overlay.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .json-modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 760px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-xl);
+      transform: scale(0.96);
+      transition: transform 0.2s ease;
+    }
+
+    .json-modal-overlay.open .json-modal {
+      transform: scale(1);
+    }
+
+    .json-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    .json-modal-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .json-modal-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      transition: background var(--transition-fast);
+    }
+
+    .json-modal-close:hover { background: var(--bg-primary); color: var(--text-primary); }
+
+    .json-modal-body {
+      overflow-y: auto;
+      padding: var(--space-5) var(--space-6);
+      flex: 1;
+    }
+
+    .json-modal-body pre {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.7;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* JSON syntax colouring inside modal */
+    .json-modal-body .jk { color: var(--accent-blue); }
+    .json-modal-body .js { color: var(--accent-green); }
+    .json-modal-body .jn { color: var(--accent-orange); }
+    .json-modal-body .jp { color: var(--text-secondary); }
+    .json-modal-body .jb { color: var(--accent-cyan); }
+
+    /* =====================================================================
+       Intro hero banner
+       ===================================================================== */
+
+    .emulator-intro {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-5) var(--space-8);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-6);
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .emulator-intro-text {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .emulator-intro-title {
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .emulator-intro-sub {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      max-width: 540px;
+    }
+
+    .emulator-intro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.08);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      white-space: nowrap;
+    }
+
+    /* =====================================================================
+       Page-nav footer
+       ===================================================================== */
+
+    .page-nav-footer {
+      padding: var(--space-8) 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .page-nav-footer-inner {
+      max-width: var(--container-max);
+      margin: 0 auto;
+      padding: 0 var(--space-8);
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+    }
+
+    .page-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: var(--text-sm);
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .page-nav-btn:hover {
+      border-color: var(--accent-blue);
+      background: rgba(88,166,255,0.06);
+    }
+
+    .page-nav-btn-icon { color: var(--text-secondary); font-size: 18px; }
+    .page-nav-btn-info { display: flex; flex-direction: column; }
+    .page-nav-btn-dir  { font-size: var(--text-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+    .page-nav-btn-label { font-size: var(--text-sm); font-weight: var(--font-semibold); }
+
+    .page-nav-center { flex: 1; display: flex; justify-content: center; }
+    .page-nav-home   {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-sm); color: var(--text-secondary);
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      background: transparent; cursor: pointer; text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    .page-nav-home:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+    /* =====================================================================
+       Responsive
+       ===================================================================== */
+
+    @media (max-width: 900px) {
+      .emulator-layout {
+        grid-template-columns: 240px 1fr 280px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .emulator-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        height: auto;
+      }
+
+      .emulator-wrap {
+        height: auto;
+      }
+
+      .emulator-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        min-height: 300px;
+        max-height: 60vh;
+      }
+
+      .emulator-panel:last-child {
+        border-bottom: none;
+      }
+
+      .emulator-intro {
+        padding: var(--space-4) var(--space-4);
+      }
+
+      .esb-bar-track { width: 80px; }
+
+      #emulator-status { gap: var(--space-3); }
+
+      .page-nav-footer-inner { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" aria-label="Claude Code Architecture home">
+      <div class="nav-logo-icon">C</div>
+    </a>
+    <div class="nav-links" role="list">
+      <a href="index.html"              class="nav-link" role="listitem">The Big Picture</a>
+      <a href="request-lifecycle.html"  class="nav-link" role="listitem">Request Lifecycle</a>
+      <a href="system-prompt.html"      class="nav-link" role="listitem">System Prompt</a>
+      <a href="tools.html"              class="nav-link" role="listitem">Tools</a>
+      <a href="context-injection.html"  class="nav-link" role="listitem">Context Injection</a>
+      <a href="skills.html"             class="nav-link" role="listitem">Skills</a>
+      <a href="plugins.html"            class="nav-link" role="listitem">Plugins</a>
+      <a href="agents.html"             class="nav-link" role="listitem">Agents</a>
+      <a href="mcp.html"                class="nav-link" role="listitem">MCP Servers</a>
+      <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+      <a href="persistence.html"        class="nav-link" role="listitem">Persistence</a>
+      <a href="emulator.html"           class="nav-link active" role="listitem">Emulator</a>
+    </div>
+    <button class="nav-hamburger" aria-label="Open mobile menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+  <a href="index.html"              class="nav-link">The Big Picture</a>
+  <a href="request-lifecycle.html"  class="nav-link">Request Lifecycle</a>
+  <a href="system-prompt.html"      class="nav-link">System Prompt</a>
+  <a href="tools.html"              class="nav-link">Tools</a>
+  <a href="context-injection.html"  class="nav-link">Context Injection</a>
+  <a href="skills.html"             class="nav-link">Skills</a>
+  <a href="plugins.html"            class="nav-link">Plugins</a>
+  <a href="agents.html"             class="nav-link">Agents</a>
+  <a href="mcp.html"                class="nav-link">MCP Servers</a>
+  <a href="context-management.html" class="nav-link">Context Mgmt</a>
+  <a href="persistence.html"        class="nav-link">Persistence</a>
+  <a href="emulator.html"           class="nav-link active">Emulator</a>
+</div>
+
+<!-- Raw JSON modal overlay -->
+<div class="json-modal-overlay" id="json-modal-overlay" role="dialog" aria-modal="true" aria-label="Raw API Request JSON" hidden>
+  <div class="json-modal">
+    <div class="json-modal-header">
+      <span class="json-modal-title">Raw API Request — POST /v1/messages</span>
+      <button class="json-modal-close" id="json-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="json-modal-body">
+      <pre id="json-modal-content">Run a scenario first to see the raw request.</pre>
+    </div>
+  </div>
+</div>
+
+<!-- Main emulator wrapper -->
+<div class="emulator-wrap">
+
+  <!-- Intro banner -->
+  <div class="emulator-intro">
+    <div class="emulator-intro-text">
+      <div class="emulator-intro-title">Full API Emulator</div>
+      <div class="emulator-intro-sub">Watch every phase of a Claude Code turn: request assembly, cache lookup, streaming response, tool execution, and loop-back — all animated in real time.</div>
+    </div>
+    <span class="emulator-intro-badge">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--accent-blue);animation:pulse-dot 2s ease-in-out infinite;display:inline-block;"></span>
+      Interactive
+    </span>
+    <button class="nav-raw-btn" id="show-raw-btn">{ } Raw JSON</button>
+  </div>
+
+  <!-- 3-column layout -->
+  <div class="emulator-layout">
+
+    <!-- LEFT: Configuration -->
+    <div class="emulator-panel" id="emulator-left-wrapper">
+      <div class="emulator-panel-header">
+        <span class="emulator-panel-title">Configuration</span>
+      </div>
+      <div class="emulator-panel-body" id="emulator-left">
+        <!-- Rendered by Emulator.init() -->
+      </div>
+    </div>
+
+    <!-- CENTER: Request Builder -->
+    <div class="emulator-panel" id="emulator-center-wrapper">
+      <div class="emulator-panel-header">
+        <span class="emulator-panel-title">API Request Builder</span>
+        <span style="font-size:var(--text-xs);color:var(--text-secondary);font-family:var(--font-mono);" id="ec-model-label">claude-sonnet-4-5</span>
+      </div>
+      <div class="emulator-panel-body" id="emulator-center">
+        <!-- Rendered by Emulator.init() -->
+      </div>
+    </div>
+
+    <!-- RIGHT: Response Stream -->
+    <div class="emulator-panel" id="emulator-right-wrapper">
+      <div class="emulator-panel-header">
+        <span class="emulator-panel-title">Response Stream</span>
+      </div>
+      <div class="emulator-panel-body" id="emulator-right">
+        <!-- Rendered by Emulator.init() -->
+      </div>
+    </div>
+
+  </div><!-- /.emulator-layout -->
+
+  <!-- Bottom status bar -->
+  <div class="emulator-bottom" id="emulator-bottom">
+    <div id="emulator-status">
+      <!-- Rendered by Emulator._updateStatus() -->
+    </div>
+  </div>
+
+</div><!-- /.emulator-wrap -->
+
+<!-- Page nav footer -->
+<section class="page-nav-footer">
+  <div class="page-nav-footer-inner">
+    <a href="persistence.html" class="page-nav-btn">
+      <span class="page-nav-btn-icon">&larr;</span>
+      <span class="page-nav-btn-info">
+        <span class="page-nav-btn-dir">Previous</span>
+        <span class="page-nav-btn-label">Session Persistence</span>
+      </span>
+    </a>
+    <div class="page-nav-center">
+      <a href="index.html" class="page-nav-home">
+        <span>&#8593;</span> Start Over
+      </a>
+    </div>
+  </div>
+</section>
+
+<script src="js/prism.min.js"></script>
+<script src="js/main.js"></script>
+<script src="js/emulator.js"></script>
+<script>
+'use strict';
+
+// ---- Wire up the @keyframes missing from inline style
+const styleEl = document.createElement('style');
+styleEl.textContent = `
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(0.8); }
+  }
+`;
+document.head.appendChild(styleEl);
+
+// ---- Instantiate emulator
+const emulator = new Emulator({
+  leftPanel:   document.getElementById('emulator-left'),
+  centerPanel: document.getElementById('emulator-center'),
+  rightPanel:  document.getElementById('emulator-right'),
+  statusBar:   document.getElementById('emulator-status'),
+});
+emulator.init();
+
+// ---- Status bar pulse delegates to the bottom bar wrapper
+const bottomBar = document.getElementById('emulator-bottom');
+const statusEl  = document.getElementById('emulator-status');
+
+// Proxy the pulse animation onto the bottom bar element
+const observer = new MutationObserver(() => {
+  // When status bar re-renders (due to state change), pulse
+});
+
+// Patch emulator _setState to pulse bottom bar
+const orig_setState = emulator._setState.bind(emulator);
+emulator._setState = function(s) {
+  orig_setState(s);
+  bottomBar.classList.remove('pulse');
+  void bottomBar.offsetWidth;
+  bottomBar.classList.add('pulse');
+  // Remove after animation
+  setTimeout(() => bottomBar.classList.remove('pulse'), 400);
+};
+
+// ---- Model label in center panel header
+const modelLabel = document.getElementById('ec-model-label');
+function updateModelLabel() {
+  if (modelLabel) {
+    const m = TOKEN_BUDGETS[emulator.model];
+    modelLabel.textContent = m ? m.label : '';
+  }
+}
+updateModelLabel();
+
+// Patch model changes to update label
+const leftPanel = document.getElementById('emulator-left');
+leftPanel.addEventListener('change', (e) => {
+  if (e.target && e.target.name === 'em-model') {
+    setTimeout(updateModelLabel, 0);
+  }
+});
+
+// ---- Raw JSON modal
+const rawBtn   = document.getElementById('show-raw-btn');
+const overlay  = document.getElementById('json-modal-overlay');
+const closeBtn = document.getElementById('json-modal-close');
+const content  = document.getElementById('json-modal-content');
+
+function buildRawJSON() {
+  // Build a representative request object from current emulator state
+  const contextBlocks = [];
+  if (emulator.contextOptions.superpowers) {
+    contextBlocks.push({ type: 'text', text: '<system-reminder>...SessionStart hook, env block...</system-reminder>' });
+  }
+  if (emulator.contextOptions.skillCatalog) {
+    contextBlocks.push({ type: 'text', text: '<system-reminder>...skill catalog (42 skills)...</system-reminder>' });
+  }
+  if (emulator.contextOptions.claudeMd) {
+    contextBlocks.push({ type: 'text', text: '<system-reminder>...CLAUDE.md contents...</system-reminder>' });
+  }
+  if (emulator.contextOptions.memory) {
+    contextBlocks.push({ type: 'text', text: '<system-reminder>...memory injections...</system-reminder>' });
+  }
+  if (emulator.contextOptions.mcpServers) {
+    contextBlocks.push({ type: 'text', text: '<system-reminder>...MCP server list...</system-reminder>' });
+  }
+
+  const ta = document.getElementById('em-input');
+  const userText = ta ? ta.value : '(no message)';
+  contextBlocks.push({ type: 'text', text: userText });
+
+  const obj = {
+    model: emulator.model === 'sonnet' ? 'claude-sonnet-4-5-20251001' : 'claude-opus-4-20251001',
+    max_tokens: 8192,
+    system: [
+      {
+        type: 'text',
+        text: 'You are a Claude agent...',
+        cache_control: { type: 'ephemeral' }
+      },
+      {
+        type: 'text',
+        text: '(14,000 chars of instructions)',
+        cache_control: { type: 'ephemeral' }
+      }
+    ],
+    tools: [
+      '/* 16 built-in tools — schemas omitted for brevity */',
+      '/* 15 plugin tools */',
+      '/* MCP deferred tools — fetched on demand */'
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: contextBlocks
+      }
+    ],
+    metadata: {
+      session_id: 'sess_' + Math.random().toString(36).slice(2, 10),
+      turn: emulator.turnCount
+    }
+  };
+
+  return JSON.stringify(obj, null, 2);
+}
+
+function syntaxHighlight(json) {
+  return json
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+      let cls = 'jn';
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'jk' : 'js';
+      } else if (/true|false/.test(match)) {
+        cls = 'jb';
+      } else if (/null/.test(match)) {
+        cls = 'jb';
+      }
+      return `<span class="${cls}">${match}</span>`;
+    })
+    .replace(/([{}\[\],])/g, '<span class="jp">$1</span>');
+}
+
+rawBtn.addEventListener('click', () => {
+  content.innerHTML = syntaxHighlight(buildRawJSON());
+  overlay.classList.add('open');
+});
+
+closeBtn.addEventListener('click', () => {
+  overlay.classList.remove('open');
+});
+
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay) {
+    overlay.classList.remove('open');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

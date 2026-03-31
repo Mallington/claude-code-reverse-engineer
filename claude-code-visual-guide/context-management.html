@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context Management — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(57,210,192,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 15% 60%, rgba(88,166,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 85% 60%, rgba(188,140,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      background: rgba(57,210,192,0.08);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Sections
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 620px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Token Tank Visualization
+       ===================================================================== */
+    .tank-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .tank-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-blue), transparent);
+      opacity: 0.5;
+    }
+
+    .tank-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: var(--space-6);
+      text-align: center;
+    }
+
+    .tank-svg-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tank-svg-wrap svg {
+      min-width: 600px;
+      max-width: 100%;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* =====================================================================
+       Budget Calculator
+       ===================================================================== */
+    .calc-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .calc-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-cyan), transparent);
+      opacity: 0.5;
+    }
+
+    .calc-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .calc-header-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+    }
+
+    .calc-header-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .calc-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    @media (max-width: 768px) {
+      .calc-body { grid-template-columns: 1fr; }
+    }
+
+    .calc-controls {
+      padding: var(--space-6);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+
+    @media (max-width: 768px) {
+      .calc-controls { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+    .calc-output {
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+
+    .ctrl-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .ctrl-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+
+    /* Model selector */
+    .model-selector {
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    .model-btn {
+      flex: 1;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .model-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .model-btn.active {
+      background: rgba(88,166,255,0.1);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .toggle-label-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--text-secondary);
+      top: 3px;
+      left: 3px;
+      transition: all var(--transition);
+    }
+
+    .toggle-switch input:checked + .toggle-track {
+      background: rgba(57,210,192,0.15);
+      border-color: var(--accent-cyan);
+    }
+
+    .toggle-switch input:checked + .toggle-track::after {
+      background: var(--accent-cyan);
+      transform: translateX(18px);
+    }
+
+    /* Slider */
+    .slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .slider-input {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: var(--radius-full);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+      border: 2px solid var(--bg-secondary);
+      box-shadow: 0 0 0 1px var(--accent-blue);
+      transition: transform var(--transition-fast);
+    }
+
+    .slider-input::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .slider-value {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--accent-blue);
+      min-width: 2.5rem;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+
+    /* Message size selector */
+    .msg-selector {
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    .msg-btn {
+      flex: 1;
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all var(--transition);
+      text-align: center;
+    }
+
+    .msg-btn:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+    .msg-btn.active { background: rgba(188,140,255,0.1); border-color: var(--accent-purple); color: var(--accent-purple); }
+
+    /* Budget breakdown table */
+    .budget-table {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .budget-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-2) var(--space-4);
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      gap: var(--space-4);
+    }
+
+    .budget-row:last-child { border-bottom: none; }
+
+    .budget-row.total-row {
+      background: rgba(88,166,255,0.05);
+      border-top: 1px solid var(--border);
+    }
+
+    .budget-row.avail-row {
+      background: rgba(63,185,80,0.05);
+    }
+
+    .budget-row.divider {
+      padding: 0;
+      height: 1px;
+      background: var(--border);
+      border: none;
+    }
+
+    .budget-label {
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .budget-label.total { color: var(--accent-blue); font-weight: var(--font-semibold); }
+    .budget-label.avail { color: var(--accent-green); font-weight: var(--font-semibold); }
+
+    .budget-tokens {
+      color: var(--text-primary);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      white-space: nowrap;
+    }
+
+    .budget-tokens.total { color: var(--accent-blue); }
+    .budget-tokens.avail { color: var(--accent-green); }
+
+    .budget-pct {
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+      white-space: nowrap;
+      min-width: 55px;
+      text-align: right;
+    }
+
+    /* Stacked bar */
+    .stacked-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .stacked-bar-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+
+    .stacked-bar {
+      height: 24px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+    }
+
+    .bar-segment {
+      height: 100%;
+      transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      min-width: 0;
+    }
+
+    .bar-seg-system   { background: var(--accent-purple); }
+    .bar-seg-tools    { background: var(--accent-blue); }
+    .bar-seg-skills   { background: var(--accent-cyan); }
+    .bar-seg-reminder { background: var(--accent-orange); }
+    .bar-seg-conv     { background: var(--accent-green); }
+    .bar-seg-free     { background: rgba(255,255,255,0.04); border-left: 1px dashed rgba(255,255,255,0.1); }
+
+    .stacked-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      margin-top: var(--space-1);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* =====================================================================
+       Compression Animation
+       ===================================================================== */
+    .compression-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .compression-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-orange), var(--accent-red), transparent);
+      opacity: 0.5;
+    }
+
+    .compression-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .compression-title-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .comp-header-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius);
+      background: rgba(210,153,34,0.15);
+      border: 1px solid rgba(210,153,34,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .comp-header-text {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .comp-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .comp-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all var(--transition);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+
+    .comp-btn:hover {
+      border-color: var(--accent-orange);
+      color: var(--accent-orange);
+    }
+
+    .comp-btn.primary {
+      background: rgba(210,153,34,0.1);
+      border-color: var(--accent-orange);
+      color: var(--accent-orange);
+    }
+
+    .comp-step-indicator {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .compression-body {
+      padding: var(--space-6);
+    }
+
+    /* Compression stages */
+    .comp-stage {
+      display: none;
+    }
+
+    .comp-stage.active {
+      display: block;
+    }
+
+    .comp-stage-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .comp-stage-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-5);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* Turn blocks */
+    .turns-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .turn-block {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      transition: all 0.3s ease;
+      min-height: 36px;
+    }
+
+    .turn-block.user {
+      border-color: rgba(88,166,255,0.3);
+      background: rgba(88,166,255,0.05);
+    }
+
+    .turn-block.assistant {
+      border-color: rgba(57,210,192,0.3);
+      background: rgba(57,210,192,0.05);
+    }
+
+    .turn-block.compressing {
+      opacity: 0.4;
+      transform: scaleY(0.7);
+    }
+
+    .turn-block.compressed {
+      display: none;
+    }
+
+    .turn-summary {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      border: 2px solid var(--accent-orange);
+      background: rgba(210,153,34,0.08);
+      margin-bottom: var(--space-2);
+      transition: all 0.3s ease;
+    }
+
+    .turn-summary-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .turn-summary-text {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: var(--font-medium);
+    }
+
+    .turn-summary-sub {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .turn-label {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      min-width: 50px;
+    }
+
+    .turn-content {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .turn-tokens {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    /* Progress bar */
+    .ctx-progress-wrap {
+      margin-top: var(--space-4);
+    }
+
+    .ctx-progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-2);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .ctx-progress-bar {
+      height: 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .ctx-progress-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.5s ease, background 0.3s ease;
+    }
+
+    .ctx-progress-fill.low    { background: var(--accent-green); }
+    .ctx-progress-fill.medium { background: var(--accent-orange); }
+    .ctx-progress-fill.high   { background: var(--accent-red); animation: pulseRed 1.5s ease-in-out infinite; }
+
+    @keyframes pulseRed {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Re-fire indicator */
+    .refire-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      background: rgba(57,210,192,0.1);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      margin-top: var(--space-3);
+    }
+
+    .refire-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      animation: pulseDot 1s ease-in-out infinite;
+    }
+
+    /* =====================================================================
+       Cache Table
+       ===================================================================== */
+    .cache-table-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .cache-table-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent);
+      opacity: 0.5;
+    }
+
+    .cache-table-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    .cache-table-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .cache-table-sub {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-top: var(--space-1);
+    }
+
+    .cache-table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table.cache-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    table.cache-table th {
+      padding: var(--space-3) var(--space-4);
+      text-align: left;
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-primary);
+      white-space: nowrap;
+    }
+
+    table.cache-table td {
+      padding: var(--space-3) var(--space-4);
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+      white-space: nowrap;
+    }
+
+    table.cache-table tr:last-child td { border-bottom: none; }
+
+    table.cache-table td.turn-num {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .cache-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      white-space: nowrap;
+    }
+
+    .cache-badge.write {
+      background: rgba(210,153,34,0.12);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210,153,34,0.3);
+    }
+
+    .cache-badge.hit {
+      background: rgba(57,210,192,0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(57,210,192,0.3);
+    }
+
+    .cache-badge.sent {
+      background: rgba(88,166,255,0.08);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .cache-badge.light {
+      background: rgba(139,148,158,0.1);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .cache-savings {
+      margin-top: var(--space-5);
+      padding: var(--space-4);
+      background: rgba(57,210,192,0.05);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .cache-savings-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .cache-savings-text {
+      flex: 1;
+    }
+
+    .cache-savings-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--accent-cyan);
+    }
+
+    .cache-savings-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-top: var(--space-1);
+    }
+
+    /* =====================================================================
+       Token Saving Cards
+       ===================================================================== */
+    .techniques-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--space-5);
+    }
+
+    .technique-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .technique-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-lg);
+      padding: 1px;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.04));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .technique-card:hover {
+      border-color: var(--accent-blue);
+      box-shadow: var(--glow-blue);
+    }
+
+    .technique-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: var(--space-4);
+      flex-shrink: 0;
+    }
+
+    .technique-icon.blue   { background: rgba(88,166,255,0.12); border: 1px solid rgba(88,166,255,0.25); }
+    .technique-icon.cyan   { background: rgba(57,210,192,0.12); border: 1px solid rgba(57,210,192,0.25); }
+    .technique-icon.purple { background: rgba(188,140,255,0.12); border: 1px solid rgba(188,140,255,0.25); }
+    .technique-icon.green  { background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.25); }
+    .technique-icon.orange { background: rgba(210,153,34,0.12); border: 1px solid rgba(210,153,34,0.25); }
+
+    .technique-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .technique-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      margin-bottom: var(--space-3);
+    }
+
+    .technique-savings {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      background: rgba(63,185,80,0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.25);
+    }
+
+    /* =====================================================================
+       Context Awareness Card
+       ===================================================================== */
+    .awareness-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .awareness-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      opacity: 0.6;
+    }
+
+    .awareness-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: var(--space-5);
+      margin-top: var(--space-6);
+    }
+
+    .awareness-item {
+      display: flex;
+      gap: var(--space-4);
+    }
+
+    .awareness-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: rgba(57,210,192,0.1);
+      border: 1px solid rgba(57,210,192,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .awareness-item-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+
+    .awareness-item-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Navigation footer
+       ===================================================================== */
+    .page-nav-footer {
+      padding: var(--space-12) 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .page-nav-footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .page-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      text-decoration: none;
+      transition: all var(--transition);
+    }
+
+    .page-nav-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+      text-decoration: none;
+      background: rgba(88,166,255,0.05);
+    }
+
+    .page-nav-btn-dir {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .page-nav-btn-label {
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    /* =====================================================================
+       Reveal
+       ===================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* =====================================================================
+       Lifecycle timeline
+       ===================================================================== */
+    .lifecycle-timeline {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .lt-row {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      align-items: stretch;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+
+    .lt-row:last-child { border-bottom: none; }
+
+    .lt-turn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-3);
+      background: var(--bg-tertiary);
+      border-right: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-weight: var(--font-semibold);
+      font-size: var(--text-xs);
+    }
+
+    .lt-parts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      align-items: center;
+    }
+
+    .lt-part {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: var(--font-semibold);
+    }
+
+    .lt-part.sys    { background: rgba(188,140,255,0.12); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.25); }
+    .lt-part.tools  { background: rgba(88,166,255,0.1); color: var(--accent-blue); border: 1px solid rgba(88,166,255,0.2); }
+    .lt-part.remind { background: rgba(210,153,34,0.1); color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.25); }
+    .lt-part.user   { background: rgba(57,210,192,0.1); color: var(--accent-cyan); border: 1px solid rgba(57,210,192,0.2); }
+    .lt-part.result { background: rgba(63,185,80,0.1); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.2); }
+    .lt-part.comp   { background: rgba(248,81,73,0.1); color: var(--accent-red); border: 1px solid rgba(248,81,73,0.25); }
+
+    .lt-arrow {
+      color: var(--text-secondary);
+      padding: 0 2px;
+    }
+
+    .lt-sep {
+      padding: var(--space-2) var(--space-4);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-style: italic;
+      background: rgba(48,54,61,0.2);
+      border-bottom: 1px solid var(--border);
+      grid-column: 1 / -1;
+    }
+
+    .lt-row.compress {
+      background: rgba(248,81,73,0.03);
+    }
+
+    /* =====================================================================
+       Models table
+       ===================================================================== */
+    .models-table-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    table.models-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    table.models-table th {
+      padding: var(--space-3) var(--space-5);
+      text-align: left;
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    table.models-table td {
+      padding: var(--space-3) var(--space-5);
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+    }
+
+    table.models-table tr:last-child td { border-bottom: none; }
+
+    .model-name-cell {
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .model-context-cell {
+      color: var(--accent-blue);
+      font-family: var(--font-mono);
+      font-weight: var(--font-semibold);
+    }
+
+    .model-avail-cell {
+      color: var(--accent-green);
+      font-family: var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+
+<!-- =====================================================================
+     Navigation
+     ===================================================================== -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" aria-label="Claude Code Architecture home">
+      <div class="nav-logo-icon">C</div>
+      <span>Claude Code</span>
+    </a>
+    <div class="nav-links" role="list">
+      <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+      <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+      <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+      <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+      <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+      <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+      <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+      <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+      <a href="mcp.html" class="nav-link" role="listitem">MCP Servers</a>
+      <a href="context-management.html" class="nav-link active" role="listitem">Context Mgmt</a>
+      <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+    </div>
+    <button class="nav-hamburger" aria-label="Open mobile menu" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+        <rect y="3" width="20" height="2" rx="1"/>
+        <rect y="9" width="20" height="2" rx="1"/>
+        <rect y="15" width="20" height="2" rx="1"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+  <a href="index.html" class="nav-link">The Big Picture</a>
+  <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+  <a href="system-prompt.html" class="nav-link">System Prompt</a>
+  <a href="tools.html" class="nav-link">Tools</a>
+  <a href="context-injection.html" class="nav-link">Context Injection</a>
+  <a href="skills.html" class="nav-link">Skills</a>
+  <a href="plugins.html" class="nav-link">Plugins</a>
+  <a href="agents.html" class="nav-link">Agents</a>
+  <a href="mcp.html" class="nav-link">MCP Servers</a>
+  <a href="context-management.html" class="nav-link active">Context Mgmt</a>
+  <a href="persistence.html" class="nav-link">Persistence</a>
+</div>
+
+<!-- =====================================================================
+     Hero
+     ===================================================================== -->
+<main>
+  <section class="hero">
+    <div class="container">
+      <div class="hero-eyebrow">
+        <div class="hero-eyebrow-dot"></div>
+        Context Window
+      </div>
+      <h1 class="hero-title">
+        <span class="hero-title-accent">Context Management</span>
+      </h1>
+      <p class="hero-subtitle">
+        Fitting everything into the model's context window — budgets, caching, compression, and the techniques that keep Claude running efficiently over long sessions.
+      </p>
+
+      <!-- Token Tank -->
+      <div class="tank-wrap reveal">
+        <div class="tank-title">200K Token Window — What Goes Inside</div>
+        <div class="tank-svg-wrap">
+          <svg id="tokenTankSvg" viewBox="0 0 880 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Token budget visualization showing how a 200K context window is allocated">
+            <defs>
+              <pattern id="diagPattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,0.04)" stroke-width="2"/>
+              </pattern>
+              <linearGradient id="sysGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#bc8cff" stop-opacity="0.7"/>
+                <stop offset="100%" stop-color="#9a70e0" stop-opacity="0.7"/>
+              </linearGradient>
+              <linearGradient id="toolGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#58a6ff" stop-opacity="0.7"/>
+                <stop offset="100%" stop-color="#3f8de0" stop-opacity="0.7"/>
+              </linearGradient>
+              <linearGradient id="remindGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#d29922" stop-opacity="0.7"/>
+                <stop offset="100%" stop-color="#b08018" stop-opacity="0.7"/>
+              </linearGradient>
+              <linearGradient id="convGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#3fb950" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#2d9a3c" stop-opacity="0.3"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Container outline -->
+            <rect x="20" y="20" width="840" height="240" rx="8" fill="rgba(22,27,34,0.8)" stroke="#30363d" stroke-width="1.5"/>
+            <!-- Top gradient line -->
+            <line x1="20" y1="21" x2="860" y2="21" stroke="url(#toolGrad)" stroke-width="1" opacity="0.5"/>
+
+            <!-- Layer: System prompt (bottom, ~3.5K = 1.75%) -->
+            <!-- Height proportional, 200K total, 240px tall. Each px ≈ 833 tokens -->
+            <!-- System: 3500 tokens = ~4px, Tools: 17500 = ~21px, Reminders: 3500 = ~4px, Conv: growing -->
+
+            <!-- We'll use fixed visual proportions for clarity, not exact scale -->
+
+            <!-- System prompt layer (purple, bottom) -->
+            <rect x="21" y="212" width="838" height="47" rx="0" fill="url(#sysGrad)"/>
+            <rect x="21" y="212" width="838" height="47" fill="url(#diagPattern)"/>
+            <!-- System prompt label -->
+            <text x="440" y="238" fill="rgba(255,255,255,0.9)" font-size="11" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="600">
+              System Prompt — ~3,500 tokens
+            </text>
+            <text x="440" y="252" fill="rgba(255,255,255,0.55)" font-size="10" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle">
+              CACHED (ephemeral cache_control)
+            </text>
+
+            <!-- Tool definitions layer (blue) -->
+            <rect x="21" y="152" width="838" height="58" rx="0" fill="url(#toolGrad)"/>
+            <!-- Tool defs label -->
+            <text x="440" y="183" fill="rgba(255,255,255,0.9)" font-size="11" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="600">
+              Tool Definitions — ~15,000–20,000 tokens (57 tools)
+            </text>
+
+            <!-- System reminders layer (orange) -->
+            <rect x="21" y="126" width="838" height="24" rx="0" fill="url(#remindGrad)"/>
+            <text x="440" y="138" fill="rgba(255,255,255,0.85)" font-size="10" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="600">
+              System Reminders — ~3,500 tokens (turn 1), lighter thereafter
+            </text>
+
+            <!-- Conversation / growing area -->
+            <rect x="21" y="21" width="838" height="104" rx="0" fill="rgba(30,40,28,0.6)"/>
+            <!-- Animated conversation fill -->
+            <rect id="convFill" x="21" y="21" width="838" height="0" rx="0" fill="url(#convGrad)">
+              <animate attributeName="height" from="0" to="80" dur="2.5s" begin="0.5s" fill="freeze" calcMode="spline" keySplines="0.34 1.56 0.64 1"/>
+              <animate attributeName="y" from="125" to="45" dur="2.5s" begin="0.5s" fill="freeze" calcMode="spline" keySplines="0.34 1.56 0.64 1"/>
+            </rect>
+            <!-- Conversation label (static) -->
+            <text x="440" y="75" fill="rgba(255,255,255,0.5)" font-size="11" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle">
+              Conversation history + tool results  — grows over time
+            </text>
+            <text x="440" y="93" fill="rgba(63,185,80,0.7)" font-size="10" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle">
+              ~170K tokens available for conversation (after ~30K fixed overhead)
+            </text>
+            <!-- Animated dots to show tokens being added -->
+            <circle cx="300" cy="57" r="3" fill="rgba(63,185,80,0.6)" opacity="0">
+              <animate attributeName="opacity" values="0;0.8;0" dur="2s" begin="1s" repeatCount="indefinite"/>
+              <animate attributeName="cx" values="300;400" dur="2s" begin="1s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="450" cy="52" r="2.5" fill="rgba(88,166,255,0.6)" opacity="0">
+              <animate attributeName="opacity" values="0;0.8;0" dur="2.3s" begin="1.4s" repeatCount="indefinite"/>
+              <animate attributeName="cx" values="450;550" dur="2.3s" begin="1.4s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="200" cy="62" r="2" fill="rgba(57,210,192,0.5)" opacity="0">
+              <animate attributeName="opacity" values="0;0.7;0" dur="1.8s" begin="0.8s" repeatCount="indefinite"/>
+              <animate attributeName="cx" values="200;320" dur="1.8s" begin="0.8s" repeatCount="indefinite"/>
+            </circle>
+
+            <!-- Divider lines between layers -->
+            <line x1="21" y1="152" x2="859" y2="152" stroke="#30363d" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="21" y1="212" x2="859" y2="212" stroke="#30363d" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="21" y1="126" x2="859" y2="126" stroke="#30363d" stroke-width="1" stroke-dasharray="4,3"/>
+
+            <!-- Right-side bracket + label: Total 200K -->
+            <line x1="862" y1="21" x2="862" y2="259" stroke="#30363d" stroke-width="1.5"/>
+            <line x1="858" y1="21" x2="866" y2="21" stroke="#30363d" stroke-width="1.5"/>
+            <line x1="858" y1="259" x2="866" y2="259" stroke="#30363d" stroke-width="1.5"/>
+            <text x="876" y="140" fill="rgba(88,166,255,0.8)" font-size="11" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="700" writing-mode="vertical-rl" transform="rotate(90, 876, 140)">200K total</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Models Table
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Context Budgets</div>
+        <h2 class="section-title">Available Window by Model</h2>
+        <p class="section-desc">After subtracting fixed overhead (system prompt + tools + reminders), this is the space left for actual conversation.</p>
+      </div>
+
+      <div class="models-table-wrap reveal">
+        <table class="models-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Total Context</th>
+              <th>After System + Tools Overhead</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="model-name-cell">Claude Sonnet 4</td>
+              <td class="model-context-cell">200K tokens</td>
+              <td class="model-avail-cell">~170K tokens for conversation</td>
+            </tr>
+            <tr>
+              <td class="model-name-cell">Claude Opus 4.6 (1M)</td>
+              <td class="model-context-cell">1M tokens</td>
+              <td class="model-avail-cell">~970K tokens for conversation</td>
+            </tr>
+            <tr>
+              <td class="model-name-cell">Claude Haiku 4.5</td>
+              <td class="model-context-cell">200K tokens</td>
+              <td class="model-avail-cell">~170K tokens for conversation</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Budget Calculator
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Interactive</div>
+        <h2 class="section-title">Context Budget Calculator</h2>
+        <p class="section-desc">Adjust the controls to see how different configurations affect how much context remains available.</p>
+      </div>
+
+      <div class="calc-wrap reveal">
+        <div class="calc-header">
+          <div class="calc-header-dot"></div>
+          <div class="calc-header-title">Live Context Budget</div>
+        </div>
+        <div class="calc-body">
+          <!-- Controls -->
+          <div class="calc-controls">
+            <div class="ctrl-group">
+              <div class="ctrl-label">Model</div>
+              <div class="model-selector">
+                <button class="model-btn active" data-model="200" onclick="calcSetModel(this, 200000)">Sonnet / Haiku 200K</button>
+                <button class="model-btn" data-model="1000" onclick="calcSetModel(this, 1000000)">Opus 4.6 1M</button>
+              </div>
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label">MCP Tools (affects deferred loading threshold)</div>
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" class="slider-input" id="sliderMcpTools" min="0" max="60" value="20" oninput="calcUpdate()">
+                  <span class="slider-value" id="valMcpTools">20</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label">Deferred Tool Loading</div>
+              <div class="toggle-row">
+                <span class="toggle-label-text">Load MCP schemas on-demand instead of upfront</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggleDeferred" checked onchange="calcUpdate()">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label">Skills Loaded</div>
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" class="slider-input" id="sliderSkills" min="0" max="14" value="0" oninput="calcUpdate()">
+                  <span class="slider-value" id="valSkills">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label">Conversation Turns</div>
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" class="slider-input" id="sliderTurns" min="0" max="50" value="5" oninput="calcUpdate()">
+                  <span class="slider-value" id="valTurns">5</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label">Average Message Size</div>
+              <div class="msg-selector">
+                <button class="msg-btn active" data-tokens="200" onclick="calcSetMsg(this, 200)">Short ~200</button>
+                <button class="msg-btn" data-tokens="500" onclick="calcSetMsg(this, 500)">Medium ~500</button>
+                <button class="msg-btn" data-tokens="1500" onclick="calcSetMsg(this, 1500)">Long ~1,500</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Output -->
+          <div class="calc-output">
+            <div class="stacked-bar-wrap">
+              <div class="stacked-bar-title">Context Breakdown</div>
+              <div class="stacked-bar" id="stackedBar">
+                <div class="bar-segment bar-seg-system" id="barSystem" style="width:0%"></div>
+                <div class="bar-segment bar-seg-tools"  id="barTools"  style="width:0%"></div>
+                <div class="bar-segment bar-seg-skills" id="barSkills" style="width:0%"></div>
+                <div class="bar-segment bar-seg-reminder" id="barReminder" style="width:0%"></div>
+                <div class="bar-segment bar-seg-conv"   id="barConv"   style="width:0%"></div>
+                <div class="bar-segment bar-seg-free"   id="barFree"   style="width:100%"></div>
+              </div>
+              <div class="stacked-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-purple)"></div>System Prompt</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-blue)"></div>Tool Defs</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-cyan)"></div>Skills</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-orange)"></div>Reminders</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-green)"></div>Conversation</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.1); border:1px dashed rgba(255,255,255,0.2)"></div>Free</div>
+              </div>
+            </div>
+
+            <div class="budget-table" id="budgetTable">
+              <div class="budget-row">
+                <span class="budget-label">System Prompt (cached)</span>
+                <span class="budget-tokens" id="btSystem">3,500</span>
+                <span class="budget-pct" id="btSystemPct">1.8%</span>
+              </div>
+              <div class="budget-row">
+                <span class="budget-label">Tool Definitions</span>
+                <span class="budget-tokens" id="btTools">17,500</span>
+                <span class="budget-pct" id="btToolsPct">8.8%</span>
+              </div>
+              <div class="budget-row">
+                <span class="budget-label" id="btSkillsLabel">Loaded Skills (0)</span>
+                <span class="budget-tokens" id="btSkills">0</span>
+                <span class="budget-pct" id="btSkillsPct">0.0%</span>
+              </div>
+              <div class="budget-row">
+                <span class="budget-label">System Reminders (turn 1)</span>
+                <span class="budget-tokens" id="btReminder">3,200</span>
+                <span class="budget-pct" id="btReminderPct">1.6%</span>
+              </div>
+              <div class="budget-row">
+                <span class="budget-label" id="btConvLabel">Conversation (5 turns)</span>
+                <span class="budget-tokens" id="btConv">2,000</span>
+                <span class="budget-pct" id="btConvPct">1.0%</span>
+              </div>
+              <div class="budget-row divider"></div>
+              <div class="budget-row total-row">
+                <span class="budget-label total">Total Used</span>
+                <span class="budget-tokens total" id="btTotal">26,200</span>
+                <span class="budget-pct" id="btTotalPct">13.1%</span>
+              </div>
+              <div class="budget-row avail-row">
+                <span class="budget-label avail">Available</span>
+                <span class="budget-tokens avail" id="btAvail">173,800</span>
+                <span class="budget-pct avail" id="btAvailPct">86.9% free</span>
+              </div>
+            </div>
+
+            <div id="calcWarning" style="display:none" class="refire-badge" style="background:rgba(248,81,73,0.1); border-color:var(--accent-red); color:var(--accent-red);">
+              <div class="refire-dot" style="background:var(--accent-red)"></div>
+              <span>Approaching context limit — compression may trigger</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Conversation Lifecycle Timeline
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Lifecycle</div>
+        <h2 class="section-title">Conversation Turn Structure</h2>
+        <p class="section-desc">Each turn builds on the previous, adding tool results and system reminders, until compression fires near the limit.</p>
+      </div>
+
+      <div class="lifecycle-timeline reveal">
+        <div class="lt-row">
+          <div class="lt-turn">Turn 1</div>
+          <div class="lt-parts">
+            <span class="lt-part sys">System Prompt</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part tools">57 Tools</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part remind">SystemReminder (full ~3K)</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part user">User Message</span>
+            <span class="lt-arrow">&rarr;</span>
+            <span class="lt-part result">Response + ToolUse</span>
+          </div>
+        </div>
+        <div class="lt-row">
+          <div class="lt-turn">Turn 2</div>
+          <div class="lt-parts">
+            <span class="lt-part sys">System (HIT)</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part tools">Tools</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part result">ToolResult</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part remind">Reminder (light)</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part user">User Message</span>
+            <span class="lt-arrow">&rarr;</span>
+            <span class="lt-part result">Response</span>
+          </div>
+        </div>
+        <div class="lt-row">
+          <div class="lt-turn">Turn 3</div>
+          <div class="lt-parts">
+            <span class="lt-part sys">System (HIT)</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part tools">Tools</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part result">History</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part remind">Reminder (light)</span>
+            <span class="lt-arrow">+</span>
+            <span class="lt-part user">User Message</span>
+            <span class="lt-arrow">&rarr;</span>
+            <span class="lt-part result">Response</span>
+          </div>
+        </div>
+        <div class="lt-sep">... turns accumulate, history grows ...</div>
+        <div class="lt-row compress">
+          <div class="lt-turn" style="color:var(--accent-red)">Turn N</div>
+          <div class="lt-parts">
+            <span class="lt-part comp">Context limit approaching</span>
+            <span class="lt-arrow">&rarr;</span>
+            <span class="lt-part comp">COMPRESSION: Summarize turns 1–N/2</span>
+            <span class="lt-arrow">&rarr;</span>
+            <span class="lt-part sys">SessionStart re-fires</span>
+            <span class="lt-arrow">&rarr;</span>
+            <span class="lt-part user">Continue with compressed history</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Compression Animation
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Context Compression</div>
+        <h2 class="section-title">How Compression Works</h2>
+        <p class="section-desc">When conversation approaches the context limit, Claude compresses early history into a summary, preserving recent context and re-injecting bootstrap skills.</p>
+      </div>
+
+      <div class="compression-wrap reveal">
+        <div class="compression-header">
+          <div class="compression-title-group">
+            <div class="comp-header-icon">&#9881;</div>
+            <div class="comp-header-text">Context Compression Simulation</div>
+          </div>
+          <div class="comp-controls">
+            <span class="comp-step-indicator" id="compStepLabel">Step 1 / 3</span>
+            <button class="comp-btn" onclick="compPrev()">&#8592; Prev</button>
+            <button class="comp-btn primary" id="compNextBtn" onclick="compNext()">Next &#8594;</button>
+            <button class="comp-btn" onclick="compReset()">Reset</button>
+          </div>
+        </div>
+        <div class="compression-body">
+
+          <!-- Stage 1: Full conversation -->
+          <div class="comp-stage active" id="compStage1">
+            <div class="comp-stage-title">Stage 1: Conversation Growing</div>
+            <div class="comp-stage-desc">30 turns in — history is accumulating. Each turn adds user messages, assistant responses, and tool results. The context window is filling up.</div>
+            <div class="turns-container" id="turnsStage1"></div>
+            <div class="ctx-progress-wrap">
+              <div class="ctx-progress-label">
+                <span>Context Usage</span>
+                <span style="color:var(--accent-green)">142,000 / 200,000 tokens (71%)</span>
+              </div>
+              <div class="ctx-progress-bar">
+                <div class="ctx-progress-fill medium" style="width: 71%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stage 2: Approaching limit -->
+          <div class="comp-stage" id="compStage2">
+            <div class="comp-stage-title">Stage 2: Approaching the Limit</div>
+            <div class="comp-stage-desc">More turns added. Context is at 91% capacity. The model detects it is running low and begins summarizing more aggressively. Unnecessary tool results are being dropped.</div>
+            <div class="turns-container" id="turnsStage2"></div>
+            <div class="ctx-progress-wrap">
+              <div class="ctx-progress-label">
+                <span>Context Usage</span>
+                <span style="color:var(--accent-red)">182,000 / 200,000 tokens (91%) — compression imminent</span>
+              </div>
+              <div class="ctx-progress-bar">
+                <div class="ctx-progress-fill high" style="width: 91%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stage 3: Post-compression -->
+          <div class="comp-stage" id="compStage3">
+            <div class="comp-stage-title">Stage 3: Compression Complete</div>
+            <div class="comp-stage-desc">Turns 1–15 have been summarized into a single compact block. The SessionStart hook re-fires (the <code>compact</code> matcher), re-injecting bootstrap skills. Context is now at 28% and conversation continues.</div>
+            <div class="turns-container" id="turnsStage3"></div>
+            <div class="ctx-progress-wrap">
+              <div class="ctx-progress-label">
+                <span>Context Usage</span>
+                <span style="color:var(--accent-green)">56,000 / 200,000 tokens (28%) — room to continue</span>
+              </div>
+              <div class="ctx-progress-bar">
+                <div class="ctx-progress-fill low" style="width: 28%"></div>
+              </div>
+            </div>
+            <div class="refire-badge">
+              <div class="refire-dot"></div>
+              SessionStart hook re-fired — <code>compact</code> matcher triggered — bootstrap skills re-injected
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Caching Table
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Prompt Caching</div>
+        <h2 class="section-title">Cache Hit/Miss Pattern</h2>
+        <p class="section-desc">Both system prompt blocks carry <code>cache_control: ephemeral</code>. System reminders exist specifically to keep the system prompt frozen — stable content means cache hits every turn after the first.</p>
+      </div>
+
+      <div class="cache-table-wrap reveal">
+        <div class="cache-table-header">
+          <div class="cache-table-title">Turn-by-Turn Cache Behavior</div>
+          <div class="cache-table-sub">System reminders kept intentionally short after turn 1 to avoid busting the cache</div>
+        </div>
+        <div class="cache-table-scroll">
+          <table class="cache-table">
+            <thead>
+              <tr>
+                <th style="text-align:center">Turn</th>
+                <th>System Prompt</th>
+                <th>Tool Defs</th>
+                <th>System Reminders</th>
+                <th>User Message</th>
+                <th>Est. Tokens Saved</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="turn-num">1</td>
+                <td><span class="cache-badge write">&#9998; WRITE</span></td>
+                <td><span class="cache-badge sent">sent</span></td>
+                <td><span class="cache-badge write">&#9998; WRITE (~3K)</span></td>
+                <td>"fix the auth bug"</td>
+                <td style="color:var(--text-secondary); font-family:var(--font-mono); font-size:var(--text-xs)">0 (cold start)</td>
+              </tr>
+              <tr>
+                <td class="turn-num">2</td>
+                <td><span class="cache-badge hit">&#9889; HIT</span></td>
+                <td><span class="cache-badge sent">sent</span></td>
+                <td><span class="cache-badge light">light (~200)</span></td>
+                <td>tool result returned</td>
+                <td style="color:var(--accent-green); font-family:var(--font-mono); font-size:var(--text-xs)">~3,500 saved</td>
+              </tr>
+              <tr>
+                <td class="turn-num">3</td>
+                <td><span class="cache-badge hit">&#9889; HIT</span></td>
+                <td><span class="cache-badge sent">sent</span></td>
+                <td><span class="cache-badge light">light (~200)</span></td>
+                <td>"add a rate limit"</td>
+                <td style="color:var(--accent-green); font-family:var(--font-mono); font-size:var(--text-xs)">~3,500 saved</td>
+              </tr>
+              <tr>
+                <td class="turn-num">4</td>
+                <td><span class="cache-badge hit">&#9889; HIT</span></td>
+                <td><span class="cache-badge sent">sent</span></td>
+                <td><span class="cache-badge light">light (~200)</span></td>
+                <td>tool result returned</td>
+                <td style="color:var(--accent-green); font-family:var(--font-mono); font-size:var(--text-xs)">~3,500 saved</td>
+              </tr>
+              <tr>
+                <td class="turn-num">5</td>
+                <td><span class="cache-badge hit">&#9889; HIT</span></td>
+                <td><span class="cache-badge sent">sent</span></td>
+                <td><span class="cache-badge light">light (~200)</span></td>
+                <td>"now write the tests"</td>
+                <td style="color:var(--accent-green); font-family:var(--font-mono); font-size:var(--text-xs)">~3,500 saved</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cache-savings" style="margin: var(--space-5) var(--space-6);">
+          <div class="cache-savings-icon">&#9889;</div>
+          <div class="cache-savings-text">
+            <div class="cache-savings-title">Estimated cumulative savings over 5 turns: ~14,000 tokens</div>
+            <div class="cache-savings-desc">Cache read tokens are significantly cheaper than input tokens. Over a long session (20+ turns) this can cut costs by 40–60%.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cache types explanation -->
+      <div class="grid grid-2 mt-8 reveal">
+        <div class="technique-card">
+          <div class="technique-icon blue">&#128229;</div>
+          <div class="technique-name">Cache Write Tokens</div>
+          <div class="technique-desc">First time a block is seen. Full processing cost to write the cache entry. Happens only once per unique system prompt state.</div>
+        </div>
+        <div class="technique-card">
+          <div class="technique-icon cyan">&#9889;</div>
+          <div class="technique-name">Cache Read Tokens</div>
+          <div class="technique-desc">Every subsequent turn. Much cheaper and faster than re-processing. The system prompt being frozen is what keeps these hits coming.</div>
+        </div>
+        <div class="technique-card">
+          <div class="technique-icon purple">&#128196;</div>
+          <div class="technique-name">Input Tokens</div>
+          <div class="technique-desc">Non-cached content re-processed every turn — conversation history, tool results, user messages, and the light system reminder.</div>
+        </div>
+        <div class="technique-card">
+          <div class="technique-icon green">&#128228;</div>
+          <div class="technique-name">Output Tokens</div>
+          <div class="technique-desc">The model's generated response. Priced separately and typically a smaller fraction of the total token cost for tool-heavy workflows.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       5 Token-Saving Techniques
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Optimizations</div>
+        <h2 class="section-title">5 Token-Saving Techniques</h2>
+        <p class="section-desc">These design choices collectively keep the effective per-turn token cost well below the naive baseline.</p>
+      </div>
+
+      <div class="techniques-grid">
+        <div class="technique-card reveal">
+          <div class="technique-icon blue">&#128260;</div>
+          <div class="technique-name">Deferred Tool Loading</div>
+          <div class="technique-desc">MCP tool names are listed upfront but their full JSON schemas are not loaded until actually needed. A tool call to <code>ToolSearch</code> fetches the schema on demand.</div>
+          <div class="technique-savings">Saves ~10,000–15,000 tokens/turn</div>
+        </div>
+
+        <div class="technique-card reveal">
+          <div class="technique-icon cyan">&#129302;</div>
+          <div class="technique-name">Sub-Agent Context Isolation</div>
+          <div class="technique-desc">Heavy research tasks are delegated to sub-agents via the <code>RemoteTrigger</code> tool. Only the summary result returns to the parent — not the entire research context.</div>
+          <div class="technique-savings">Saves tens of thousands of tokens</div>
+        </div>
+
+        <div class="technique-card reveal">
+          <div class="technique-icon purple">&#128269;</div>
+          <div class="technique-name">Explore Agent for Research</div>
+          <div class="technique-desc">Dedicated research sub-agents accumulate their own large context without polluting the parent session. The parent receives a concise answer only.</div>
+          <div class="technique-savings">Parent context stays lean</div>
+        </div>
+
+        <div class="technique-card reveal">
+          <div class="technique-icon green">&#128218;</div>
+          <div class="technique-name">Skill On-Demand Loading</div>
+          <div class="technique-desc">14 skills averaging ~1,500 tokens each — that's ~21,000 tokens if all pre-loaded. Instead, each skill is fetched individually only when relevant to the current task.</div>
+          <div class="technique-savings">Saves up to ~21,000 tokens/turn</div>
+        </div>
+
+        <div class="technique-card reveal">
+          <div class="technique-icon orange">&#9986;</div>
+          <div class="technique-name">Concise Response Guidelines</div>
+          <div class="technique-desc">The system prompt explicitly enforces brevity — no filler, no summaries of what was done, no emoji. <code>max_tokens: 32,000</code> limits response length. Less output = less context consumed.</div>
+          <div class="technique-savings">Saves 500–3,000 tokens/response</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Context Awareness Section
+       ===================================================================== -->
+  <section class="page-section">
+    <div class="container">
+      <div class="awareness-card reveal">
+        <div class="section-label">Built-in Intelligence</div>
+        <h2 class="section-title" style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">Context Awareness</h2>
+        <p style="font-size: var(--text-base); color: var(--text-secondary); line-height: var(--leading-relaxed); max-width:600px;">Claude Sonnet 4.6, 4.5, and Haiku 4.5 have built-in context awareness — the model actively tracks remaining space and adapts its behavior as the window fills.</p>
+
+        <div class="awareness-grid">
+          <div class="awareness-item">
+            <div class="awareness-icon">&#127919;</div>
+            <div>
+              <div class="awareness-item-title">Tracks Remaining Tokens</div>
+              <div class="awareness-item-desc">The model has visibility into how much context remains and factors this into every decision — what to load, what to delegate, how verbose to be.</div>
+            </div>
+          </div>
+          <div class="awareness-item">
+            <div class="awareness-icon">&#128200;</div>
+            <div>
+              <div class="awareness-item-title">Adaptive Summarization</div>
+              <div class="awareness-item-desc">As context fills, earlier turns are summarized more aggressively. Tool results that are no longer relevant get dropped rather than carried forward.</div>
+            </div>
+          </div>
+          <div class="awareness-item">
+            <div class="awareness-icon">&#128683;</div>
+            <div>
+              <div class="awareness-item-title">Avoids Loading Unnecessary Skills</div>
+              <div class="awareness-item-desc">When the context window is tight, the model skips loading skill files it doesn't need — conserving space for the conversation itself.</div>
+            </div>
+          </div>
+          <div class="awareness-item">
+            <div class="awareness-icon">&#129309;</div>
+            <div>
+              <div class="awareness-item-title">Prefers Sub-Agent Delegation</div>
+              <div class="awareness-item-desc">When the parent context is nearly full, the model prefers to delegate research or file exploration to a sub-agent rather than expand its own context further.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Navigation Footer
+       ===================================================================== -->
+  <section class="page-nav-footer">
+    <div class="container">
+      <div class="page-nav-footer-inner">
+        <a href="mcp.html" class="page-nav-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06Z"/></svg>
+          <div>
+            <span class="page-nav-btn-dir">Previous</span>
+            <span class="page-nav-btn-label">MCP Servers</span>
+          </div>
+        </a>
+        <a href="persistence.html" class="page-nav-btn">
+          <div style="text-align:right">
+            <span class="page-nav-btn-dir">Next</span>
+            <span class="page-nav-btn-label">Session Persistence</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="js/main.js"></script>
+<script src="js/diagrams.js"></script>
+<script>
+'use strict';
+
+/* =========================================================================
+   Budget Calculator Logic
+   ========================================================================= */
+
+let calcState = {
+  modelMax: 200000,
+  mcpTools: 20,
+  deferred: true,
+  skills: 0,
+  turns: 5,
+  msgTokens: 200,
+};
+
+function calcSetModel(btn, value) {
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  calcState.modelMax = value;
+  calcUpdate();
+}
+
+function calcSetMsg(btn, value) {
+  document.querySelectorAll('.msg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  calcState.msgTokens = value;
+  calcUpdate();
+}
+
+function calcUpdate() {
+  const mcpTools   = parseInt(document.getElementById('sliderMcpTools').value, 10);
+  const skills     = parseInt(document.getElementById('sliderSkills').value, 10);
+  const turns      = parseInt(document.getElementById('sliderTurns').value, 10);
+  const deferred   = document.getElementById('toggleDeferred').checked;
+
+  calcState.mcpTools = mcpTools;
+  calcState.skills   = skills;
+  calcState.turns    = turns;
+  calcState.deferred = deferred;
+
+  document.getElementById('valMcpTools').textContent = mcpTools;
+  document.getElementById('valSkills').textContent   = skills;
+  document.getElementById('valTurns').textContent    = turns;
+
+  // Compute token costs
+  const systemPrompt = 3500;
+  // Deferred: only built-in tools (~37 × 250 = ~9,250) + mcp names (~mcpTools × 30)
+  // Non-deferred: all tools with full schemas (~57 × 310 = ~17,670)
+  const builtinToolTokens = 37 * 250; // built-in always sent
+  const mcpNameTokens = mcpTools * 30;
+  const mcpSchemaTokens = deferred ? 0 : mcpTools * 700; // full schemas if not deferred
+  const toolTokens = builtinToolTokens + mcpNameTokens + mcpSchemaTokens;
+
+  const skillTokens   = skills * 1500;
+  const reminderTokens = 3200; // always approximate
+  const convTokens    = turns * calcState.msgTokens * 2; // user + assistant
+
+  const totalUsed  = systemPrompt + toolTokens + skillTokens + reminderTokens + convTokens;
+  const available  = calcState.modelMax - totalUsed;
+  const usedPct    = (totalUsed / calcState.modelMax) * 100;
+  const availPct   = (available / calcState.modelMax) * 100;
+
+  function fmt(n) {
+    return n < 0 ? '0' : n.toLocaleString();
+  }
+  function fmtPct(p) {
+    return Math.max(0, p).toFixed(1) + '%';
+  }
+
+  document.getElementById('btSystem').textContent      = fmt(systemPrompt);
+  document.getElementById('btSystemPct').textContent   = fmtPct((systemPrompt / calcState.modelMax) * 100);
+  document.getElementById('btTools').textContent       = fmt(toolTokens);
+  document.getElementById('btToolsPct').textContent    = fmtPct((toolTokens / calcState.modelMax) * 100);
+  document.getElementById('btSkillsLabel').textContent = `Loaded Skills (${skills})`;
+  document.getElementById('btSkills').textContent      = fmt(skillTokens);
+  document.getElementById('btSkillsPct').textContent   = fmtPct((skillTokens / calcState.modelMax) * 100);
+  document.getElementById('btReminder').textContent    = fmt(reminderTokens);
+  document.getElementById('btReminderPct').textContent = fmtPct((reminderTokens / calcState.modelMax) * 100);
+  document.getElementById('btConvLabel').textContent   = `Conversation (${turns} turns)`;
+  document.getElementById('btConv').textContent        = fmt(convTokens);
+  document.getElementById('btConvPct').textContent     = fmtPct((convTokens / calcState.modelMax) * 100);
+  document.getElementById('btTotal').textContent       = fmt(totalUsed);
+  document.getElementById('btTotalPct').textContent    = fmtPct(usedPct);
+  document.getElementById('btAvail').textContent       = fmt(Math.max(0, available));
+  document.getElementById('btAvailPct').textContent    = Math.max(0, availPct).toFixed(1) + '% free';
+
+  // Stacked bar
+  const max = calcState.modelMax;
+  function pct(n) { return Math.max(0, Math.min(100, (n / max) * 100)).toFixed(3) + '%'; }
+
+  document.getElementById('barSystem').style.width   = pct(systemPrompt);
+  document.getElementById('barTools').style.width    = pct(toolTokens);
+  document.getElementById('barSkills').style.width   = pct(skillTokens);
+  document.getElementById('barReminder').style.width = pct(reminderTokens);
+  document.getElementById('barConv').style.width     = pct(convTokens);
+  document.getElementById('barFree').style.width     = pct(Math.max(0, available));
+
+  // Warning
+  const warning = document.getElementById('calcWarning');
+  if (usedPct > 85) {
+    warning.style.display = 'inline-flex';
+    warning.style.background = 'rgba(248,81,73,0.1)';
+    warning.style.borderColor = 'var(--accent-red)';
+    warning.style.color = 'var(--accent-red)';
+  } else if (usedPct > 70) {
+    warning.style.display = 'inline-flex';
+    warning.style.background = 'rgba(210,153,34,0.1)';
+    warning.style.borderColor = 'var(--accent-orange)';
+    warning.style.color = 'var(--accent-orange)';
+    warning.querySelector('span').textContent = 'Context filling — consider enabling deferred loading';
+  } else {
+    warning.style.display = 'none';
+  }
+}
+
+/* =========================================================================
+   Compression Simulation
+   ========================================================================= */
+
+let compStep = 1;
+const compMaxSteps = 3;
+
+function buildTurnBlock(turn, role, content, tokens, extra) {
+  const div = document.createElement('div');
+  div.className = 'turn-block ' + role + (extra ? ' ' + extra : '');
+  div.innerHTML = `
+    <span class="turn-label">${role === 'user' ? 'User' : 'Claude'} ${turn}</span>
+    <span class="turn-content">${content}</span>
+    <span class="turn-tokens">${tokens}t</span>
+  `;
+  return div;
+}
+
+function buildSummary() {
+  const div = document.createElement('div');
+  div.className = 'turn-summary';
+  div.innerHTML = `
+    <span class="turn-summary-icon">&#128196;</span>
+    <div>
+      <div class="turn-summary-text">Summary Block — Turns 1–15</div>
+      <div class="turn-summary-sub">Compressed from ~75,000 tokens to ~4,200 tokens — key facts, file paths, decisions preserved</div>
+    </div>
+  `;
+  return div;
+}
+
+function buildTurnsStage1() {
+  const container = document.getElementById('turnsStage1');
+  container.innerHTML = '';
+  const msgs = [
+    ['fix the auth bug in middleware', 420],
+    ['Reading files, checking middleware...', 680],
+    ['try using passport.js instead', 350],
+    ['Updated implementation with passport.js', 1100],
+    ['add rate limiting to the login endpoint', 380],
+    ['Added express-rate-limit, 5 req/min', 520],
+    ['now write unit tests for the middleware', 310],
+    ['Generated 12 tests covering edge cases', 890],
+    ['run the tests and fix any failures', 290],
+    ['3 failures found and fixed', 640],
+  ];
+  msgs.forEach(([content, tokens], i) => {
+    container.appendChild(buildTurnBlock(Math.floor(i/2)+1, i%2===0 ? 'user' : 'assistant', content, tokens));
+  });
+  const more = document.createElement('div');
+  more.style.cssText = 'text-align:center; color:var(--text-secondary); font-size:var(--text-xs); padding:var(--space-2); font-family:var(--font-mono)';
+  more.textContent = '... 20 more turns ...';
+  container.appendChild(more);
+}
+
+function buildTurnsStage2() {
+  const container = document.getElementById('turnsStage2');
+  container.innerHTML = '';
+  const msgs = [
+    ['refactor the auth module', 350],
+    ['Refactoring auth, splitting into sub-modules...', 1200],
+    ['add OAuth2 support for Google', 420],
+    ['Implemented Google OAuth2 flow with callbacks', 1800],
+    ['now add GitHub OAuth too', 380],
+    ['Added GitHub OAuth, merged strategies', 1650],
+    ['write the integration tests', 310],
+    ['Generated integration test suite...', 2100],
+  ];
+  msgs.forEach(([content, tokens], i) => {
+    const cls = i < 4 ? 'compressing' : '';
+    container.appendChild(buildTurnBlock(Math.floor(i/2)+16, i%2===0 ? 'user' : 'assistant', content, tokens, cls));
+  });
+  const more = document.createElement('div');
+  more.style.cssText = 'text-align:center; color:var(--accent-red); font-size:var(--text-xs); padding:var(--space-2); font-family:var(--font-mono)';
+  more.textContent = '... context critical — 91% full ...';
+  container.appendChild(more);
+}
+
+function buildTurnsStage3() {
+  const container = document.getElementById('turnsStage3');
+  container.innerHTML = '';
+  container.appendChild(buildSummary());
+  const recent = [
+    ['write the integration tests', 310],
+    ['Generated integration test suite — 45 tests passing', 2100],
+    ['add CI configuration', 360],
+    ['Created .circleci/config.yml with test + lint steps', 980],
+  ];
+  recent.forEach(([content, tokens], i) => {
+    container.appendChild(buildTurnBlock(Math.floor(i/2)+24, i%2===0 ? 'user' : 'assistant', content, tokens));
+  });
+}
+
+function updateCompStage() {
+  for (let i = 1; i <= compMaxSteps; i++) {
+    const el = document.getElementById('compStage' + i);
+    if (el) el.classList.toggle('active', i === compStep);
+  }
+  document.getElementById('compStepLabel').textContent = `Step ${compStep} / ${compMaxSteps}`;
+  document.getElementById('compNextBtn').textContent = compStep === compMaxSteps ? 'Done' : 'Next \u2192';
+  document.getElementById('compNextBtn').disabled = compStep === compMaxSteps;
+}
+
+function compNext() {
+  if (compStep < compMaxSteps) {
+    compStep++;
+    updateCompStage();
+  }
+}
+
+function compPrev() {
+  if (compStep > 1) {
+    compStep--;
+    updateCompStage();
+  }
+}
+
+function compReset() {
+  compStep = 1;
+  updateCompStage();
+}
+
+/* =========================================================================
+   Init
+   ========================================================================= */
+
+document.addEventListener('DOMContentLoaded', function() {
+  calcUpdate();
+  buildTurnsStage1();
+  buildTurnsStage2();
+  buildTurnsStage3();
+  updateCompStage();
+});
+</script>
+</body>
+</html>

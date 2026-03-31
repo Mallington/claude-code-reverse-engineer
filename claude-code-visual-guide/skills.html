@@ -1,0 +1,2280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skills System — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(188,140,255,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 20% 60%, rgba(88,166,255,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(57,210,192,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.08);
+      border: 1px solid rgba(188,140,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent);
+      opacity: 0.4;
+    }
+
+    /* =====================================================================
+       Sections
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Layer Cake SVG animation
+       ===================================================================== */
+    .cake-layer {
+      opacity: 0;
+      transition: opacity 0.6s ease, transform 0.6s ease;
+      transform: translateY(12px);
+    }
+
+    .cake-layer.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* =====================================================================
+       Bootstrap Flow Animation
+       ===================================================================== */
+    .flow-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .flow-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .flow-step {
+      display: flex;
+      gap: var(--space-4);
+      align-items: flex-start;
+      opacity: 0.25;
+      transition: opacity 0.4s ease;
+    }
+
+    .flow-step.active {
+      opacity: 1;
+    }
+
+    .flow-step.completed {
+      opacity: 0.6;
+    }
+
+    .flow-step-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 32px;
+    }
+
+    .flow-step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      border: 1.5px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      transition: all 0.4s ease;
+    }
+
+    .flow-step.active .flow-step-num {
+      border-color: var(--accent-purple);
+      background: rgba(188,140,255,0.15);
+      color: var(--accent-purple);
+      box-shadow: 0 0 12px rgba(188,140,255,0.3);
+    }
+
+    .flow-step.completed .flow-step-num {
+      border-color: var(--accent-green);
+      background: rgba(63,185,80,0.1);
+      color: var(--accent-green);
+    }
+
+    .flow-step-line {
+      width: 1.5px;
+      flex: 1;
+      min-height: 24px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    .flow-step-body {
+      padding: var(--space-1) 0 var(--space-6);
+      flex: 1;
+    }
+
+    .flow-step-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+
+    .flow-step-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .flow-step-code {
+      margin-top: var(--space-2);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-2) var(--space-3);
+      color: var(--accent-cyan);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .flow-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+      margin-top: var(--space-6);
+      padding-top: var(--space-6);
+      border-top: 1px solid var(--border);
+    }
+
+    .flow-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .flow-btn:hover {
+      border-color: var(--accent-purple);
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.08);
+    }
+
+    .flow-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .flow-btn-primary {
+      background: var(--accent-purple);
+      border-color: var(--accent-purple);
+      color: #0d1117;
+    }
+
+    .flow-btn-primary:hover {
+      background: #d4a7ff;
+      border-color: #d4a7ff;
+      color: #0d1117;
+    }
+
+    .flow-counter {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* =====================================================================
+       Skill Browser
+       ===================================================================== */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-6);
+    }
+
+    .filter-btn {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--accent-purple);
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.05);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-purple);
+      border-color: var(--accent-purple);
+      color: #0d1117;
+    }
+
+    .filter-btn.active-blue {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #0d1117;
+    }
+
+    .filter-btn.active-green {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #0d1117;
+    }
+
+    .filter-btn.active-cyan {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      color: #0d1117;
+    }
+
+    .filter-btn.active-orange {
+      background: var(--accent-orange);
+      border-color: var(--accent-orange);
+      color: #0d1117;
+    }
+
+    .skill-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-4);
+    }
+
+    .skill-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+    }
+
+    .skill-card:hover {
+      border-color: rgba(188,140,255,0.3);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .skill-card-hidden {
+      display: none !important;
+    }
+
+    .skill-card-top {
+      padding: var(--space-4) var(--space-4) var(--space-3);
+    }
+
+    .skill-card-badges {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-2);
+    }
+
+    .skill-badge {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      display: inline-block;
+    }
+
+    .skill-badge-workflow {
+      background: rgba(88,166,255,0.1);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88,166,255,0.2);
+    }
+
+    .skill-badge-quality {
+      background: rgba(63,185,80,0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.2);
+    }
+
+    .skill-badge-collaboration {
+      background: rgba(57,210,192,0.1);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(57,210,192,0.2);
+    }
+
+    .skill-badge-meta {
+      background: rgba(188,140,255,0.1);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.2);
+    }
+
+    .skill-badge-bootstrap {
+      background: rgba(210,153,34,0.1);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210,153,34,0.2);
+    }
+
+    .skill-card-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      margin-bottom: var(--space-1);
+    }
+
+    .skill-card-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .skill-card-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-top: var(--space-3);
+    }
+
+    .skill-token-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .skill-token-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      opacity: 0.6;
+    }
+
+    .skill-card-expand-btn {
+      width: 100%;
+      text-align: left;
+      padding: var(--space-2) var(--space-4);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.04);
+      border: none;
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .skill-card-expand-btn:hover {
+      background: rgba(188,140,255,0.08);
+    }
+
+    .skill-card-expand-arrow {
+      transition: transform var(--transition);
+    }
+
+    .skill-card.expanded .skill-card-expand-arrow {
+      transform: rotate(180deg);
+    }
+
+    .skill-card-detail {
+      display: none;
+      padding: var(--space-4);
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,0.01);
+    }
+
+    .skill-card.expanded .skill-card-detail {
+      display: block;
+    }
+
+    .skill-detail-section {
+      margin-bottom: var(--space-4);
+    }
+
+    .skill-detail-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .skill-detail-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-1);
+    }
+
+    .skill-detail-value {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .skill-detail-path {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--accent-cyan);
+      background: var(--bg-tertiary);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      word-break: break-all;
+      margin-top: var(--space-1);
+    }
+
+    .skill-always-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      color: var(--accent-orange);
+      background: rgba(210,153,34,0.08);
+      border: 1px solid rgba(210,153,34,0.2);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+      margin-top: var(--space-2);
+    }
+
+    /* =====================================================================
+       Skill Chain Diagram
+       ===================================================================== */
+    .chain-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      overflow-x: auto;
+    }
+
+    .chain-svg-wrap {
+      min-width: 720px;
+    }
+
+    .chain-node {
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chain-node:hover .chain-node-rect {
+      filter: brightness(1.2);
+    }
+
+    .chain-node-rect {
+      transition: filter 0.2s ease;
+    }
+
+    .chain-tooltip {
+      position: fixed;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      max-width: 280px;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .chain-tooltip.visible {
+      opacity: 1;
+    }
+
+    .chain-tooltip-name {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--accent-purple);
+      margin-bottom: var(--space-1);
+    }
+
+    .chain-tooltip-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Token Budget
+       ===================================================================== */
+    .token-budget-wrap {
+      display: grid;
+      gap: var(--space-8);
+    }
+
+    .token-scenario {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+    }
+
+    .token-scenario-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-5);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .token-scenario-badge {
+      font-size: var(--text-xs);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .token-scenario-badge-before {
+      background: rgba(139,148,158,0.1);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .token-scenario-badge-after {
+      background: rgba(188,140,255,0.1);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.2);
+    }
+
+    .token-row {
+      display: grid;
+      grid-template-columns: 220px 1fr 80px;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .token-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .token-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    .token-label strong {
+      color: var(--text-primary);
+      display: block;
+      font-size: var(--text-sm);
+    }
+
+    .token-bar-track {
+      height: 28px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .token-bar-fill {
+      height: 100%;
+      border-radius: var(--radius);
+      width: 0;
+      transition: width 1s ease;
+      display: flex;
+      align-items: center;
+      padding-left: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: rgba(0,0,0,0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .token-bar-fill-system { background: var(--accent-blue); }
+    .token-bar-fill-tools  { background: var(--accent-orange); }
+    .token-bar-fill-catalog { background: var(--accent-purple); }
+    .token-bar-fill-bootstrap { background: #d4a7ff; }
+    .token-bar-fill-skills { background: var(--accent-cyan); }
+
+    .token-count {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    /* =====================================================================
+       Insight Cards
+       ===================================================================== */
+    .insight-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+    }
+
+    @media (max-width: 900px) {
+      .insight-cards { grid-template-columns: 1fr; }
+    }
+
+    .insight-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .insight-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .insight-card-1::before { background: linear-gradient(90deg, var(--accent-orange), var(--accent-red)); }
+    .insight-card-2::before { background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); }
+    .insight-card-3::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green)); }
+
+    .insight-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--space-4);
+      font-size: 20px;
+    }
+
+    .insight-icon-1 { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.2); }
+    .insight-icon-2 { background: rgba(188,140,255,0.1); border: 1px solid rgba(188,140,255,0.2); }
+    .insight-icon-3 { background: rgba(57,210,192,0.1); border: 1px solid rgba(57,210,192,0.2); }
+
+    .insight-card-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-3);
+    }
+
+    .insight-card-body {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .insight-example {
+      margin-top: var(--space-3);
+      padding: var(--space-3);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .insight-example .good { color: var(--accent-green); }
+    .insight-example .bad  { color: var(--accent-red); }
+
+    /* =====================================================================
+       Nav footer
+       ===================================================================== */
+    .nav-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-8) 0;
+    }
+
+    .nav-footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .nav-footer-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all var(--transition);
+    }
+
+    .nav-footer-link:hover {
+      color: var(--accent-blue);
+      border-color: rgba(88,166,255,0.3);
+      background: rgba(88,166,255,0.05);
+      text-decoration: none;
+    }
+
+    .nav-footer-center {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+    }
+
+    /* =====================================================================
+       Misc helpers
+       ===================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    .code-block {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--bg-secondary);
+    }
+
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-2) var(--space-4);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-block-lang {
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .code-block pre {
+      padding: var(--space-5);
+      margin: 0;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+    }
+
+    .json-key     { color: var(--accent-blue); }
+    .json-string  { color: var(--accent-green); }
+    .json-number  { color: var(--accent-orange); }
+    .json-bool    { color: var(--accent-purple); }
+    .json-null    { color: var(--text-secondary); }
+    .json-bracket { color: var(--text-secondary); }
+
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-8) 0;
+      text-align: center;
+    }
+
+    .site-footer-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 640px) {
+      .token-row { grid-template-columns: 130px 1fr 60px; gap: var(--space-2); }
+      .nav-footer-center { display: none; }
+      .skill-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <div class="nav-inner">
+
+        <a href="index.html" class="nav-brand" aria-label="Claude Code Architecture Home">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="22" height="22" rx="6" fill="rgba(88,166,255,0.15)"/>
+            <circle cx="11" cy="11" r="3.5" stroke="#58a6ff" stroke-width="1.5"/>
+            <path d="M11 4v2M11 16v2M4 11h2M16 11h2" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6.5 6.5l1.5 1.5M14 14l1.5 1.5M14 6.5l-1.5 1.5M8 14l-1.5 1.5" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <span>Claude Code Architecture</span>
+        </a>
+
+        <div class="nav-links" role="list">
+          <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+          <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+          <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+          <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+          <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+          <a href="skills.html" class="nav-link active" role="listitem">Skills</a>
+          <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+          <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+          <a href="mcp.html" class="nav-link" role="listitem">MCP</a>
+          <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+          <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+          <a href="emulator.html" class="nav-link" role="listitem">Emulator</a>
+        </div>
+
+        <button class="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+    <a href="index.html" class="nav-link">The Big Picture</a>
+    <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+    <a href="system-prompt.html" class="nav-link">System Prompt</a>
+    <a href="tools.html" class="nav-link">Tools</a>
+    <a href="context-injection.html" class="nav-link">Context Injection</a>
+    <a href="skills.html" class="nav-link active">Skills</a>
+    <a href="plugins.html" class="nav-link">Plugins</a>
+    <a href="agents.html" class="nav-link">Agents</a>
+    <a href="mcp.html" class="nav-link">MCP</a>
+    <a href="context-management.html" class="nav-link">Context Mgmt</a>
+    <a href="persistence.html" class="nav-link">Persistence</a>
+    <a href="emulator.html" class="nav-link">Emulator</a>
+  </div>
+
+  <main>
+
+    <!-- ===================================================================
+         Hero
+         =================================================================== -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+
+        <div class="hero-eyebrow" aria-hidden="true">
+          <span class="hero-eyebrow-dot"></span>
+          Chapter 6 — The Skills System
+        </div>
+
+        <h1 class="hero-title" id="hero-title">
+          <span class="hero-title-accent">The Skills System</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          On-demand behavioral modules that guide complex workflows — loaded lazily to keep token costs near zero until the moment they are needed.
+        </p>
+
+        <!-- 3-Layer Cake Diagram -->
+        <div class="hero-diagram-wrap reveal" id="hero-diagram-wrap">
+          <svg id="cake-svg" viewBox="0 0 900 340" width="100%" style="display:block;"
+               role="img" aria-label="Three-layer skills architecture: catalog at base, bootstrap in middle, individual skills at top">
+            <title>Three-layer skills architecture</title>
+            <defs>
+              <pattern id="cakeGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
+              </pattern>
+              <linearGradient id="layer1Grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(88,166,255,0.15)"/>
+                <stop offset="50%" stop-color="rgba(88,166,255,0.22)"/>
+                <stop offset="100%" stop-color="rgba(88,166,255,0.15)"/>
+              </linearGradient>
+              <linearGradient id="layer2Grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(210,153,34,0.15)"/>
+                <stop offset="50%" stop-color="rgba(210,153,34,0.22)"/>
+                <stop offset="100%" stop-color="rgba(210,153,34,0.15)"/>
+              </linearGradient>
+              <linearGradient id="layer3Grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(188,140,255,0.15)"/>
+                <stop offset="50%" stop-color="rgba(188,140,255,0.22)"/>
+                <stop offset="100%" stop-color="rgba(188,140,255,0.15)"/>
+              </linearGradient>
+              <filter id="layerGlow">
+                <feGaussianBlur stdDeviation="2" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+              </filter>
+            </defs>
+
+            <rect width="900" height="340" fill="#0d1117"/>
+            <rect width="900" height="340" fill="url(#cakeGrid)"/>
+
+            <!-- Layer 1: Skill Catalog (base - widest) -->
+            <g id="cake-layer-1" class="cake-layer">
+              <!-- Layer body -->
+              <rect x="40" y="240" width="820" height="80" rx="8"
+                    fill="url(#layer1Grad)" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+              <!-- Top highlight -->
+              <rect x="40" y="240" width="820" height="2" rx="1" fill="rgba(88,166,255,0.6)"/>
+              <!-- Layer label left -->
+              <text x="68" y="272" font-size="11" font-weight="700" fill="#58a6ff"
+                    font-family="-apple-system,sans-serif" letter-spacing="0.06em">LAYER 1</text>
+              <text x="68" y="290" font-size="13" font-weight="600" fill="#e6edf3"
+                    font-family="-apple-system,sans-serif">Skill Catalog — always in context</text>
+              <!-- Token count right -->
+              <text x="832" y="272" font-size="11" fill="#8b949e" font-family="monospace" text-anchor="end">always loaded</text>
+              <text x="832" y="290" font-size="12" fill="#58a6ff" font-family="monospace" text-anchor="end">~600 tokens</text>
+              <!-- Decorative items -->
+              <text x="68" y="308" font-size="10" fill="rgba(88,166,255,0.6)" font-family="monospace">
+                skill-name • description (trigger conditions) • ...14 skills listed
+              </text>
+            </g>
+
+            <!-- Layer 2: Bootstrap (middle) -->
+            <g id="cake-layer-2" class="cake-layer">
+              <rect x="100" y="150" width="700" height="82" rx="8"
+                    fill="url(#layer2Grad)" stroke="rgba(210,153,34,0.4)" stroke-width="1.5"/>
+              <rect x="100" y="150" width="700" height="2" rx="1" fill="rgba(210,153,34,0.6)"/>
+              <text x="128" y="182" font-size="11" font-weight="700" fill="#d29922"
+                    font-family="-apple-system,sans-serif" letter-spacing="0.06em">LAYER 2</text>
+              <text x="128" y="200" font-size="13" font-weight="600" fill="#e6edf3"
+                    font-family="-apple-system,sans-serif">Bootstrap Skill — always loaded</text>
+              <text x="772" y="182" font-size="11" fill="#8b949e" font-family="monospace" text-anchor="end">SessionStart hook</text>
+              <text x="772" y="200" font-size="12" fill="#d29922" font-family="monospace" text-anchor="end">~1,200 tokens</text>
+              <text x="128" y="220" font-size="10" fill="rgba(210,153,34,0.7)" font-family="monospace">
+                using-superpowers/SKILL.md  →  &lt;EXTREMELY_IMPORTANT&gt;  →  &lt;system-reminder&gt;
+              </text>
+            </g>
+
+            <!-- Layer 3: Individual Skills (top - narrowest) -->
+            <g id="cake-layer-3" class="cake-layer">
+              <rect x="170" y="54" width="560" height="90" rx="8"
+                    fill="url(#layer3Grad)" stroke="rgba(188,140,255,0.4)" stroke-width="1.5"/>
+              <rect x="170" y="54" width="560" height="2" rx="1" fill="rgba(188,140,255,0.6)"/>
+              <text x="198" y="80" font-size="11" font-weight="700" fill="#bc8cff"
+                    font-family="-apple-system,sans-serif" letter-spacing="0.06em">LAYER 3</text>
+              <text x="198" y="98" font-size="13" font-weight="600" fill="#e6edf3"
+                    font-family="-apple-system,sans-serif">Individual Skills — loaded on demand</text>
+              <text x="702" y="80" font-size="11" fill="#8b949e" font-family="monospace" text-anchor="end">Skill tool call</text>
+              <text x="702" y="98" font-size="12" fill="#bc8cff" font-family="monospace" text-anchor="end">500–3,000 tokens each</text>
+              <!-- Skill pill tags -->
+              <g font-size="9" font-family="monospace" fill="rgba(188,140,255,0.8)">
+                <rect x="198" y="108" width="76" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="204" y="120">brainstorming</text>
+                <rect x="280" y="108" width="48" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="286" y="120">TDD</text>
+                <rect x="334" y="108" width="56" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="340" y="120">debugging</text>
+                <rect x="396" y="108" width="34" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="402" y="120">SDD</text>
+                <rect x="436" y="108" width="78" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="442" y="120">writing-plans</text>
+                <rect x="520" y="108" width="66" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="526" y="120">code-review</text>
+                <rect x="592" y="108" width="40" height="16" rx="3" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1"/>
+                <text x="598" y="120">+ more</text>
+              </g>
+            </g>
+
+            <!-- Arrow annotations -->
+            <g id="cake-arrows" class="cake-layer" opacity="0.7">
+              <!-- Down arrows between layers -->
+              <line x1="450" y1="144" x2="450" y2="152" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="3 2"/>
+              <polygon points="450,154 446,146 454,146" fill="#8b949e"/>
+              <line x1="450" y1="232" x2="450" y2="240" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="3 2"/>
+              <polygon points="450,242 446,234 454,234" fill="#8b949e"/>
+            </g>
+
+          </svg>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SessionStart Hook Flow
+         =================================================================== -->
+    <section class="page-section" id="bootstrap-flow" aria-labelledby="bootstrap-title">
+      <div class="container">
+        <div class="content-container">
+
+          <div class="section-header reveal">
+            <div class="section-label">Bootstrap Mechanism</div>
+            <h2 class="section-title" id="bootstrap-title">The SessionStart Hook Flow</h2>
+            <p class="section-desc">
+              How <code>using-superpowers</code> gets injected at the start of every session — step by step.
+            </p>
+          </div>
+
+          <div class="flow-container reveal" id="flow-container">
+            <div class="flow-steps" id="flow-steps" aria-live="polite">
+
+              <!-- Step 1 -->
+              <div class="flow-step" data-step="0">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">1</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Session starts, hooks.json consulted</div>
+                  <div class="flow-step-desc">Claude Code reads <code>.claude/hooks.json</code> and finds a <code>SessionStart</code> hook registered by the Superpowers plugin.</div>
+                  <div class="flow-step-code">{ "SessionStart": ["run-hook.cmd session-start"] }</div>
+                </div>
+              </div>
+
+              <!-- Step 2 -->
+              <div class="flow-step" data-step="1">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">2</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">run-hook.cmd session-start executes</div>
+                  <div class="flow-step-desc">The hook runner shell script is invoked with the <code>session-start</code> argument, triggering the bootstrap sequence.</div>
+                </div>
+              </div>
+
+              <!-- Step 3 -->
+              <div class="flow-step" data-step="2">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">3</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Script reads using-superpowers/SKILL.md</div>
+                  <div class="flow-step-desc">The session-start script locates and reads the bootstrap skill file from the plugin's skills directory.</div>
+                  <div class="flow-step-code">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/using-superpowers/SKILL.md</div>
+                </div>
+              </div>
+
+              <!-- Step 4 -->
+              <div class="flow-step" data-step="3">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">4</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Content wrapped in &lt;EXTREMELY_IMPORTANT&gt;</div>
+                  <div class="flow-step-desc">The skill content is wrapped in priority tags to ensure the model treats it as high-priority instruction.</div>
+                  <div class="flow-step-code">&lt;EXTREMELY_IMPORTANT&gt;
+  [skill content — ~1,200 tokens]
+&lt;/EXTREMELY_IMPORTANT&gt;</div>
+                </div>
+              </div>
+
+              <!-- Step 5 -->
+              <div class="flow-step" data-step="4">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">5</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Returns as hookSpecificOutput.additionalContext</div>
+                  <div class="flow-step-desc">The hook outputs a JSON object. Claude Code reads the <code>additionalContext</code> field from <code>hookSpecificOutput</code>.</div>
+                  <div class="flow-step-code">{ "hookSpecificOutput": { "additionalContext": "..." } }</div>
+                </div>
+              </div>
+
+              <!-- Step 6 -->
+              <div class="flow-step" data-step="5">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">6</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Claude Code wraps in &lt;system-reminder&gt;</div>
+                  <div class="flow-step-desc">Claude Code takes the additional context and wraps it in a <code>&lt;system-reminder&gt;</code> block for injection.</div>
+                  <div class="flow-step-code">&lt;system-reminder&gt;
+  &lt;EXTREMELY_IMPORTANT&gt;...&lt;/EXTREMELY_IMPORTANT&gt;
+&lt;/system-reminder&gt;</div>
+                </div>
+              </div>
+
+              <!-- Step 7 -->
+              <div class="flow-step" data-step="6">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">7</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Injected as first block of first user message</div>
+                  <div class="flow-step-desc">The system-reminder is prepended to the human turn of the first message in the conversation, before any user text.</div>
+                </div>
+              </div>
+
+              <!-- Step 8 -->
+              <div class="flow-step" data-step="7">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">8</div>
+                </div>
+                <div class="flow-step-body">
+                  <div class="flow-step-title">Model reads skill, learns about the skill system</div>
+                  <div class="flow-step-desc">The model sees the bootstrap skill content, understands what skills are available, and knows to invoke the <code>Skill</code> tool when appropriate tasks arise. The catalog is already in context — the model can match tasks to skill names immediately.</div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="flow-controls">
+              <button class="flow-btn" id="flow-prev" disabled aria-label="Previous step">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                Prev
+              </button>
+              <span class="flow-counter" id="flow-counter">Step 1 of 8</span>
+              <button class="flow-btn flow-btn-primary" id="flow-next" aria-label="Next step">
+                Next
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Skill Browser
+         =================================================================== -->
+    <section class="page-section" id="skill-browser" aria-labelledby="browser-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <div class="section-label">Skill Catalog</div>
+          <h2 class="section-title" id="browser-title">Skill Browser</h2>
+          <p class="section-desc">
+            Browse all 14 skills in the Superpowers v5.0.5 catalog. Filter by category, expand any card for full details.
+          </p>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar reveal" role="group" aria-label="Filter skills by category">
+          <button class="filter-btn active" data-filter="all">All <span style="opacity:0.6">(14)</span></button>
+          <button class="filter-btn" data-filter="workflow" data-active-class="active-blue">Workflow <span style="opacity:0.6">(7)</span></button>
+          <button class="filter-btn" data-filter="quality" data-active-class="active-green">Quality <span style="opacity:0.6">(3)</span></button>
+          <button class="filter-btn" data-filter="collaboration" data-active-class="active-cyan">Collaboration <span style="opacity:0.6">(3)</span></button>
+          <button class="filter-btn" data-filter="meta" data-active-class="active-orange">Meta <span style="opacity:0.6">(1)</span></button>
+        </div>
+
+        <!-- Skill cards grid -->
+        <div class="skill-grid reveal" id="skill-grid" role="list">
+
+          <!-- using-superpowers -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+                <span class="skill-badge skill-badge-bootstrap">Bootstrap</span>
+              </div>
+              <div class="skill-card-name">using-superpowers</div>
+              <div class="skill-card-desc">Bootstrap — auto-loaded at every session start. Teaches the model what skills are and how to invoke them.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~1,200 tokens</span>
+                <span class="skill-always-badge">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5" fill="rgba(210,153,34,0.3)" stroke="#d29922" stroke-width="1"/><path d="M6 3v3l2 1.5" stroke="#d29922" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+                  Always loaded
+                </span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">Automatically loaded at the start of every session via the SessionStart hook. Never invoked manually by the model.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When NOT to use</div>
+                <div class="skill-detail-value">This skill is never manually invoked — it is always auto-loaded.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/using-superpowers/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- brainstorming -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+              </div>
+              <div class="skill-card-name">brainstorming</div>
+              <div class="skill-card-desc">Before any creative work — features, components, system design, or open-ended problems with multiple valid approaches.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~2,000 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">Before designing a new feature, component, or system. Before writing plans. When facing an open-ended problem with multiple valid approaches.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When NOT to use</div>
+                <div class="skill-detail-value">When the approach is already determined and you just need to execute a known plan.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Chains to</div>
+                <div class="skill-detail-value"><code>writing-plans</code></div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/brainstorming/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- writing-plans -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+              </div>
+              <div class="skill-card-name">writing-plans</div>
+              <div class="skill-card-desc">When you have a spec, before writing code — converts a specification into a numbered, step-by-step implementation plan.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~1,500 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When you have a clear spec and are about to start coding. After brainstorming and before touching any files.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Output</div>
+                <div class="skill-detail-value">A structured document with numbered tasks, dependencies, acceptance criteria, and risk notes. Intended to be followed by <code>subagent-driven-development</code>.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Chains to</div>
+                <div class="skill-detail-value"><code>subagent-driven-development</code> or <code>executing-plans</code></div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/writing-plans/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- executing-plans -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+              </div>
+              <div class="skill-card-name">executing-plans</div>
+              <div class="skill-card-desc">When executing a plan in a separate session — sequential plan execution for single-agent contexts.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~1,000 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When a plan has been written and must be executed in a new or separate session. For sequential (non-parallel) plan execution.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When NOT to use</div>
+                <div class="skill-detail-value">When tasks can be parallelized — use <code>subagent-driven-development</code> instead for those cases.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/executing-plans/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- subagent-driven-development -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+              </div>
+              <div class="skill-card-name">subagent-driven-development</div>
+              <div class="skill-card-desc">Executing plans with independent tasks — decompose work into tasks dispatched to parallel sub-agents.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~3,000 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When executing a written plan. When the plan contains tasks that can be parallelised. For any work expected to take more than 3–4 tool calls.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Sub-skills referenced</div>
+                <div class="skill-detail-value"><code>dispatching-parallel-agents</code>, <code>test-driven-development</code></div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/subagent-driven-development/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- dispatching-parallel-agents -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+              </div>
+              <div class="skill-card-name">dispatching-parallel-agents</div>
+              <div class="skill-card-desc">2+ independent tasks — pattern for running multiple agent instances simultaneously on non-overlapping work.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~800 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When there are 2 or more independent tasks that do not share mutable state. Invoked by <code>subagent-driven-development</code> during orchestration.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/dispatching-parallel-agents/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- test-driven-development -->
+          <div class="skill-card" data-category="quality" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-quality">Quality</span>
+              </div>
+              <div class="skill-card-name">test-driven-development</div>
+              <div class="skill-card-desc">Before writing implementation code — defines the red-green-refactor loop: write failing tests first.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~1,800 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">Before writing any implementation code for a new feature or function. When adding behaviour to an existing system.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">The TDD loop</div>
+                <div class="skill-detail-value">Red (write failing test) → Green (write minimal implementation) → Refactor (clean up)</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/test-driven-development/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- systematic-debugging -->
+          <div class="skill-card" data-category="quality" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-quality">Quality</span>
+              </div>
+              <div class="skill-card-name">systematic-debugging</div>
+              <div class="skill-card-desc">Any bug, test failure, unexpected behavior — structured diagnosis: reproduce, isolate, hypothesize, verify, fix, confirm.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~2,200 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">Any time a bug is encountered. When a test is failing unexpectedly. When behaviour doesn't match the spec.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Steps</div>
+                <div class="skill-detail-value">Reproduce reliably → Isolate → Form hypothesis → Verify → Fix → Confirm fix → Add regression test</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/systematic-debugging/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- verification-before-completion -->
+          <div class="skill-card" data-category="quality" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-quality">Quality</span>
+              </div>
+              <div class="skill-card-name">verification-before-completion</div>
+              <div class="skill-card-desc">Before claiming work is complete — checklist-driven verification pass covering end-to-end function, tests, regressions, code cleanliness.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~800 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">Before marking any task as done. Before telling the user work is complete. After a fix to verify no regressions.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Checklist covers</div>
+                <div class="skill-detail-value">Does it work end-to-end? Do tests pass? No regressions? Is the code clean? Is documentation updated?</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/verification-before-completion/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- requesting-code-review -->
+          <div class="skill-card" data-category="collaboration" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-collaboration">Collaboration</span>
+              </div>
+              <div class="skill-card-name">requesting-code-review</div>
+              <div class="skill-card-desc">After completing tasks/features — prepares a structured code review request with context: what changed, why, how to test, trade-offs.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~1,000 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">After completing a task or major feature. When handing work off to a human reviewer. When the implementation involves significant trade-offs worth discussing.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Output</div>
+                <div class="skill-detail-value">A PR description or review-request message covering: what changed, why, how to test it, known trade-offs, areas of uncertainty.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/requesting-code-review/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- receiving-code-review -->
+          <div class="skill-card" data-category="collaboration" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-collaboration">Collaboration</span>
+              </div>
+              <div class="skill-card-name">receiving-code-review</div>
+              <div class="skill-card-desc">When receiving review feedback — structured approach to processing and acting on code review comments.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~900 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When receiving review feedback from a human or automated reviewer. When processing PR comments before making changes.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/receiving-code-review/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- using-git-worktrees -->
+          <div class="skill-card" data-category="collaboration" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-collaboration">Collaboration</span>
+              </div>
+              <div class="skill-card-name">using-git-worktrees</div>
+              <div class="skill-card-desc">Starting isolated feature work — creates and manages git worktrees for parallel feature development without branch conflicts.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~700 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When starting isolated feature work that should not pollute the main working directory. When multiple features need to be developed in parallel.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/using-git-worktrees/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- finishing-a-development-branch -->
+          <div class="skill-card" data-category="workflow" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-workflow">Workflow</span>
+              </div>
+              <div class="skill-card-name">finishing-a-development-branch</div>
+              <div class="skill-card-desc">Implementation complete, all tests pass — end-of-branch checklist before opening a pull request.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~1,200 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">Implementation is complete and all tests pass. Before opening a pull request. Before marking the branch ready for merge.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Checklist</div>
+                <div class="skill-detail-value">All tests pass, no linting errors, branch rebased on main, commit messages are clean, PR description written, feature verified against acceptance criteria.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Skill file location</div>
+                <div class="skill-detail-path">~/.claude/plugins/cache/&lt;marketplace&gt;/superpowers/&lt;version&gt;/skills/finishing-a-development-branch/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- writing-skills -->
+          <div class="skill-card" data-category="meta" role="listitem">
+            <div class="skill-card-top">
+              <div class="skill-card-badges">
+                <span class="skill-badge skill-badge-meta">Meta</span>
+              </div>
+              <div class="skill-card-name">writing-skills</div>
+              <div class="skill-card-desc">Creating or editing skills — guides correct skill authorship: description field, trigger conditions, YAML frontmatter format.</div>
+              <div class="skill-card-meta">
+                <span class="skill-token-badge"><span class="skill-token-dot"></span>~600 tokens</span>
+              </div>
+            </div>
+            <button class="skill-card-expand-btn" aria-expanded="false">
+              Expand to see details
+              <svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </button>
+            <div class="skill-card-detail">
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">When to use</div>
+                <div class="skill-detail-value">When creating a new skill file. When editing an existing skill's description or content. Ensures correct YAML frontmatter and description field usage.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Critical reminder</div>
+                <div class="skill-detail-value">The <code>description</code> field must contain ONLY trigger conditions — never a workflow summary. See "Key Insights" below.</div>
+              </div>
+              <div class="skill-detail-section">
+                <div class="skill-detail-label">Personal skills location</div>
+                <div class="skill-detail-path">~/.claude/skills/&lt;skill-name&gt;/SKILL.md</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /skill-grid -->
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Skill Chain Diagram
+         =================================================================== -->
+    <section class="page-section" id="skill-chain" aria-labelledby="chain-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <div class="section-label">Workflow Pipeline</div>
+          <h2 class="section-title" id="chain-title">Skill Chain</h2>
+          <p class="section-desc">
+            Skills reference each other forming a development pipeline. Hover any node to see its trigger condition.
+          </p>
+        </div>
+
+        <div class="chain-container reveal">
+          <div class="chain-svg-wrap">
+            <svg id="chain-svg" viewBox="0 0 860 280" width="100%" style="display:block;"
+                 role="img" aria-label="Skill chain workflow diagram">
+              <title>Skill chain: brainstorming to writing-plans to subagent-driven-development, then test-driven-development, requesting-code-review, finishing-a-development-branch, and using-git-worktrees</title>
+              <defs>
+                <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0 0 L6 3 L0 6 Z" fill="rgba(88,166,255,0.7)"/>
+                </marker>
+                <marker id="arrowGray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0 0 L6 3 L0 6 Z" fill="rgba(139,148,158,0.5)"/>
+                </marker>
+              </defs>
+
+              <!-- Row 1 main chain -->
+              <!-- brainstorming -->
+              <g class="chain-node" data-skill="brainstorming" data-trigger="Before any creative work — features, components, new functionality, or open-ended problems">
+                <rect class="chain-node-rect" x="20" y="100" width="130" height="48" rx="8"
+                      fill="rgba(88,166,255,0.1)" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+                <text x="85" y="121" text-anchor="middle" font-size="10" font-weight="600" fill="#58a6ff"
+                      font-family="-apple-system,sans-serif">brainstorming</text>
+                <text x="85" y="137" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Workflow</text>
+              </g>
+
+              <!-- arrow -->
+              <line x1="152" y1="124" x2="188" y2="124" stroke="rgba(88,166,255,0.5)" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+              <!-- writing-plans -->
+              <g class="chain-node" data-skill="writing-plans" data-trigger="When you have a spec, before code — converts spec into numbered implementation plan">
+                <rect class="chain-node-rect" x="192" y="100" width="120" height="48" rx="8"
+                      fill="rgba(88,166,255,0.1)" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+                <text x="252" y="121" text-anchor="middle" font-size="10" font-weight="600" fill="#58a6ff"
+                      font-family="-apple-system,sans-serif">writing-plans</text>
+                <text x="252" y="137" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Workflow</text>
+              </g>
+
+              <!-- arrow -->
+              <line x1="314" y1="124" x2="350" y2="124" stroke="rgba(88,166,255,0.5)" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+              <!-- subagent-driven-development -->
+              <g class="chain-node" data-skill="subagent-driven-development" data-trigger="When executing a written plan — decomposes work into parallel sub-agent tasks">
+                <rect class="chain-node-rect" x="354" y="100" width="160" height="48" rx="8"
+                      fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.4)" stroke-width="1.5"/>
+                <text x="434" y="117" text-anchor="middle" font-size="10" font-weight="600" fill="#bc8cff"
+                      font-family="-apple-system,sans-serif">subagent-driven-</text>
+                <text x="434" y="131" text-anchor="middle" font-size="10" font-weight="600" fill="#bc8cff"
+                      font-family="-apple-system,sans-serif">development</text>
+                <text x="434" y="143" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Workflow</text>
+              </g>
+
+              <!-- arrow down-right to test-driven-development -->
+              <path d="M 514 140 L 514 200 L 556 200" stroke="rgba(88,166,255,0.4)" stroke-width="1.5" fill="none" marker-end="url(#arrowBlue)"/>
+
+              <!-- arrow right to requesting-code-review -->
+              <line x1="516" y1="124" x2="552" y2="124" stroke="rgba(57,210,192,0.5)" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+
+              <!-- test-driven-development -->
+              <g class="chain-node" data-skill="test-driven-development" data-trigger="Before writing implementation code — red-green-refactor TDD loop">
+                <rect class="chain-node-rect" x="556" y="176" width="148" height="48" rx="8"
+                      fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.35)" stroke-width="1.5"/>
+                <text x="630" y="197" text-anchor="middle" font-size="10" font-weight="600" fill="#3fb950"
+                      font-family="-apple-system,sans-serif">test-driven-</text>
+                <text x="630" y="211" text-anchor="middle" font-size="10" font-weight="600" fill="#3fb950"
+                      font-family="-apple-system,sans-serif">development</text>
+                <text x="630" y="219" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Quality</text>
+              </g>
+
+              <!-- requesting-code-review -->
+              <g class="chain-node" data-skill="requesting-code-review" data-trigger="After completing tasks/features — prepares structured code review request">
+                <rect class="chain-node-rect" x="556" y="100" width="148" height="48" rx="8"
+                      fill="rgba(57,210,192,0.1)" stroke="rgba(57,210,192,0.35)" stroke-width="1.5"/>
+                <text x="630" y="121" text-anchor="middle" font-size="10" font-weight="600" fill="#39d2c0"
+                      font-family="-apple-system,sans-serif">requesting-code-</text>
+                <text x="630" y="135" text-anchor="middle" font-size="10" font-weight="600" fill="#39d2c0"
+                      font-family="-apple-system,sans-serif">review</text>
+                <text x="630" y="143" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Collaboration</text>
+              </g>
+
+              <!-- arrow from requesting-code-review down to finishing -->
+              <line x1="630" y1="150" x2="630" y2="228" stroke="rgba(57,210,192,0.4)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowGray)"/>
+
+              <!-- finishing-a-development-branch -->
+              <g class="chain-node" data-skill="finishing-a-development-branch" data-trigger="Implementation complete, all tests pass — end-of-branch checklist before PR">
+                <rect class="chain-node-rect" x="556" y="228" width="148" height="48" rx="8"
+                      fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.35)" stroke-width="1.5"/>
+                <text x="630" y="247" text-anchor="middle" font-size="10" font-weight="600" fill="#d29922"
+                      font-family="-apple-system,sans-serif">finishing-a-dev-</text>
+                <text x="630" y="261" text-anchor="middle" font-size="10" font-weight="600" fill="#d29922"
+                      font-family="-apple-system,sans-serif">branch</text>
+                <text x="630" y="271" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Workflow</text>
+              </g>
+
+              <!-- arrow to using-git-worktrees -->
+              <line x1="706" y1="252" x2="742" y2="252" stroke="rgba(210,153,34,0.4)" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+
+              <!-- using-git-worktrees -->
+              <g class="chain-node" data-skill="using-git-worktrees" data-trigger="Starting isolated feature work — creates and manages git worktrees">
+                <rect class="chain-node-rect" x="746" y="228" width="100" height="48" rx="8"
+                      fill="rgba(57,210,192,0.07)" stroke="rgba(57,210,192,0.3)" stroke-width="1.5"/>
+                <text x="796" y="249" text-anchor="middle" font-size="10" font-weight="600" fill="#39d2c0"
+                      font-family="-apple-system,sans-serif">using-git-</text>
+                <text x="796" y="263" text-anchor="middle" font-size="10" font-weight="600" fill="#39d2c0"
+                      font-family="-apple-system,sans-serif">worktrees</text>
+                <text x="796" y="271" text-anchor="middle" font-size="9" fill="#8b949e"
+                      font-family="-apple-system,sans-serif">Collaboration</text>
+              </g>
+
+              <!-- Legend -->
+              <g font-size="9" font-family="-apple-system,sans-serif">
+                <rect x="20" y="20" width="10" height="10" rx="2" fill="rgba(88,166,255,0.3)" stroke="rgba(88,166,255,0.6)" stroke-width="1"/>
+                <text x="36" y="29" fill="#8b949e">Workflow</text>
+                <rect x="100" y="20" width="10" height="10" rx="2" fill="rgba(63,185,80,0.3)" stroke="rgba(63,185,80,0.6)" stroke-width="1"/>
+                <text x="116" y="29" fill="#8b949e">Quality</text>
+                <rect x="170" y="20" width="10" height="10" rx="2" fill="rgba(57,210,192,0.3)" stroke="rgba(57,210,192,0.6)" stroke-width="1"/>
+                <text x="186" y="29" fill="#8b949e">Collaboration</text>
+                <text x="300" y="29" fill="#8b949e">Hover nodes to see trigger conditions</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Tooltip -->
+        <div class="chain-tooltip" id="chain-tooltip" role="tooltip" aria-hidden="true">
+          <div class="chain-tooltip-name" id="chain-tooltip-name"></div>
+          <div class="chain-tooltip-desc" id="chain-tooltip-desc"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Token Budget
+         =================================================================== -->
+    <section class="page-section" id="token-budget" aria-labelledby="budget-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <div class="section-label">Context Cost</div>
+          <h2 class="section-title" id="budget-title">Token Budget</h2>
+          <p class="section-desc">
+            Skills cost near-zero tokens until invoked. Compare a baseline session against one with three skills loaded.
+          </p>
+        </div>
+
+        <div class="token-budget-wrap reveal">
+
+          <!-- Scenario A: No skills loaded -->
+          <div class="token-scenario">
+            <div class="token-scenario-title">
+              Baseline session
+              <span class="token-scenario-badge token-scenario-badge-before">No skills loaded (Layer 1 only)</span>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>System Prompt</strong>core instructions</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-system" data-pct="15.5" style="width:0">System Prompt</div>
+              </div>
+              <div class="token-count">~3,500</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Tool Definitions</strong>57 tools × ~300 tokens</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-tools" data-pct="77.8" style="width:0">Tools (17,500)</div>
+              </div>
+              <div class="token-count">~17,500</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Skill Catalog</strong>Layer 1 — names + descriptions</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-catalog" data-pct="2.7" style="width:0">Catalog</div>
+              </div>
+              <div class="token-count">~600</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Bootstrap Skill</strong>Layer 2 — always loaded</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-bootstrap" data-pct="5.3" style="width:0">Bootstrap</div>
+              </div>
+              <div class="token-count">~1,200</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Loaded Skills</strong>Layer 3 — none invoked yet</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-skills" data-pct="0" style="width:0"></div>
+              </div>
+              <div class="token-count">0</div>
+            </div>
+          </div>
+
+          <!-- Scenario B: 3 skills loaded -->
+          <div class="token-scenario">
+            <div class="token-scenario-title">
+              Active session
+              <span class="token-scenario-badge token-scenario-badge-after">3 skills loaded (brainstorming + writing-plans + TDD)</span>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>System Prompt</strong>core instructions</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-system" data-pct="11.2" style="width:0">System Prompt</div>
+              </div>
+              <div class="token-count">~3,500</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Tool Definitions</strong>57 tools × ~300 tokens</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-tools" data-pct="56.1" style="width:0">Tools (17,500)</div>
+              </div>
+              <div class="token-count">~17,500</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Skill Catalog</strong>Layer 1 — names + descriptions</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-catalog" data-pct="1.9" style="width:0">Catalog</div>
+              </div>
+              <div class="token-count">~600</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Bootstrap Skill</strong>Layer 2 — always loaded</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-bootstrap" data-pct="3.8" style="width:0">Bootstrap</div>
+              </div>
+              <div class="token-count">~1,200</div>
+            </div>
+
+            <div class="token-row">
+              <div class="token-label"><strong>Loaded Skills</strong>brainstorming + writing-plans + TDD</div>
+              <div class="token-bar-track">
+                <div class="token-bar-fill token-bar-fill-skills" data-pct="17.3" style="width:0">Skills (5,300)</div>
+              </div>
+              <div class="token-count">~5,300</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Key Insight Cards
+         =================================================================== -->
+    <section class="page-section" id="key-insights" aria-labelledby="insights-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <div class="section-label">Critical Concepts</div>
+          <h2 class="section-title" id="insights-title">Key Insights</h2>
+        </div>
+
+        <div class="insight-cards reveal">
+
+          <div class="insight-card insight-card-1">
+            <div class="insight-icon insight-icon-1">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2L3 7v11h5v-4h4v4h5V7L10 2z" stroke="#d29922" stroke-width="1.5" fill="rgba(210,153,34,0.2)"/>
+                <circle cx="10" cy="9" r="1.5" fill="#d29922"/>
+              </svg>
+            </div>
+            <div class="insight-card-title">Description = Trigger Only</div>
+            <div class="insight-card-body">
+              The <code>description</code> field in a skill's YAML frontmatter must contain ONLY triggering conditions — never a workflow summary. When a description summarizes the workflow, the model follows the description instead of loading and reading the full skill content.
+            </div>
+            <div class="insight-example">
+              <div class="bad">BAD: "Guides ideation: explores problem, generates options, evaluates trade-offs"</div>
+              <div style="height:4px"></div>
+              <div class="good">GOOD: "Before any creative work — features, components, system design"</div>
+            </div>
+          </div>
+
+          <div class="insight-card insight-card-2">
+            <div class="insight-icon insight-icon-2">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="7" stroke="#bc8cff" stroke-width="1.5" fill="rgba(188,140,255,0.1)"/>
+                <path d="M10 6v4l3 2" stroke="#bc8cff" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="insight-card-title">Lazy Loading</div>
+            <div class="insight-card-body">
+              Skills cost 0 tokens until invoked. Only the skill catalog (~600 tokens of names and descriptions) is always present. Individual skill content — 500 to 3,000 tokens each — enters context only when the model calls the <code>Skill</code> tool. A session with no complex tasks carries no skill overhead.
+            </div>
+          </div>
+
+          <div class="insight-card insight-card-3">
+            <div class="insight-icon insight-icon-3">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="5" cy="10" r="2.5" stroke="#39d2c0" stroke-width="1.5" fill="rgba(57,210,192,0.1)"/>
+                <circle cx="15" cy="5" r="2.5" stroke="#39d2c0" stroke-width="1.5" fill="rgba(57,210,192,0.1)"/>
+                <circle cx="15" cy="15" r="2.5" stroke="#39d2c0" stroke-width="1.5" fill="rgba(57,210,192,0.1)"/>
+                <line x1="7.5" y1="9" x2="12.5" y2="6" stroke="#39d2c0" stroke-width="1" stroke-dasharray="2 2"/>
+                <line x1="7.5" y1="11" x2="12.5" y2="14" stroke="#39d2c0" stroke-width="1" stroke-dasharray="2 2"/>
+              </svg>
+            </div>
+            <div class="insight-card-title">Chain Awareness</div>
+            <div class="insight-card-body">
+              Skills reference each other through REQUIRED SUB-SKILL markers in their content. <code>subagent-driven-development</code> tells the model to invoke <code>dispatching-parallel-agents</code> and <code>test-driven-development</code>. This creates a composable pipeline where complex workflows self-assemble from small focused skill files.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Navigation Footer
+         =================================================================== -->
+    <div class="nav-footer">
+      <div class="container">
+        <div class="nav-footer-inner">
+          <a href="context-injection.html" class="nav-footer-link">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z"/></svg>
+            Context Injection
+          </a>
+          <span class="nav-footer-center">Chapter 6 of 12</span>
+          <a href="plugins.html" class="nav-footer-link">
+            Plugins &amp; Hooks
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l2.97-2.97H3.75a.75.75 0 0 1 0-1.5h7.44L8.22 4.03a.75.75 0 0 1 0-1.06Z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="site-footer-text">Claude Code Architecture — Interactive Visual Guide</p>
+    </div>
+  </footer>
+
+  <script src="js/prism.min.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/diagrams.js"></script>
+  <script>
+  /* =========================================================
+     Cake Layer Entrance Animation
+     ========================================================= */
+  (function () {
+    const layers = ['cake-layer-1', 'cake-layer-2', 'cake-layer-3', 'cake-arrows'];
+    const delays = [300, 700, 1100, 1500];
+
+    function startCakeAnimation() {
+      layers.forEach((id, i) => {
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          if (el) el.classList.add('visible');
+        }, delays[i]);
+      });
+    }
+
+    // Trigger when hero diagram is visible
+    const wrap = document.getElementById('hero-diagram-wrap');
+    if (wrap) {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            startCakeAnimation();
+            obs.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.2 });
+      obs.observe(wrap);
+    }
+  })();
+
+  /* =========================================================
+     Bootstrap Flow Step Navigator
+     ========================================================= */
+  (function () {
+    const steps = document.querySelectorAll('.flow-step');
+    const prevBtn = document.getElementById('flow-prev');
+    const nextBtn = document.getElementById('flow-next');
+    const counter = document.getElementById('flow-counter');
+    let current = 0;
+    const total = steps.length;
+
+    function render() {
+      steps.forEach((s, i) => {
+        s.classList.remove('active', 'completed');
+        if (i === current) s.classList.add('active');
+        else if (i < current) s.classList.add('completed');
+      });
+      counter.textContent = 'Step ' + (current + 1) + ' of ' + total;
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === total - 1;
+    }
+
+    prevBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
+    nextBtn.addEventListener('click', () => { if (current < total - 1) { current++; render(); } });
+
+    // Keyboard support
+    document.getElementById('flow-container').addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); if (current < total - 1) { current++; render(); } }
+      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); if (current > 0)         { current--; render(); } }
+    });
+
+    render();
+  })();
+
+  /* =========================================================
+     Skill Browser — Filter + Expand
+     ========================================================= */
+  (function () {
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const cards = document.querySelectorAll('.skill-card');
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter');
+        const activeClass = btn.getAttribute('data-active-class') || 'active';
+
+        // Update button states
+        filterBtns.forEach(b => {
+          b.classList.remove('active', 'active-blue', 'active-green', 'active-cyan', 'active-orange');
+        });
+        btn.classList.add(activeClass);
+
+        // Filter cards
+        cards.forEach(card => {
+          const cat = card.getAttribute('data-category');
+          if (filter === 'all' || cat === filter) {
+            card.classList.remove('skill-card-hidden');
+          } else {
+            card.classList.add('skill-card-hidden');
+          }
+        });
+      });
+    });
+
+    // Expand/collapse
+    document.querySelectorAll('.skill-card-expand-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.skill-card');
+        const isExpanded = card.classList.toggle('expanded');
+        btn.setAttribute('aria-expanded', String(isExpanded));
+        btn.textContent = '';
+        btn.innerHTML = (isExpanded ? 'Collapse details' : 'Expand to see details') +
+          '<svg class="skill-card-expand-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+      });
+    });
+  })();
+
+  /* =========================================================
+     Chain Diagram — Hover Tooltip
+     ========================================================= */
+  (function () {
+    const tooltip = document.getElementById('chain-tooltip');
+    const tooltipName = document.getElementById('chain-tooltip-name');
+    const tooltipDesc = document.getElementById('chain-tooltip-desc');
+    const nodes = document.querySelectorAll('.chain-node');
+
+    nodes.forEach(node => {
+      node.addEventListener('mouseenter', (e) => {
+        const skill = node.getAttribute('data-skill');
+        const trigger = node.getAttribute('data-trigger');
+        tooltipName.textContent = skill;
+        tooltipDesc.textContent = trigger;
+        tooltip.setAttribute('aria-hidden', 'false');
+        positionTooltip(e);
+        tooltip.classList.add('visible');
+      });
+
+      node.addEventListener('mousemove', positionTooltip);
+
+      node.addEventListener('mouseleave', () => {
+        tooltip.classList.remove('visible');
+        tooltip.setAttribute('aria-hidden', 'true');
+      });
+    });
+
+    function positionTooltip(e) {
+      const x = e.clientX + 14;
+      const y = e.clientY - 8;
+      const tw = tooltip.offsetWidth || 280;
+      const th = tooltip.offsetHeight || 60;
+      const left = Math.min(x, window.innerWidth - tw - 12);
+      const top  = Math.max(8, y - th / 2);
+      tooltip.style.left = left + 'px';
+      tooltip.style.top  = top  + 'px';
+    }
+  })();
+
+  /* =========================================================
+     Token Budget Bars — Animate on scroll
+     ========================================================= */
+  (function () {
+    const fills = document.querySelectorAll('.token-bar-fill[data-pct]');
+
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          const pct = parseFloat(el.getAttribute('data-pct')) || 0;
+          // Small delay so animation is visible
+          setTimeout(() => { el.style.width = pct + '%'; }, 200);
+          obs.unobserve(el);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    fills.forEach(el => obs.observe(el));
+  })();
+  </script>
+</body>
+</html>

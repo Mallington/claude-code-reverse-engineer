@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Persistence — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(88,166,255,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 15% 60%, rgba(188,140,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 85% 60%, rgba(63,185,80,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.08);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Sections
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 620px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       File Tree SVG Card
+       ===================================================================== */
+    .tree-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .tree-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-purple), transparent);
+      opacity: 0.5;
+    }
+
+    .tree-card-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .tree-card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+    }
+
+    .tree-card-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .tree-svg-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: var(--space-6);
+    }
+
+    .tree-svg-wrap svg {
+      min-width: 600px;
+      max-width: 100%;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* =====================================================================
+       Session Explorer
+       ===================================================================== */
+    .explorer-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .explorer-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-green), transparent);
+      opacity: 0.5;
+    }
+
+    .explorer-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .explorer-header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .explorer-header-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      background: rgba(88,166,255,0.1);
+      border: 1px solid rgba(88,166,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .explorer-header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .explorer-header-file {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .explorer-header-meta {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .explorer-header-meta span {
+      color: var(--accent-blue);
+    }
+
+    .explorer-expand-all {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-1) var(--space-3);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .explorer-expand-all:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .explorer-lines {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+
+    .explorer-line {
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+
+    .explorer-line:last-child {
+      border-bottom: none;
+    }
+
+    .explorer-line-trigger {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-6);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+
+    .explorer-line-trigger:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .explorer-line.expanded .explorer-line-trigger {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .line-num {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      width: 48px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .line-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: var(--font-semibold);
+      white-space: nowrap;
+      flex-shrink: 0;
+      width: 110px;
+      justify-content: center;
+    }
+
+    .type-metadata    { background: rgba(188,140,255,0.12); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.25); }
+    .type-user        { background: rgba(88,166,255,0.12);  color: var(--accent-blue);   border: 1px solid rgba(88,166,255,0.25); }
+    .type-assistant   { background: rgba(63,185,80,0.12);   color: var(--accent-green);  border: 1px solid rgba(63,185,80,0.25); }
+    .type-tool_use    { background: rgba(210,153,34,0.12);  color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.3); }
+    .type-tool_result { background: rgba(57,210,192,0.12);  color: var(--accent-cyan);   border: 1px solid rgba(57,210,192,0.25); }
+    .type-progress    { background: rgba(139,148,158,0.1);  color: var(--text-secondary);border: 1px solid var(--border); }
+    .type-file_snapshot { background: rgba(248,81,73,0.1);  color: var(--accent-red);    border: 1px solid rgba(248,81,73,0.25); }
+
+    .line-summary {
+      flex: 1;
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .line-summary strong {
+      color: var(--text-primary);
+      font-weight: var(--font-semibold);
+    }
+
+    .line-chevron {
+      flex-shrink: 0;
+      color: var(--text-secondary);
+      transition: transform var(--transition-fast);
+    }
+
+    .explorer-line.expanded .line-chevron {
+      transform: rotate(90deg);
+    }
+
+    .explorer-line-body {
+      display: none;
+      padding: 0 var(--space-6) var(--space-4);
+    }
+
+    .explorer-line.expanded .explorer-line-body {
+      display: block;
+    }
+
+    .line-detail-grid {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .line-detail-row {
+      display: flex;
+      gap: var(--space-4);
+      padding: var(--space-2) var(--space-4);
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+      font-size: var(--text-xs);
+      align-items: flex-start;
+    }
+
+    .line-detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .line-detail-key {
+      color: var(--text-secondary);
+      width: 130px;
+      flex-shrink: 0;
+    }
+
+    .line-detail-val {
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+
+    .line-detail-val.mono {
+      font-family: var(--font-mono);
+    }
+
+    .line-detail-val .accent-blue   { color: var(--accent-blue); }
+    .line-detail-val .accent-green  { color: var(--accent-green); }
+    .line-detail-val .accent-orange { color: var(--accent-orange); }
+    .line-detail-val .accent-cyan   { color: var(--accent-cyan); }
+    .line-detail-val .accent-purple { color: var(--accent-purple); }
+    .line-detail-val .accent-red    { color: var(--accent-red); }
+    .line-detail-val .muted         { color: var(--text-secondary); }
+
+    .json-preview {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin-top: var(--space-2);
+    }
+
+    /* JSON syntax highlight classes */
+    .jk  { color: var(--accent-blue); }    /* key */
+    .js  { color: var(--accent-green); }   /* string value */
+    .jn  { color: var(--accent-orange); }  /* number */
+    .jp  { color: var(--text-secondary); } /* punctuation */
+    .jb  { color: var(--accent-cyan); }    /* bool/null */
+
+    /* =====================================================================
+       Message Type Catalog
+       ===================================================================== */
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: var(--space-5);
+    }
+
+    .catalog-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      position: relative;
+    }
+
+    .catalog-card:hover {
+      border-color: var(--accent-blue);
+      box-shadow: var(--glow-blue);
+    }
+
+    .catalog-card-header {
+      padding: var(--space-4) var(--space-5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .catalog-card-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .catalog-type-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .catalog-type-name {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .catalog-when {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      padding: var(--space-1) var(--space-3);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .catalog-card-body {
+      padding: var(--space-4) var(--space-5);
+    }
+
+    .catalog-purpose {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      margin-bottom: var(--space-4);
+    }
+
+    .catalog-json {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    /* =====================================================================
+       Sub-Agent Nesting Diagram
+       ===================================================================== */
+    .nesting-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .nesting-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-green), var(--accent-cyan), transparent);
+      opacity: 0.5;
+    }
+
+    .nesting-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .nesting-header-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    .nesting-header-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .nesting-body {
+      padding: var(--space-6);
+    }
+
+    .nest-tree {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.8;
+    }
+
+    .nest-level-0 { padding-left: 0; }
+    .nest-level-1 { padding-left: 24px; }
+    .nest-level-2 { padding-left: 48px; }
+    .nest-level-3 { padding-left: 72px; }
+    .nest-level-4 { padding-left: 96px; }
+
+    .nest-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 3px 0;
+    }
+
+    .nest-tree-line {
+      color: rgba(48,54,61,0.8);
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .nest-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .nest-name {
+      color: var(--text-primary);
+    }
+
+    .nest-name.dir {
+      color: var(--text-primary);
+      font-weight: var(--font-semibold);
+    }
+
+    .nest-tag {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      font-weight: var(--font-semibold);
+      margin-left: var(--space-2);
+    }
+
+    .nest-tag.blue   { background: rgba(88,166,255,0.12);  color: var(--accent-blue);   border: 1px solid rgba(88,166,255,0.25); }
+    .nest-tag.green  { background: rgba(63,185,80,0.12);   color: var(--accent-green);  border: 1px solid rgba(63,185,80,0.25); }
+    .nest-tag.cyan   { background: rgba(57,210,192,0.12);  color: var(--accent-cyan);   border: 1px solid rgba(57,210,192,0.25); }
+    .nest-tag.orange { background: rgba(210,153,34,0.12);  color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.3); }
+    .nest-tag.purple { background: rgba(188,140,255,0.12); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.25); }
+
+    .nesting-legend {
+      display: flex;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+      margin-top: var(--space-6);
+      padding-top: var(--space-6);
+      border-top: 1px solid var(--border);
+    }
+
+    .nest-legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .nest-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* =====================================================================
+       Stats Card
+       ===================================================================== */
+    .stats-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .stats-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent);
+      opacity: 0.5;
+    }
+
+    .stats-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .stats-header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .stats-header-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+    }
+
+    .stats-header-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .stats-header-badge {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-1) var(--space-3);
+      font-family: var(--font-mono);
+    }
+
+    .stats-body {
+      padding: var(--space-6);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+
+    .stat-item {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4) var(--space-5);
+      position: relative;
+      overflow: hidden;
+      transition: border-color var(--transition);
+    }
+
+    .stat-item:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .stat-item::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+
+    .stat-item.blue::after   { background: var(--accent-blue); }
+    .stat-item.green::after  { background: var(--accent-green); }
+    .stat-item.cyan::after   { background: var(--accent-cyan); }
+    .stat-item.orange::after { background: var(--accent-orange); }
+
+    .stat-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-2);
+    }
+
+    .stat-value {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      line-height: 1;
+      margin-bottom: var(--space-2);
+    }
+
+    .stat-value.blue   { color: var(--accent-blue); }
+    .stat-value.green  { color: var(--accent-green); }
+    .stat-value.cyan   { color: var(--accent-cyan); }
+    .stat-value.orange { color: var(--accent-orange); }
+
+    .stat-bar-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      margin-top: var(--space-2);
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 1s ease;
+    }
+
+    .stat-bar-fill.blue   { background: var(--accent-blue); }
+    .stat-bar-fill.green  { background: var(--accent-green); }
+    .stat-bar-fill.cyan   { background: var(--accent-cyan); }
+    .stat-bar-fill.orange { background: var(--accent-orange); }
+
+    .stat-note {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-top: var(--space-2);
+    }
+
+    .stats-cache-note {
+      background: rgba(57,210,192,0.05);
+      border: 1px solid rgba(57,210,192,0.2);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-4);
+    }
+
+    .stats-cache-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .stats-cache-text-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--accent-cyan);
+      margin-bottom: var(--space-1);
+    }
+
+    .stats-cache-text-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Navigation footer
+       ===================================================================== */
+    .page-nav-footer {
+      padding: var(--space-12) 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .page-nav-footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .page-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      text-decoration: none;
+      transition: all var(--transition);
+    }
+
+    .page-nav-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+      text-decoration: none;
+      background: rgba(88,166,255,0.05);
+    }
+
+    .page-nav-btn-dir {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .page-nav-btn-label {
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    /* =====================================================================
+       Reveal
+       ===================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- =====================================================================
+     Navigation
+     ===================================================================== -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" aria-label="Claude Code Architecture home">
+      <div class="nav-logo-icon">C</div>
+      <span>Claude Code</span>
+    </a>
+    <div class="nav-links" role="list">
+      <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+      <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+      <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+      <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+      <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+      <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+      <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+      <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+      <a href="mcp.html" class="nav-link" role="listitem">MCP Servers</a>
+      <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+      <a href="persistence.html" class="nav-link active" role="listitem">Persistence</a>
+    </div>
+    <button class="nav-hamburger" aria-label="Open mobile menu" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+        <rect y="3" width="20" height="2" rx="1"/>
+        <rect y="9" width="20" height="2" rx="1"/>
+        <rect y="15" width="20" height="2" rx="1"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+  <a href="index.html" class="nav-link">The Big Picture</a>
+  <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+  <a href="system-prompt.html" class="nav-link">System Prompt</a>
+  <a href="tools.html" class="nav-link">Tools</a>
+  <a href="context-injection.html" class="nav-link">Context Injection</a>
+  <a href="skills.html" class="nav-link">Skills</a>
+  <a href="plugins.html" class="nav-link">Plugins</a>
+  <a href="agents.html" class="nav-link">Agents</a>
+  <a href="mcp.html" class="nav-link">MCP Servers</a>
+  <a href="context-management.html" class="nav-link">Context Mgmt</a>
+  <a href="persistence.html" class="nav-link active">Persistence</a>
+</div>
+
+<!-- =====================================================================
+     Hero
+     ===================================================================== -->
+<main>
+  <section class="hero">
+    <div class="container">
+      <div class="hero-eyebrow">
+        <div class="hero-eyebrow-dot"></div>
+        Storage &amp; Replay
+      </div>
+      <h1 class="hero-title">
+        <span class="hero-title-accent">Session Persistence</span>
+      </h1>
+      <p class="hero-subtitle">
+        How Claude Code stores and replays conversation history — JSONL files, sub-agent nesting, and the on-disk layout of every session.
+      </p>
+
+      <!-- File Tree SVG -->
+      <div class="tree-card reveal">
+        <div class="tree-card-header">
+          <div class="tree-card-dot"></div>
+          <span class="tree-card-title">~/.claude/ — Storage Hierarchy</span>
+        </div>
+        <div class="tree-svg-wrap">
+          <svg viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude Code storage hierarchy showing the ~/.claude directory structure">
+            <defs>
+              <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#161b22"/>
+                <stop offset="100%" stop-color="#0d1117"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Background -->
+            <rect width="900" height="380" rx="0" fill="url(#bgGrad)"/>
+
+            <!-- Root -->
+            <text x="32" y="36" font-family="-apple-system,BlinkMacSystemFont,'SFMono-Regular',Consolas,monospace" font-size="13" fill="#e6edf3" font-weight="700">~/.claude/</text>
+            <!-- folder icon -->
+            <rect x="14" y="22" width="14" height="11" rx="2" fill="#d29922" opacity="0.8"/>
+            <rect x="14" y="20" width="8" height="3" rx="1" fill="#d29922" opacity="0.6"/>
+
+            <!-- settings.json -->
+            <text x="28" y="62" font-family="monospace" font-size="11" fill="#8b949e">├─</text>
+            <text x="52" y="62" font-family="monospace" font-size="12" fill="#d29922" font-weight="600">settings.json</text>
+            <text x="52" y="62" font-family="monospace" font-size="12" fill="#d29922" font-weight="600" dx="102">──────</text>
+            <text x="230" y="62" font-family="monospace" font-size="11" fill="#8b949e">← Global settings</text>
+            <!-- file icon -->
+            <rect x="38" y="52" width="10" height="13" rx="1" fill="none" stroke="#d29922" stroke-width="1.2" opacity="0.7"/>
+            <line x1="41" y1="57" x2="46" y2="57" stroke="#d29922" stroke-width="1" opacity="0.5"/>
+            <line x1="41" y1="60" x2="46" y2="60" stroke="#d29922" stroke-width="1" opacity="0.5"/>
+
+            <!-- MEMORY.md -->
+            <text x="28" y="88" font-family="monospace" font-size="11" fill="#8b949e">├─</text>
+            <text x="52" y="88" font-family="monospace" font-size="12" fill="#bc8cff" font-weight="600">MEMORY.md</text>
+            <text x="52" y="88" font-family="monospace" font-size="12" fill="#bc8cff" font-weight="600" dx="82">────────</text>
+            <text x="230" y="88" font-family="monospace" font-size="11" fill="#8b949e">← Memory index</text>
+            <rect x="38" y="78" width="10" height="13" rx="1" fill="none" stroke="#bc8cff" stroke-width="1.2" opacity="0.7"/>
+            <line x1="41" y1="83" x2="46" y2="83" stroke="#bc8cff" stroke-width="1" opacity="0.5"/>
+            <line x1="41" y1="86" x2="46" y2="86" stroke="#bc8cff" stroke-width="1" opacity="0.5"/>
+
+            <!-- projects/ -->
+            <text x="28" y="114" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="52" y="114" font-family="monospace" font-size="13" fill="#e6edf3" font-weight="700">projects/</text>
+            <rect x="38" y="101" width="11" height="10" rx="2" fill="#8b949e" opacity="0.5"/>
+            <rect x="38" y="99" width="6" height="3" rx="1" fill="#8b949e" opacity="0.4"/>
+
+            <!-- path-hash/ -->
+            <text x="56" y="140" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="80" y="140" font-family="monospace" font-size="12" fill="#8b949e">&lt;path-hash&gt;/</text>
+            <rect x="66" y="128" width="11" height="10" rx="2" fill="#8b949e" opacity="0.35"/>
+            <rect x="66" y="126" width="6" height="3" rx="1" fill="#8b949e" opacity="0.3"/>
+
+            <!-- memory/ -->
+            <text x="84" y="164" font-family="monospace" font-size="11" fill="#8b949e">├─</text>
+            <text x="108" y="164" font-family="monospace" font-size="12" fill="#8b949e">memory/</text>
+            <rect x="94" y="153" width="11" height="10" rx="2" fill="#bc8cff" opacity="0.35"/>
+            <rect x="94" y="151" width="6" height="3" rx="1" fill="#bc8cff" opacity="0.3"/>
+
+            <!-- *.md memory files -->
+            <text x="112" y="188" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="136" y="188" font-family="monospace" font-size="12" fill="#bc8cff" font-weight="600">*.md</text>
+            <text x="136" y="188" font-family="monospace" font-size="12" fill="#bc8cff" font-weight="600" dx="34">────────────</text>
+            <text x="320" y="188" font-family="monospace" font-size="11" fill="#8b949e">← Memory files</text>
+            <rect x="122" y="178" width="10" height="13" rx="1" fill="none" stroke="#bc8cff" stroke-width="1.2" opacity="0.7"/>
+            <line x1="125" y1="183" x2="130" y2="183" stroke="#bc8cff" stroke-width="1" opacity="0.5"/>
+            <line x1="125" y1="186" x2="130" y2="186" stroke="#bc8cff" stroke-width="1" opacity="0.5"/>
+
+            <!-- sessions/ -->
+            <text x="84" y="214" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="108" y="214" font-family="monospace" font-size="12" fill="#8b949e">sessions/</text>
+            <rect x="94" y="203" width="11" height="10" rx="2" fill="#8b949e" opacity="0.35"/>
+            <rect x="94" y="201" width="6" height="3" rx="1" fill="#8b949e" opacity="0.3"/>
+
+            <!-- sess-id/ -->
+            <text x="112" y="238" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="136" y="238" font-family="monospace" font-size="12" fill="#8b949e">&lt;sess-id&gt;/</text>
+            <rect x="122" y="227" width="11" height="10" rx="2" fill="#8b949e" opacity="0.35"/>
+            <rect x="122" y="225" width="6" height="3" rx="1" fill="#8b949e" opacity="0.3"/>
+
+            <!-- history.jsonl (main) -->
+            <text x="140" y="262" font-family="monospace" font-size="11" fill="#8b949e">├─</text>
+            <text x="164" y="262" font-family="monospace" font-size="12" fill="#58a6ff" font-weight="700">history.jsonl</text>
+            <text x="164" y="262" font-family="monospace" font-size="12" fill="#58a6ff" font-weight="700" dx="95">────</text>
+            <text x="320" y="262" font-family="monospace" font-size="11" fill="#8b949e">← Main conversation</text>
+            <!-- star badge -->
+            <text x="530" y="263" font-size="14" fill="#58a6ff">&#9733;</text>
+            <rect x="150" y="252" width="10" height="13" rx="1" fill="none" stroke="#58a6ff" stroke-width="1.5" opacity="0.9"/>
+            <line x1="153" y1="257" x2="158" y2="257" stroke="#58a6ff" stroke-width="1" opacity="0.7"/>
+            <line x1="153" y1="260" x2="158" y2="260" stroke="#58a6ff" stroke-width="1" opacity="0.7"/>
+
+            <!-- subagents/ -->
+            <text x="140" y="288" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="164" y="288" font-family="monospace" font-size="12" fill="#8b949e">subagents/</text>
+            <rect x="150" y="277" width="11" height="10" rx="2" fill="#8b949e" opacity="0.35"/>
+            <rect x="150" y="275" width="6" height="3" rx="1" fill="#8b949e" opacity="0.3"/>
+
+            <!-- agent-id/ -->
+            <text x="168" y="312" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="192" y="312" font-family="monospace" font-size="12" fill="#8b949e">&lt;agent-id&gt;/</text>
+            <rect x="178" y="301" width="11" height="10" rx="2" fill="#8b949e" opacity="0.35"/>
+            <rect x="178" y="299" width="6" height="3" rx="1" fill="#8b949e" opacity="0.3"/>
+
+            <!-- sub history.jsonl -->
+            <text x="196" y="336" font-family="monospace" font-size="11" fill="#8b949e">├─</text>
+            <text x="220" y="336" font-family="monospace" font-size="12" fill="#58a6ff" font-weight="600">history.jsonl</text>
+            <text x="395" y="336" font-family="monospace" font-size="11" fill="#8b949e">← Sub-agent conversation</text>
+            <rect x="206" y="326" width="10" height="13" rx="1" fill="none" stroke="#58a6ff" stroke-width="1.2" opacity="0.7"/>
+            <line x1="209" y1="331" x2="214" y2="331" stroke="#58a6ff" stroke-width="1" opacity="0.5"/>
+            <line x1="209" y1="334" x2="214" y2="334" stroke="#58a6ff" stroke-width="1" opacity="0.5"/>
+
+            <!-- tool-results -->
+            <text x="196" y="358" font-family="monospace" font-size="11" fill="#8b949e">└─</text>
+            <text x="220" y="358" font-family="monospace" font-size="12" fill="#3fb950">tool-results/</text>
+            <text x="340" y="358" font-family="monospace" font-size="12" fill="#3fb950" font-weight="600">*.json</text>
+            <text x="395" y="358" font-family="monospace" font-size="11" fill="#8b949e">← Tool outputs</text>
+            <rect x="206" y="348" width="11" height="10" rx="2" fill="#3fb950" opacity="0.35"/>
+            <rect x="206" y="346" width="6" height="3" rx="1" fill="#3fb950" opacity="0.3"/>
+
+            <!-- Color legend -->
+            <rect x="600" y="30" width="270" height="160" rx="8" fill="rgba(22,27,34,0.9)" stroke="#30363d" stroke-width="1"/>
+            <text x="616" y="52" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#8b949e" font-weight="600" letter-spacing="0.08em" text-transform="uppercase">COLOR LEGEND</text>
+
+            <circle cx="624" cy="74" r="5" fill="#58a6ff"/>
+            <text x="636" y="78" font-family="monospace" font-size="11" fill="#e6edf3">history.jsonl</text>
+            <text x="636" y="92" font-family="monospace" font-size="10" fill="#8b949e">Conversation history</text>
+
+            <circle cx="624" cy="112" r="5" fill="#3fb950"/>
+            <text x="636" y="116" font-family="monospace" font-size="11" fill="#e6edf3">tool-results/</text>
+            <text x="636" y="130" font-family="monospace" font-size="10" fill="#8b949e">Persisted tool outputs</text>
+
+            <circle cx="624" cy="150" r="5" fill="#bc8cff"/>
+            <text x="636" y="154" font-family="monospace" font-size="11" fill="#e6edf3">*.md  (memory)</text>
+            <text x="636" y="168" font-family="monospace" font-size="10" fill="#8b949e">Memory markdown files</text>
+
+            <circle cx="624" cy="182" r="5" fill="#d29922"/>
+            <text x="636" y="186" font-family="monospace" font-size="11" fill="#e6edf3">settings.json</text>
+            <!-- bottom note -->
+            <text x="600" y="220" font-family="monospace" font-size="10" fill="#8b949e">Path hash = deterministic ID</text>
+            <text x="600" y="234" font-family="monospace" font-size="10" fill="#8b949e">from working directory path</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Session Explorer
+       ===================================================================== -->
+  <section class="page-section" id="session-explorer">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Interactive</div>
+        <h2 class="section-title">Session Explorer</h2>
+        <p class="section-desc">
+          A virtual <code>history.jsonl</code> — each line is a JSON object. Click any row to inspect its fields and structure.
+        </p>
+      </div>
+
+      <div class="explorer-card reveal">
+        <div class="explorer-header">
+          <div class="explorer-header-left">
+            <div class="explorer-header-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="var(--accent-blue)">
+                <path d="M2 1.75A.75.75 0 0 1 2.75 1h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 1.75ZM2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Zm0 6.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"/>
+              </svg>
+            </div>
+            <div class="explorer-header-info">
+              <span class="explorer-header-file">~/.claude/projects/&lt;hash&gt;/sessions/sess_abc123/history.jsonl</span>
+              <span class="explorer-header-meta">session_id: <span>sess_abc123def456</span> &nbsp;|&nbsp; 2026-03-23 17:12:16 UTC &nbsp;|&nbsp; 8 lines</span>
+            </div>
+          </div>
+          <button class="explorer-expand-all" id="expandAllBtn" onclick="toggleExpandAll()">Expand All</button>
+        </div>
+
+        <div class="explorer-lines" id="explorerLines">
+          <!-- Lines will be injected by JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Message Type Catalog
+       ===================================================================== -->
+  <section class="page-section" id="message-types">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Reference</div>
+        <h2 class="section-title">Message Type Catalog</h2>
+        <p class="section-desc">
+          Every line in a <code>history.jsonl</code> file is one of these six types. Each serves a distinct purpose in replaying and resuming a session.
+        </p>
+      </div>
+
+      <div class="catalog-grid">
+
+        <!-- metadata -->
+        <div class="catalog-card reveal">
+          <div class="catalog-card-header">
+            <div class="catalog-card-left">
+              <div class="catalog-type-dot" style="background:var(--accent-purple)"></div>
+              <span class="catalog-type-name">metadata</span>
+            </div>
+            <span class="catalog-when">Session start</span>
+          </div>
+          <div class="catalog-card-body">
+            <p class="catalog-purpose">Written once at the beginning of every session. Records the session identifier, model version, and creation timestamp — the envelope for the whole conversation.</p>
+            <div class="catalog-json">
+<span class="jp">{</span>
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"metadata"</span><span class="jp">,</span>
+  <span class="jk">"session_id"</span><span class="jp">:</span> <span class="js">"sess_abc123"</span><span class="jp">,</span>
+  <span class="jk">"model"</span><span class="jp">:</span> <span class="js">"claude-sonnet-4-20250514"</span><span class="jp">,</span>
+  <span class="jk">"created_at"</span><span class="jp">:</span> <span class="js">"2026-03-23T17:12:16Z"</span>
+<span class="jp">}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- user -->
+        <div class="catalog-card reveal">
+          <div class="catalog-card-header">
+            <div class="catalog-card-left">
+              <div class="catalog-type-dot" style="background:var(--accent-blue)"></div>
+              <span class="catalog-type-name">user</span>
+            </div>
+            <span class="catalog-when">Each user turn</span>
+          </div>
+          <div class="catalog-card-body">
+            <p class="catalog-purpose">Every message sent to the model. The <code>content</code> array can contain multiple parts — system reminders injected at turn start, skill catalog injections, and the actual user text are all separate items.</p>
+            <div class="catalog-json">
+<span class="jp">{</span>
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"user"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"user"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [</span>
+    <span class="jp">{</span><span class="jk">"type"</span><span class="jp">:</span><span class="js">"text"</span><span class="jp">,</span><span class="jk">"text"</span><span class="jp">:</span><span class="js">"&lt;system-reminder&gt;...&lt;/system-reminder&gt;"</span><span class="jp">},</span>
+    <span class="jp">{</span><span class="jk">"type"</span><span class="jp">:</span><span class="js">"text"</span><span class="jp">,</span><span class="jk">"text"</span><span class="jp">:</span><span class="js">"Fix the failing tests"</span><span class="jp">}</span>
+  <span class="jp">]</span>
+<span class="jp">}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- assistant -->
+        <div class="catalog-card reveal">
+          <div class="catalog-card-header">
+            <div class="catalog-card-left">
+              <div class="catalog-type-dot" style="background:var(--accent-green)"></div>
+              <span class="catalog-type-name">assistant</span>
+            </div>
+            <span class="catalog-when">Each model response</span>
+          </div>
+          <div class="catalog-card-body">
+            <p class="catalog-purpose">The model's reply. Content array mixes text blocks with <code>tool_use</code> blocks when the model calls tools. A single assistant turn can invoke multiple tools in sequence.</p>
+            <div class="catalog-json">
+<span class="jp">{</span>
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [</span>
+    <span class="jp">{</span><span class="jk">"type"</span><span class="jp">:</span><span class="js">"text"</span><span class="jp">,</span><span class="jk">"text"</span><span class="jp">:</span><span class="js">"I'll look at the tests..."</span><span class="jp">},</span>
+    <span class="jp">{</span><span class="jk">"type"</span><span class="jp">:</span><span class="js">"tool_use"</span><span class="jp">,</span><span class="jk">"id"</span><span class="jp">:</span><span class="js">"toolu_abc"</span><span class="jp">,</span><span class="jk">"name"</span><span class="jp">:</span><span class="js">"Bash"</span><span class="jp">}</span>
+  <span class="jp">]</span>
+<span class="jp">}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- tool_result -->
+        <div class="catalog-card reveal">
+          <div class="catalog-card-header">
+            <div class="catalog-card-left">
+              <div class="catalog-type-dot" style="background:var(--accent-cyan)"></div>
+              <span class="catalog-type-name">tool_result</span>
+            </div>
+            <span class="catalog-when">After each tool call</span>
+          </div>
+          <div class="catalog-card-body">
+            <p class="catalog-purpose">The output of a tool invocation, keyed by <code>tool_use_id</code>. Stored as a user-role message so the model can see it on the next turn. Large outputs may be stored separately in <code>tool-results/</code>.</p>
+            <div class="catalog-json">
+<span class="jp">{</span>
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"tool_result"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"user"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [{</span>
+    <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"tool_result"</span><span class="jp">,</span>
+    <span class="jk">"tool_use_id"</span><span class="jp">:</span> <span class="js">"toolu_abc"</span><span class="jp">,</span>
+    <span class="jk">"content"</span><span class="jp">:</span> <span class="js">"Exit 1: 3 tests failed"</span>
+  <span class="jp">}]</span>
+<span class="jp">}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- progress -->
+        <div class="catalog-card reveal">
+          <div class="catalog-card-header">
+            <div class="catalog-card-left">
+              <div class="catalog-type-dot" style="background:var(--text-secondary)"></div>
+              <span class="catalog-type-name">progress</span>
+            </div>
+            <span class="catalog-when">During tool execution</span>
+          </div>
+          <div class="catalog-card-body">
+            <p class="catalog-purpose">A display-only status update written while a tool is running. These lines drive the live UI indicators shown to the user. They are not sent back to the model — purely for UX feedback.</p>
+            <div class="catalog-json">
+<span class="jp">{</span>
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"progress"</span><span class="jp">,</span>
+  <span class="jk">"label"</span><span class="jp">:</span> <span class="js">"Running Bash..."</span><span class="jp">,</span>
+  <span class="jk">"tool_use_id"</span><span class="jp">:</span> <span class="js">"toolu_abc"</span>
+<span class="jp">}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- file_history_snapshot -->
+        <div class="catalog-card reveal">
+          <div class="catalog-card-header">
+            <div class="catalog-card-left">
+              <div class="catalog-type-dot" style="background:var(--accent-red)"></div>
+              <span class="catalog-type-name">file_history_snapshot</span>
+            </div>
+            <span class="catalog-when">Periodically</span>
+          </div>
+          <div class="catalog-card-body">
+            <p class="catalog-purpose">A point-in-time snapshot of relevant file contents and their mtimes. Allows Claude Code to detect whether files changed between sessions and show accurate diffs when resuming work.</p>
+            <div class="catalog-json">
+<span class="jp">{</span>
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"file_history_snapshot"</span><span class="jp">,</span>
+  <span class="jk">"files"</span><span class="jp">: [{</span>
+    <span class="jk">"path"</span><span class="jp">:</span> <span class="js">"/src/auth.ts"</span><span class="jp">,</span>
+    <span class="jk">"content"</span><span class="jp">:</span> <span class="js">"..."</span><span class="jp">,</span>
+    <span class="jk">"mtime"</span><span class="jp">:</span> <span class="jn">1711217536</span>
+  <span class="jp">}]</span>
+<span class="jp">}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Sub-Agent Storage
+       ===================================================================== -->
+  <section class="page-section" id="subagent-storage">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Nesting</div>
+        <h2 class="section-title">Sub-Agent Storage</h2>
+        <p class="section-desc">
+          When the orchestrator spawns sub-agents, each gets its own <code>history.jsonl</code> in a nested directory. The on-disk tree mirrors the parent-child agent relationship.
+        </p>
+      </div>
+
+      <div class="nesting-card reveal">
+        <div class="nesting-header">
+          <div class="nesting-header-dot"></div>
+          <span class="nesting-header-title">sessions/sess-parent/ — Nested Agent Layout</span>
+        </div>
+        <div class="nesting-body">
+          <div class="nest-tree">
+
+            <div class="nest-level-0">
+              <div class="nest-row">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--accent-blue)" style="flex-shrink:0"><rect x="0" y="2" width="11" height="9" rx="2"/><rect x="0" y="0" width="6" height="4" rx="1"/></svg>
+                <span class="nest-name dir">sessions/sess-parent/</span>
+                <span class="nest-tag blue">orchestrator</span>
+              </div>
+            </div>
+
+            <div class="nest-level-1">
+              <div class="nest-row">
+                <span class="nest-tree-line">├─</span>
+                <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style="flex-shrink:0"><rect x="1" y="0" width="10" height="14" rx="2" stroke="#58a6ff" stroke-width="1.5"/><line x1="3.5" y1="5" x2="8.5" y2="5" stroke="#58a6ff" stroke-width="1"/><line x1="3.5" y1="8" x2="8.5" y2="8" stroke="#58a6ff" stroke-width="1"/></svg>
+                <span class="nest-name" style="color:var(--accent-blue)">history.jsonl</span>
+                <span class="nest-tag blue">parent conversation</span>
+              </div>
+            </div>
+
+            <div class="nest-level-1">
+              <div class="nest-row">
+                <span class="nest-tree-line">└─</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--text-secondary)" opacity="0.6" style="flex-shrink:0"><rect x="0" y="2" width="11" height="9" rx="2"/><rect x="0" y="0" width="6" height="4" rx="1"/></svg>
+                <span class="nest-name dir">subagents/</span>
+              </div>
+            </div>
+
+            <!-- Implementer agent -->
+            <div class="nest-level-2">
+              <div class="nest-row">
+                <span class="nest-tree-line">├─</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--accent-green)" opacity="0.8" style="flex-shrink:0"><rect x="0" y="2" width="11" height="9" rx="2"/><rect x="0" y="0" width="6" height="4" rx="1"/></svg>
+                <span class="nest-name dir">sess-implementer/</span>
+                <span class="nest-tag green">implementer agent</span>
+              </div>
+            </div>
+
+            <div class="nest-level-3">
+              <div class="nest-row">
+                <span class="nest-tree-line">├─</span>
+                <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style="flex-shrink:0"><rect x="1" y="0" width="10" height="14" rx="2" stroke="#58a6ff" stroke-width="1.5"/><line x1="3.5" y1="5" x2="8.5" y2="5" stroke="#58a6ff" stroke-width="1"/><line x1="3.5" y1="8" x2="8.5" y2="8" stroke="#58a6ff" stroke-width="1"/></svg>
+                <span class="nest-name" style="color:var(--accent-blue)">history.jsonl</span>
+                <span class="nest-tag blue">implementer's work</span>
+              </div>
+            </div>
+
+            <div class="nest-level-3">
+              <div class="nest-row">
+                <span class="nest-tree-line">└─</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--accent-green)" opacity="0.7" style="flex-shrink:0"><rect x="0" y="2" width="11" height="9" rx="2"/><rect x="0" y="0" width="6" height="4" rx="1"/></svg>
+                <span class="nest-name dir">tool-results/</span>
+              </div>
+            </div>
+
+            <div class="nest-level-4">
+              <div class="nest-row">
+                <span class="nest-tree-line">├─</span>
+                <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style="flex-shrink:0"><rect x="1" y="0" width="10" height="14" rx="2" stroke="#3fb950" stroke-width="1.5"/><line x1="3.5" y1="5" x2="8.5" y2="5" stroke="#3fb950" stroke-width="1"/><line x1="3.5" y1="8" x2="8.5" y2="8" stroke="#3fb950" stroke-width="1"/></svg>
+                <span class="nest-name" style="color:var(--accent-green)">toolu_read_123.json</span>
+              </div>
+            </div>
+
+            <div class="nest-level-4">
+              <div class="nest-row">
+                <span class="nest-tree-line">└─</span>
+                <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style="flex-shrink:0"><rect x="1" y="0" width="10" height="14" rx="2" stroke="#3fb950" stroke-width="1.5"/><line x1="3.5" y1="5" x2="8.5" y2="5" stroke="#3fb950" stroke-width="1"/><line x1="3.5" y1="8" x2="8.5" y2="8" stroke="#3fb950" stroke-width="1"/></svg>
+                <span class="nest-name" style="color:var(--accent-green)">toolu_write_456.json</span>
+              </div>
+            </div>
+
+            <!-- Reviewer agent -->
+            <div class="nest-level-2">
+              <div class="nest-row">
+                <span class="nest-tree-line">└─</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--accent-cyan)" opacity="0.8" style="flex-shrink:0"><rect x="0" y="2" width="11" height="9" rx="2"/><rect x="0" y="0" width="6" height="4" rx="1"/></svg>
+                <span class="nest-name dir">sess-reviewer/</span>
+                <span class="nest-tag cyan">reviewer agent</span>
+              </div>
+            </div>
+
+            <div class="nest-level-3">
+              <div class="nest-row">
+                <span class="nest-tree-line">├─</span>
+                <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style="flex-shrink:0"><rect x="1" y="0" width="10" height="14" rx="2" stroke="#58a6ff" stroke-width="1.5"/><line x1="3.5" y1="5" x2="8.5" y2="5" stroke="#58a6ff" stroke-width="1"/><line x1="3.5" y1="8" x2="8.5" y2="8" stroke="#58a6ff" stroke-width="1"/></svg>
+                <span class="nest-name" style="color:var(--accent-blue)">history.jsonl</span>
+                <span class="nest-tag blue">reviewer's work</span>
+              </div>
+            </div>
+
+            <div class="nest-level-3">
+              <div class="nest-row">
+                <span class="nest-tree-line">└─</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="var(--accent-green)" opacity="0.7" style="flex-shrink:0"><rect x="0" y="2" width="11" height="9" rx="2"/><rect x="0" y="0" width="6" height="4" rx="1"/></svg>
+                <span class="nest-name dir">tool-results/</span>
+                <span class="nest-tag green">toolu_grep_789.json &nbsp;+&nbsp; toolu_read_012.json</span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="nesting-legend">
+            <div class="nest-legend-item"><div class="nest-legend-dot" style="background:var(--accent-blue)"></div> history.jsonl — conversation JSONL</div>
+            <div class="nest-legend-item"><div class="nest-legend-dot" style="background:var(--accent-green)"></div> tool-results/ — persisted tool outputs</div>
+            <div class="nest-legend-item"><div class="nest-legend-dot" style="background:var(--accent-cyan)"></div> Each agent gets its own isolated session tree</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Stats Card
+       ===================================================================== -->
+  <section class="page-section" id="session-stats">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-label">Telemetry</div>
+        <h2 class="section-title">Session Statistics</h2>
+        <p class="section-desc">
+          Claude Code accumulates token usage in <code>stats-cache.json</code>. Cache read tokens often dwarf input tokens — the context window is re-used aggressively across turns.
+        </p>
+      </div>
+
+      <div class="stats-card reveal">
+        <div class="stats-header">
+          <div class="stats-header-left">
+            <div class="stats-header-dot"></div>
+            <span class="stats-header-title">stats-cache.json</span>
+          </div>
+          <span class="stats-header-badge">~/.claude/projects/&lt;hash&gt;/stats-cache.json</span>
+        </div>
+        <div class="stats-body">
+          <div class="stats-grid">
+            <div class="stat-item blue">
+              <div class="stat-label">Total Input Tokens</div>
+              <div class="stat-value blue" id="statInputVal">1.2M</div>
+              <div class="stat-bar-track"><div class="stat-bar-fill blue" id="statInputBar" style="width:0%"></div></div>
+              <div class="stat-note">New tokens sent to model each turn</div>
+            </div>
+            <div class="stat-item green">
+              <div class="stat-label">Total Output Tokens</div>
+              <div class="stat-value green" id="statOutputVal">89K</div>
+              <div class="stat-bar-track"><div class="stat-bar-fill green" id="statOutputBar" style="width:0%"></div></div>
+              <div class="stat-note">Tokens generated by the model</div>
+            </div>
+            <div class="stat-item cyan">
+              <div class="stat-label">Cache Read Tokens</div>
+              <div class="stat-value cyan" id="statCacheReadVal">987K</div>
+              <div class="stat-bar-track"><div class="stat-bar-fill cyan" id="statCacheReadBar" style="width:0%"></div></div>
+              <div class="stat-note">Tokens served from prompt cache — very cheap</div>
+            </div>
+            <div class="stat-item orange">
+              <div class="stat-label">Cache Write Tokens</div>
+              <div class="stat-value orange" id="statCacheWriteVal">12K</div>
+              <div class="stat-bar-track"><div class="stat-bar-fill orange" id="statCacheWriteBar" style="width:0%"></div></div>
+              <div class="stat-note">Tokens written to prompt cache</div>
+            </div>
+          </div>
+
+          <div class="stats-cache-note">
+            <div class="stats-cache-icon">&#128200;</div>
+            <div>
+              <div class="stats-cache-text-title">Cache reads often exceed input tokens</div>
+              <div class="stats-cache-text-desc">
+                The system prompt, tool definitions, and prior turns are stored in Anthropic's prompt cache. On each turn, those cached tokens are re-used at a fraction of the cost of sending them fresh. Over a long session, cache reads accumulate into the millions while actual new input stays modest.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       Navigation Footer
+       ===================================================================== -->
+  <section class="page-nav-footer">
+    <div class="container">
+      <div class="page-nav-footer-inner">
+        <a href="context-management.html" class="page-nav-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06Z"/></svg>
+          <div>
+            <span class="page-nav-btn-dir">Previous</span>
+            <span class="page-nav-btn-label">Context Management</span>
+          </div>
+        </a>
+        <a href="emulator.html" class="page-nav-btn">
+          <div style="text-align:right">
+            <span class="page-nav-btn-dir">Next</span>
+            <span class="page-nav-btn-label">Full Emulator</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="js/main.js"></script>
+<script src="js/diagrams.js"></script>
+<script>
+'use strict';
+
+/* =========================================================================
+   Session Explorer Data
+   ========================================================================= */
+
+const EXPLORER_LINES = [
+  {
+    num: 1,
+    type: 'metadata',
+    summary: 'Session info — model, session_id, timestamp',
+    details: [
+      { key: 'type',       val: '"metadata"',                      cls: 'accent-purple' },
+      { key: 'session_id', val: '"sess_abc123def456"',              cls: 'mono' },
+      { key: 'model',      val: '"claude-sonnet-4-20250514"',       cls: 'mono' },
+      { key: 'created_at', val: '"2026-03-23T17:12:16Z"',           cls: 'mono' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"metadata"</span><span class="jp">,</span>
+  <span class="jk">"session_id"</span><span class="jp">:</span> <span class="js">"sess_abc123def456"</span><span class="jp">,</span>
+  <span class="jk">"model"</span><span class="jp">:</span> <span class="js">"claude-sonnet-4-20250514"</span><span class="jp">,</span>
+  <span class="jk">"created_at"</span><span class="jp">:</span> <span class="js">"2026-03-23T17:12:16Z"</span>
+}`,
+  },
+  {
+    num: 2,
+    type: 'user',
+    summary: 'content[0]: system-reminder (1,847 chars)  |  content[1]: system-reminder (634 chars)  |  content[2]: <strong>"Fix the failing tests in auth.test.ts"</strong>',
+    details: [
+      { key: 'type',        val: '"user"',                    cls: 'accent-blue' },
+      { key: 'role',        val: '"user"',                    cls: 'mono' },
+      { key: 'content[0]',  val: 'text — &lt;system-reminder&gt; (1,847 chars) — SessionStart hook', cls: 'muted' },
+      { key: 'content[1]',  val: 'text — &lt;system-reminder&gt; (634 chars) — Skill catalog',      cls: 'muted' },
+      { key: 'content[2]',  val: 'text — "Fix the failing tests in auth.test.ts"', cls: 'accent-blue' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"user"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"user"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [</span>
+    <span class="jp">{</span> <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"text"</span><span class="jp">,</span> <span class="jk">"text"</span><span class="jp">:</span> <span class="js">"&lt;system-reminder&gt;...&lt;/system-reminder&gt;"</span> <span class="jp">},</span>
+    <span class="jp">{</span> <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"text"</span><span class="jp">,</span> <span class="jk">"text"</span><span class="jp">:</span> <span class="js">"&lt;system-reminder&gt;...&lt;/system-reminder&gt;"</span> <span class="jp">},</span>
+    <span class="jp">{</span> <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"text"</span><span class="jp">,</span> <span class="jk">"text"</span><span class="jp">:</span> <span class="js">"Fix the failing tests in auth.test.ts"</span> <span class="jp">}</span>
+  <span class="jp">]</span>
+}`,
+  },
+  {
+    num: 3,
+    type: 'assistant',
+    summary: '<strong>"I\'ll look at the failing tests and fix them."</strong> — text only, no tool calls',
+    details: [
+      { key: 'type',       val: '"assistant"',                        cls: 'accent-green' },
+      { key: 'role',       val: '"assistant"',                        cls: 'mono' },
+      { key: 'content[0]', val: 'text — "I\'ll look at the failing tests and fix them."', cls: '' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [{</span>
+    <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"text"</span><span class="jp">,</span>
+    <span class="jk">"text"</span><span class="jp">:</span> <span class="js">"I'll look at the failing tests and fix them."</span>
+  <span class="jp">}]</span>
+}`,
+  },
+  {
+    num: 4,
+    type: 'assistant',
+    summary: 'tool_use: <strong>Bash</strong> — id: toolu_abc123  |  input: {"command":"npm test auth.test.ts"}',
+    details: [
+      { key: 'type',         val: '"assistant"',        cls: 'accent-green' },
+      { key: 'content[0]',   val: 'tool_use',           cls: 'accent-orange' },
+      { key: '  .id',        val: '"toolu_abc123"',     cls: 'mono' },
+      { key: '  .name',      val: '"Bash"',             cls: 'accent-orange' },
+      { key: '  .input',     val: '{"command":"npm test auth.test.ts"}', cls: 'mono' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [{</span>
+    <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"tool_use"</span><span class="jp">,</span>
+    <span class="jk">"id"</span><span class="jp">:</span> <span class="js">"toolu_abc123"</span><span class="jp">,</span>
+    <span class="jk">"name"</span><span class="jp">:</span> <span class="js">"Bash"</span><span class="jp">,</span>
+    <span class="jk">"input"</span><span class="jp">: {</span> <span class="jk">"command"</span><span class="jp">:</span> <span class="js">"npm test auth.test.ts"</span> <span class="jp">}</span>
+  <span class="jp">}]</span>
+}`,
+  },
+  {
+    num: 5,
+    type: 'progress',
+    summary: 'label: "Running Bash..."  |  tool_use_id: toolu_abc123',
+    details: [
+      { key: 'type',         val: '"progress"',       cls: 'muted' },
+      { key: 'label',        val: '"Running Bash..."', cls: 'muted' },
+      { key: 'tool_use_id',  val: '"toolu_abc123"',   cls: 'mono' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"progress"</span><span class="jp">,</span>
+  <span class="jk">"label"</span><span class="jp">:</span> <span class="js">"Running Bash..."</span><span class="jp">,</span>
+  <span class="jk">"tool_use_id"</span><span class="jp">:</span> <span class="js">"toolu_abc123"</span>
+}`,
+  },
+  {
+    num: 6,
+    type: 'tool_result',
+    summary: 'tool_use_id: toolu_abc123  |  content: <strong>"Exit 1: 3 tests failed (tokenExpiry, refreshFlow, logout)"</strong>',
+    details: [
+      { key: 'type',        val: '"tool_result"',                      cls: 'accent-cyan' },
+      { key: 'role',        val: '"user"',                             cls: 'mono' },
+      { key: 'tool_use_id', val: '"toolu_abc123"',                     cls: 'accent-cyan' },
+      { key: 'content',     val: '"Exit 1: 3 tests failed (tokenExpiry, refreshFlow, logout)"', cls: '' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"tool_result"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"user"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [{</span>
+    <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"tool_result"</span><span class="jp">,</span>
+    <span class="jk">"tool_use_id"</span><span class="jp">:</span> <span class="js">"toolu_abc123"</span><span class="jp">,</span>
+    <span class="jk">"content"</span><span class="jp">:</span> <span class="js">"Exit 1: 3 tests failed (tokenExpiry, refreshFlow, logout)"</span>
+  <span class="jp">}]</span>
+}`,
+  },
+  {
+    num: 7,
+    type: 'assistant',
+    summary: '<strong>"Found 3 failures. Let me fix the token expiry logic first..."</strong> + tool_use: Edit',
+    details: [
+      { key: 'type',       val: '"assistant"',           cls: 'accent-green' },
+      { key: 'content[0]', val: 'text — "Found 3 failures. Let me fix the token expiry logic first..."', cls: '' },
+      { key: 'content[1]', val: 'tool_use — Edit  (id: toolu_def456)', cls: 'accent-orange' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"role"</span><span class="jp">:</span> <span class="js">"assistant"</span><span class="jp">,</span>
+  <span class="jk">"content"</span><span class="jp">: [</span>
+    <span class="jp">{</span> <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"text"</span><span class="jp">,</span> <span class="jk">"text"</span><span class="jp">:</span> <span class="js">"Found 3 failures. Let me fix the token expiry logic first..."</span> <span class="jp">},</span>
+    <span class="jp">{</span> <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"tool_use"</span><span class="jp">,</span> <span class="jk">"id"</span><span class="jp">:</span> <span class="js">"toolu_def456"</span><span class="jp">,</span> <span class="jk">"name"</span><span class="jp">:</span> <span class="js">"Edit"</span><span class="jp">,</span>
+      <span class="jk">"input"</span><span class="jp">: {</span> <span class="jk">"file_path"</span><span class="jp">:</span> <span class="js">"/src/auth.ts"</span><span class="jp">,</span> <span class="jk">"old_string"</span><span class="jp">:</span> <span class="js">"..."</span><span class="jp">,</span> <span class="jk">"new_string"</span><span class="jp">:</span> <span class="js">"..."</span> <span class="jp">}</span>
+    <span class="jp">}</span>
+  <span class="jp">]</span>
+}`,
+  },
+  {
+    num: 8,
+    type: 'file_snapshot',
+    summary: 'Snapshot of 2 files — auth.ts (mtime: 1711218940), auth.test.ts (mtime: 1711218820)',
+    details: [
+      { key: 'type',      val: '"file_history_snapshot"',                    cls: 'accent-red' },
+      { key: 'files[0]',  val: '/src/auth.ts  (mtime: 1711218940)',          cls: 'mono' },
+      { key: 'files[1]',  val: '/src/auth.test.ts  (mtime: 1711218820)',     cls: 'mono' },
+    ],
+    json: `{
+  <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"file_history_snapshot"</span><span class="jp">,</span>
+  <span class="jk">"files"</span><span class="jp">: [</span>
+    <span class="jp">{</span>
+      <span class="jk">"path"</span><span class="jp">:</span> <span class="js">"/src/auth.ts"</span><span class="jp">,</span>
+      <span class="jk">"content"</span><span class="jp">:</span> <span class="js">"export function refreshToken(...) { ... }"</span><span class="jp">,</span>
+      <span class="jk">"mtime"</span><span class="jp">:</span> <span class="jn">1711218940</span>
+    <span class="jp">},</span>
+    <span class="jp">{</span>
+      <span class="jk">"path"</span><span class="jp">:</span> <span class="js">"/src/auth.test.ts"</span><span class="jp">,</span>
+      <span class="jk">"content"</span><span class="jp">:</span> <span class="js">"describe('auth', () => { ... })"</span><span class="jp">,</span>
+      <span class="jk">"mtime"</span><span class="jp">:</span> <span class="jn">1711218820</span>
+    <span class="jp">}</span>
+  <span class="jp">]</span>
+}`,
+  },
+];
+
+// Map line types to display type names (some lines use 'assistant' for tool_use display)
+const TYPE_DISPLAY = {
+  metadata:       'metadata',
+  user:           'user',
+  assistant:      'assistant',
+  tool_result:    'tool_result',
+  progress:       'progress',
+  file_snapshot:  'file_snapshot',
+};
+
+function buildExplorerLine(line, index) {
+  const el = document.createElement('div');
+  el.className = 'explorer-line';
+  el.id = 'explorer-line-' + index;
+
+  // Determine display type badge for assistant lines that show tool_use
+  let displayType = line.type;
+  if (line.type === 'assistant' && line.summary.includes('tool_use:')) {
+    displayType = 'tool_use';
+  }
+
+  const trigger = document.createElement('button');
+  trigger.className = 'explorer-line-trigger';
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.innerHTML = `
+    <span class="line-num">Line ${line.num}</span>
+    <span class="line-type-badge type-${displayType}">[${displayType}]</span>
+    <span class="line-summary">${line.summary}</span>
+    <svg class="line-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+      <path d="M4.5 2L8.5 6L4.5 10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'explorer-line-body';
+  body.setAttribute('aria-hidden', 'true');
+
+  // Detail grid
+  const detailGrid = document.createElement('div');
+  detailGrid.className = 'line-detail-grid';
+  line.details.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'line-detail-row';
+    row.innerHTML = `
+      <span class="line-detail-key">${d.key}</span>
+      <span class="line-detail-val mono ${d.cls || ''}">${d.val}</span>
+    `;
+    detailGrid.appendChild(row);
+  });
+
+  // JSON preview
+  const jsonPre = document.createElement('pre');
+  jsonPre.className = 'json-preview';
+  jsonPre.innerHTML = line.json;
+
+  body.appendChild(detailGrid);
+  body.appendChild(jsonPre);
+
+  trigger.addEventListener('click', () => {
+    const isOpen = el.classList.toggle('expanded');
+    trigger.setAttribute('aria-expanded', String(isOpen));
+    body.setAttribute('aria-hidden', String(!isOpen));
+    updateExpandAllBtn();
+  });
+
+  el.appendChild(trigger);
+  el.appendChild(body);
+  return el;
+}
+
+function renderExplorer() {
+  const container = document.getElementById('explorerLines');
+  if (!container) return;
+  EXPLORER_LINES.forEach((line, i) => {
+    container.appendChild(buildExplorerLine(line, i));
+  });
+}
+
+function updateExpandAllBtn() {
+  const btn = document.getElementById('expandAllBtn');
+  if (!btn) return;
+  const lines = document.querySelectorAll('.explorer-line');
+  const allExpanded = Array.from(lines).every(l => l.classList.contains('expanded'));
+  btn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+}
+
+function toggleExpandAll() {
+  const lines = document.querySelectorAll('.explorer-line');
+  const allExpanded = Array.from(lines).every(l => l.classList.contains('expanded'));
+  lines.forEach(line => {
+    const trigger = line.querySelector('.explorer-line-trigger');
+    const body = line.querySelector('.explorer-line-body');
+    if (allExpanded) {
+      line.classList.remove('expanded');
+      if (trigger) trigger.setAttribute('aria-expanded', 'false');
+      if (body) body.setAttribute('aria-hidden', 'true');
+    } else {
+      line.classList.add('expanded');
+      if (trigger) trigger.setAttribute('aria-expanded', 'true');
+      if (body) body.setAttribute('aria-hidden', 'false');
+    }
+  });
+  updateExpandAllBtn();
+}
+
+/* =========================================================================
+   Stats Bars — animate on scroll into view
+   ========================================================================= */
+
+const STATS = [
+  { id: 'statInputBar',    pct: 100 },
+  { id: 'statOutputBar',   pct: 7 },
+  { id: 'statCacheReadBar', pct: 80 },
+  { id: 'statCacheWriteBar', pct: 10 },
+];
+
+function animateStats() {
+  STATS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (el) el.style.width = s.pct + '%';
+  });
+}
+
+function initStatsObserver() {
+  const card = document.querySelector('.stats-card');
+  if (!card) return;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        setTimeout(animateStats, 200);
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.2 });
+  io.observe(card);
+}
+
+/* =========================================================================
+   Init
+   ========================================================================= */
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderExplorer();
+  initStatsObserver();
+});
+</script>
+</body>
+</html>
