@@ -632,6 +632,12 @@
           <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
           <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
           <a href="emulator.html" class="nav-link" role="listitem">Emulator</a>
+          <a href="permissions.html" class="nav-link" role="listitem">Permissions</a>
+          <a href="memory.html" class="nav-link" role="listitem">Memory</a>
+          <a href="swarm.html" class="nav-link" role="listitem">Swarm</a>
+          <a href="query-engine.html" class="nav-link" role="listitem">Query Engine</a>
+          <a href="prompt-construction.html" class="nav-link" role="listitem">Prompt Pipeline</a>
+          <a href="compression.html" class="nav-link" role="listitem">Compression</a>
         </div>
 
         <!-- Hamburger -->
@@ -658,6 +664,12 @@
     <a href="context-management.html" class="nav-link">Context Mgmt</a>
     <a href="persistence.html" class="nav-link">Persistence</a>
     <a href="emulator.html" class="nav-link">Emulator</a>
+    <a href="permissions.html" class="nav-link">Permissions</a>
+    <a href="memory.html" class="nav-link">Memory</a>
+    <a href="swarm.html" class="nav-link">Swarm</a>
+    <a href="query-engine.html" class="nav-link">Query Engine</a>
+    <a href="prompt-construction.html" class="nav-link">Prompt Pipeline</a>
+    <a href="compression.html" class="nav-link">Compression</a>
   </div>
 
   <main>
@@ -1515,6 +1527,174 @@
       </div>
     </section>
 
+    <!-- =================================================================
+         NEW: Source Code Deep Dives
+         ================================================================= -->
+    <section class="page-section" style="border-top:1px solid var(--border)">
+      <div class="container">
+
+        <div class="section-header" style="text-align:center;margin-bottom:var(--space-10)">
+          <div class="hero-eyebrow" style="margin:0 auto var(--space-4)">
+            <span class="hero-eyebrow-dot"></span>
+            Source Code Analysis
+          </div>
+          <h2 style="font-size:var(--text-3xl);font-weight:var(--font-bold);color:var(--text-primary);letter-spacing:-0.02em;margin-bottom:var(--space-3)">Deep Dives</h2>
+          <p style="font-size:var(--text-base);color:var(--text-secondary);max-width:560px;margin:0 auto">
+            New chapters derived from full source code analysis — revealing the internals invisible from packet capture alone.
+          </p>
+        </div>
+
+        <div class="chapter-grid">
+
+          <!-- 12. Permission System -->
+          <a href="permissions.html" class="chapter-card reveal">
+            <div class="chapter-card-number">12</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(248,81,73,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="3" y="8" width="12" height="8" rx="2" stroke="#f85149" stroke-width="1.4"/>
+                  <path d="M6 8V5a3 3 0 0 1 6 0v3" stroke="#f85149" stroke-width="1.4" stroke-linecap="round"/>
+                  <circle cx="9" cy="12" r="1.2" fill="#f85149" opacity="0.7"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Permission System</span>
+            </div>
+            <p class="chapter-card-desc">
+              Seven permission modes, the YOLO AI classifier, dangerous pattern detection, and the full three-phase decision flow.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 13. Memory System -->
+          <a href="memory.html" class="chapter-card reveal">
+            <div class="chapter-card-number">13</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(188,140,255,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M9 2v14M5 4h8M4 7h10M5 10h8M6 13h6" stroke="#bc8cff" stroke-width="1.3" stroke-linecap="round" opacity="0.7"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Memory System</span>
+            </div>
+            <p class="chapter-card-desc">
+              Three independent memory systems — CLAUDE.md hierarchy with @include, auto-memory with relevance engine, and session memory for compaction.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 14. Swarm/Team System -->
+          <a href="swarm.html" class="chapter-card reveal">
+            <div class="chapter-card-number">14</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(63,185,80,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <circle cx="9" cy="5" r="2.5" stroke="#3fb950" stroke-width="1.3"/>
+                  <circle cx="4" cy="13" r="2" stroke="#3fb950" stroke-width="1.2" opacity="0.6"/>
+                  <circle cx="14" cy="13" r="2" stroke="#3fb950" stroke-width="1.2" opacity="0.6"/>
+                  <path d="M9 7.5v2M6.5 11.5L8 10M11.5 11.5L10 10" stroke="#3fb950" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Multi-Agent Swarm</span>
+            </div>
+            <p class="chapter-card-desc">
+              Team creation, three spawning backends (tmux/iTerm/in-process), mailbox communication, permission sync, and coordinator mode.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 15. Query Engine -->
+          <a href="query-engine.html" class="chapter-card centerpiece reveal">
+            <div class="chapter-card-number">15</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(88,166,255,0.15);box-shadow:0 0 12px rgba(88,166,255,0.2)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <circle cx="9" cy="9" r="6.5" stroke="#58a6ff" stroke-width="1.4"/>
+                  <path d="M9 5v4l3 2" stroke="#58a6ff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M15 3l-1.5 1.5M3 15l1.5-1.5" stroke="#58a6ff" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">The Agentic Loop</span>
+            </div>
+            <span class="chapter-badge">Centerpiece</span>
+            <p class="chapter-card-desc">
+              The core query engine — 8-stage state machine, pre-processing pipeline, streaming tool execution, recovery paths, and token budget management.
+            </p>
+            <span class="chapter-card-link" style="color:var(--accent-blue)">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 16. Prompt Construction -->
+          <a href="prompt-construction.html" class="chapter-card reveal">
+            <div class="chapter-card-number">16</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(210,153,34,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="2" y="3" width="14" height="12" rx="2" stroke="#d29922" stroke-width="1.3"/>
+                  <path d="M5 7h8M5 10h5" stroke="#d29922" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+                  <path d="M2 7h14" stroke="#d29922" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.4"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Prompt Construction</span>
+            </div>
+            <p class="chapter-card-desc">
+              The system prompt build pipeline — memoized sections, DYNAMIC_BOUNDARY, three-tier cache segmentation, and ant vs external variants.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+          <!-- 17. Compression -->
+          <a href="compression.html" class="chapter-card reveal">
+            <div class="chapter-card-number">17</div>
+            <div class="chapter-card-meta">
+              <div class="chapter-card-icon" style="background:rgba(57,210,192,0.1)">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M4 4h10M5 7h8M6 10h6M7 13h4" stroke="#39d2c0" stroke-width="1.4" stroke-linecap="round"/>
+                  <path d="M3 2l1.5 2M15 2l-1.5 2M3.5 5l1 2M14.5 5l-1 2M4.5 8l1 2M13.5 8l-1 2" stroke="#39d2c0" stroke-width="0.8" opacity="0.4"/>
+                </svg>
+              </div>
+              <span class="chapter-card-title">Context Compression</span>
+            </div>
+            <p class="chapter-card-desc">
+              Four-layer compression architecture — API microcompact, client microcompact, session-memory compact, and full LLM summarization with interactive simulator.
+            </p>
+            <span class="chapter-card-link">
+              Explore
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
+
+        </div>
+        <!-- end deep-dive chapter-grid -->
+
+      </div>
+    </section>
+
   </main>
 
   <!-- =================================================================
@@ -1526,6 +1706,7 @@
         <span>Claude Code Architecture Guide</span>
         &nbsp;&bull;&nbsp; March 2026
         &nbsp;&bull;&nbsp; Claude Code <span>v2.1.81</span>
+        &nbsp;&bull;&nbsp; Updated with source code analysis
       </p>
     </div>
   </footer>

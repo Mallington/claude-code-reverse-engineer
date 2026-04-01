@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context Compression System — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(188,140,255,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 15% 60%, rgba(57,210,192,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 85% 60%, rgba(88,166,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.08);
+      border: 1px solid rgba(188,140,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+    .hero-eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Page Sections
+       ===================================================================== */
+    .page-section { padding: var(--space-16) 0; }
+    .page-section + .page-section { border-top: 1px solid var(--border); }
+    .section-header { margin-bottom: var(--space-10); }
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 680px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Card base
+       ===================================================================== */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      opacity: 0.5;
+    }
+    .card-purple::before { background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent); }
+    .card-cyan::before   { background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-blue), transparent); }
+    .card-green::before  { background: linear-gradient(90deg, transparent, var(--accent-green), var(--accent-cyan), transparent); }
+
+    /* =====================================================================
+       Hero Waterfall SVG
+       ===================================================================== */
+    .waterfall-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+      position: relative;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .waterfall-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent);
+      opacity: 0.6;
+    }
+
+    /* =====================================================================
+       Four-Layer Architecture
+       ===================================================================== */
+    .layer-diagram {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .layer-diagram-header {
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .layer-diagram-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+    .layer-row {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    .layer-row:last-child { border-bottom: none; }
+    .layer-row:hover { background: rgba(255,255,255,0.02); }
+    .layer-row-header {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-6);
+    }
+    .layer-num {
+      width: 32px; height: 32px;
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .layer-info { min-width: 0; }
+    .layer-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .layer-meta {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+    .layer-tags { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+    .tag {
+      display: inline-flex; align-items: center;
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      white-space: nowrap;
+    }
+    .tag-zero  { background: rgba(63,185,80,0.15); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.25); }
+    .tag-cost  { background: rgba(248,81,73,0.12); color: var(--accent-red);   border: 1px solid rgba(248,81,73,0.25); }
+    .tag-ant   { background: rgba(210,153,34,0.12); color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.25); }
+    .tag-gate  { background: rgba(88,166,255,0.12); color: var(--accent-blue);  border: 1px solid rgba(88,166,255,0.25); }
+    .expand-icon {
+      width: 20px; height: 20px;
+      color: var(--text-secondary);
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .layer-row.open .expand-icon { transform: rotate(180deg); }
+    .layer-details {
+      display: none;
+      padding: 0 var(--space-6) var(--space-5);
+      padding-left: calc(var(--space-6) + 48px + var(--space-4));
+    }
+    .layer-row.open .layer-details { display: block; }
+    .layer-details-inner {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4) var(--space-5);
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin-top: var(--space-3);
+    }
+    @media (max-width: 640px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-item { }
+    .detail-key {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-1);
+    }
+    .detail-val {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* Layer colors */
+    .layer-cyan  .layer-num { background: rgba(57,210,192,0.15); color: var(--accent-cyan); }
+    .layer-blue  .layer-num { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+    .layer-green .layer-num { background: rgba(63,185,80,0.15);  color: var(--accent-green); }
+    .layer-purple .layer-num { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+    .layer-orange .layer-num { background: rgba(210,153,34,0.15); color: var(--accent-orange); }
+    .layer-cyan   .layer-row-header { border-left: 3px solid var(--accent-cyan); }
+    .layer-blue   .layer-row-header { border-left: 3px solid var(--accent-blue); }
+    .layer-green  .layer-row-header { border-left: 3px solid var(--accent-green); }
+    .layer-purple .layer-row-header { border-left: 3px solid var(--accent-purple); }
+    .layer-orange .layer-row-header { border-left: 3px solid var(--accent-orange); }
+
+    /* =====================================================================
+       Compression Simulator
+       ===================================================================== */
+    .sim-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .sim-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent);
+      opacity: 0.6;
+    }
+    .sim-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+    .sim-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+    .sim-controls { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all var(--transition);
+      border: 1px solid transparent;
+    }
+    .btn-primary {
+      background: rgba(88,166,255,0.15);
+      border-color: rgba(88,166,255,0.3);
+      color: var(--accent-blue);
+    }
+    .btn-primary:hover { background: rgba(88,166,255,0.25); border-color: var(--accent-blue); }
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      border-color: var(--border);
+      color: var(--text-secondary);
+    }
+    .btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .btn-danger {
+      background: rgba(248,81,73,0.1);
+      border-color: rgba(248,81,73,0.25);
+      color: var(--accent-red);
+    }
+    .btn-danger:hover { background: rgba(248,81,73,0.2); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .sim-body {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      min-height: 520px;
+    }
+    @media (max-width: 800px) { .sim-body { grid-template-columns: 1fr; } }
+
+    .sim-main { padding: var(--space-6); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-4); }
+    @media (max-width: 800px) { .sim-main { border-right: none; border-bottom: 1px solid var(--border); } }
+
+    .sim-sidebar { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-5); }
+
+    /* Token meter */
+    .token-meter-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: var(--space-2);
+    }
+    .token-meter-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+    .token-meter-count {
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+    .token-meter-track {
+      height: 12px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+    .token-meter-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1), background 0.4s ease;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+      position: relative;
+    }
+    .token-meter-thresholds {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .threshold-tick {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 2px;
+      opacity: 0.7;
+    }
+    .token-meter-warning .token-meter-fill { background: linear-gradient(90deg, var(--accent-blue), var(--accent-orange)); }
+    .token-meter-danger  .token-meter-fill { background: linear-gradient(90deg, var(--accent-orange), var(--accent-red)); }
+
+    /* Conversation turns */
+    .conv-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      overflow-y: auto;
+      max-height: 340px;
+      padding-right: var(--space-1);
+    }
+    .conv-turn {
+      display: flex;
+      gap: var(--space-3);
+      align-items: flex-start;
+      animation: turnIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes turnIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.97); }
+      to   { opacity: 1; transform: none; }
+    }
+    .conv-avatar {
+      width: 28px; height: 28px;
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: var(--font-bold);
+      flex-shrink: 0;
+    }
+    .conv-avatar-user    { background: rgba(88,166,255,0.2); color: var(--accent-blue); }
+    .conv-avatar-ai      { background: rgba(188,140,255,0.2); color: var(--accent-purple); }
+    .conv-avatar-system  { background: rgba(57,210,192,0.15); color: var(--accent-cyan); }
+    .conv-bubble {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+    }
+    .conv-bubble-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 4px;
+    }
+    .conv-bubble-role {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-secondary);
+    }
+    .conv-bubble-tokens {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+    .conv-bubble-text {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      line-height: var(--leading-normal);
+    }
+    .conv-bubble.dimmed {
+      opacity: 0.4;
+      background: var(--bg-primary);
+      text-decoration: line-through;
+      text-decoration-color: rgba(248,81,73,0.4);
+    }
+    .conv-bubble.tool-result {
+      border-color: rgba(57,210,192,0.25);
+    }
+    .conv-bubble.tool-result.dimmed {
+      border-color: var(--border);
+    }
+
+    /* Event log / event banners */
+    .event-banner {
+      display: flex; gap: var(--space-3); align-items: center;
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      border: 1px solid;
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      animation: bannerIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes bannerIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to   { opacity: 1; transform: none; }
+    }
+    .event-banner.layer2   { background: rgba(88,166,255,0.08);   border-color: rgba(88,166,255,0.3);   color: var(--accent-blue); }
+    .event-banner.layer3   { background: rgba(63,185,80,0.08);    border-color: rgba(63,185,80,0.3);    color: var(--accent-green); }
+    .event-banner.layer4   { background: rgba(188,140,255,0.1);   border-color: rgba(188,140,255,0.35); color: var(--accent-purple); }
+    .event-banner.breaker  { background: rgba(248,81,73,0.1);     border-color: rgba(248,81,73,0.35);   color: var(--accent-red); }
+    .event-banner.restore  { background: rgba(57,210,192,0.08);   border-color: rgba(57,210,192,0.3);   color: var(--accent-cyan); }
+    .event-icon { font-size: 18px; flex-shrink: 0; }
+
+    /* Sidebar stats */
+    .stat-block {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+    }
+    .stat-block-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: var(--space-1) 0;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-key { font-size: var(--text-xs); color: var(--text-secondary); }
+    .stat-val { font-size: var(--text-xs); font-family: var(--font-mono); font-weight: var(--font-semibold); color: var(--text-primary); }
+    .stat-val.green  { color: var(--accent-green); }
+    .stat-val.orange { color: var(--accent-orange); }
+    .stat-val.red    { color: var(--accent-red); }
+
+    .pipeline-steps { display: flex; flex-direction: column; gap: var(--space-2); }
+    .pipeline-step {
+      display: flex; gap: var(--space-2); align-items: center;
+      padding: var(--space-2);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+    .pipeline-step.active {
+      background: rgba(88,166,255,0.08);
+      border-color: rgba(88,166,255,0.3);
+      color: var(--accent-blue);
+    }
+    .pipeline-step.done {
+      background: rgba(63,185,80,0.06);
+      border-color: rgba(63,185,80,0.2);
+      color: var(--accent-green);
+    }
+    .pipeline-step-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+      transition: background var(--transition);
+    }
+    .pipeline-step.active .pipeline-step-dot { background: var(--accent-blue); box-shadow: 0 0 6px rgba(88,166,255,0.6); }
+    .pipeline-step.done  .pipeline-step-dot  { background: var(--accent-green); }
+
+    /* =====================================================================
+       Microcompact Details
+       ===================================================================== */
+    .mc-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+    }
+    @media (max-width: 700px) { .mc-compare { grid-template-columns: 1fr; } }
+    .mc-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .mc-card-header {
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+    .mc-card-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+    .mc-card-sub { font-size: var(--text-xs); color: var(--text-secondary); }
+    .mc-card-body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+    .mc-prop-list { display: flex; flex-direction: column; gap: var(--space-2); }
+    .mc-prop {
+      display: flex; align-items: flex-start; gap: var(--space-3);
+      font-size: var(--text-sm);
+    }
+    .mc-prop-key {
+      min-width: 130px;
+      flex-shrink: 0;
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+    }
+    .mc-prop-val { color: var(--text-primary); }
+    .badge-wrap { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+    .tool-badge {
+      display: inline-flex; align-items: center;
+      padding: 3px var(--space-2);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      font-family: var(--font-mono);
+      border: 1px solid;
+    }
+    .tool-badge-cyan   { background: rgba(57,210,192,0.1);  color: var(--accent-cyan);   border-color: rgba(57,210,192,0.25); }
+    .tool-badge-blue   { background: rgba(88,166,255,0.1);  color: var(--accent-blue);   border-color: rgba(88,166,255,0.25); }
+    .tool-badge-green  { background: rgba(63,185,80,0.1);   color: var(--accent-green);  border-color: rgba(63,185,80,0.25); }
+    .tool-badge-orange { background: rgba(210,153,34,0.12); color: var(--accent-orange); border-color: rgba(210,153,34,0.3); }
+
+    /* =====================================================================
+       Full Compact Pipeline
+       ===================================================================== */
+    .pipeline-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+    .pipeline-flow::before {
+      content: '';
+      position: absolute;
+      left: 28px;
+      top: 20px;
+      bottom: 20px;
+      width: 2px;
+      background: linear-gradient(180deg, var(--accent-purple), var(--accent-blue), var(--accent-green));
+      opacity: 0.3;
+    }
+    .pf-step {
+      display: flex;
+      gap: var(--space-5);
+      align-items: flex-start;
+      padding: var(--space-5) 0;
+      cursor: pointer;
+      position: relative;
+    }
+    .pf-step + .pf-step::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--border);
+    }
+    .pf-node {
+      width: 40px; height: 40px;
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      flex-shrink: 0;
+      transition: all var(--transition);
+      position: relative;
+      z-index: 1;
+    }
+    .pf-node-idle     { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); }
+    .pf-node-active   { background: rgba(188,140,255,0.2); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.4); box-shadow: 0 0 12px rgba(188,140,255,0.3); }
+    .pf-node-done     { background: rgba(63,185,80,0.15); color: var(--accent-green);  border: 1px solid rgba(63,185,80,0.3); }
+    .pf-content { flex: 1; padding-top: 6px; }
+    .pf-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+    .pf-desc { font-size: var(--text-sm); color: var(--text-secondary); line-height: var(--leading-relaxed); }
+    .pf-detail {
+      margin-top: var(--space-3);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      display: none;
+    }
+    .pf-step.open .pf-detail { display: block; }
+    .pf-step.animating .pf-node { animation: nodeFlash 0.8s ease; }
+    @keyframes nodeFlash {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.15); }
+    }
+
+    /* 9-section list */
+    .section-pills { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+    .section-pill {
+      padding: 3px var(--space-3);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      background: rgba(188,140,255,0.1);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188,140,255,0.2);
+    }
+    .section-pill.critical {
+      background: rgba(88,166,255,0.1);
+      color: var(--accent-blue);
+      border-color: rgba(88,166,255,0.25);
+    }
+
+    /* Animate pipeline on click */
+    #btnRunPipeline {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+    }
+
+    /* =====================================================================
+       Post-Compact Restoration Table
+       ===================================================================== */
+    .restore-table-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .restore-table-header {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+    .restore-table-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      padding: var(--space-3) var(--space-5);
+      text-align: left;
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+    .data-table td {
+      padding: var(--space-3) var(--space-5);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      vertical-align: top;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .data-table td:nth-child(2),
+    .data-table td:nth-child(3) {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+    .data-table td:nth-child(4) { color: var(--text-secondary); font-size: var(--text-xs); }
+    .resource-name { font-weight: var(--font-medium); }
+    .resource-detail { font-size: var(--text-xs); color: var(--text-secondary); margin-top: 2px; font-family: var(--font-mono); }
+    .budget-bar-wrap { display: flex; align-items: center; gap: var(--space-3); }
+    .budget-bar-track {
+      flex: 1;
+      max-width: 80px;
+      height: 6px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+    .budget-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+    }
+
+    /* =====================================================================
+       Token Threshold Visualizer
+       ===================================================================== */
+    .threshold-viz {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .threshold-viz::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-purple), transparent);
+      opacity: 0.5;
+    }
+    .tv-track-wrap {
+      display: flex;
+      gap: var(--space-8);
+      align-items: stretch;
+    }
+    @media (max-width: 640px) { .tv-track-wrap { flex-direction: column; } }
+    .tv-track-col { display: flex; align-items: stretch; gap: var(--space-3); }
+    .tv-track {
+      width: 32px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .tv-labels { flex: 1; display: flex; flex-direction: column; position: relative; }
+    .tv-zone {
+      position: absolute;
+      left: 0; right: 0;
+      display: flex; align-items: flex-start; justify-content: flex-end;
+    }
+    .tv-label-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      position: absolute;
+      right: 0;
+      transform: translateY(-50%);
+    }
+    .tv-token-num {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      font-weight: var(--font-bold);
+      white-space: nowrap;
+    }
+    .tv-label-text { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; }
+    .tv-tick {
+      width: 10px;
+      height: 2px;
+      flex-shrink: 0;
+    }
+    .tv-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+      margin-top: var(--space-8);
+      padding-top: var(--space-6);
+      border-top: 1px solid var(--border);
+    }
+    .tv-legend-item { display: flex; align-items: center; gap: var(--space-2); }
+    .tv-legend-swatch {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .tv-legend-label { font-size: var(--text-xs); color: var(--text-secondary); }
+
+    /* =====================================================================
+       Navigation Footer
+       ===================================================================== */
+    .page-nav-footer { padding: var(--space-8) 0; border-top: 1px solid var(--border); }
+    .page-nav-footer-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+    .page-nav-btn {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-4) var(--space-5);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all var(--transition);
+      font-size: var(--text-sm);
+    }
+    .page-nav-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+      text-decoration: none;
+      background: var(--bg-tertiary);
+    }
+    .page-nav-btn-dir {
+      display: block;
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+    .page-nav-btn-label {
+      display: block;
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" aria-label="Claude Code Architecture home">
+      <div class="nav-logo-icon">C</div>
+      <span>Claude Code</span>
+    </a>
+    <div class="nav-links" role="list">
+      <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+      <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+      <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+      <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+      <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+      <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+      <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+      <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+      <a href="mcp.html" class="nav-link" role="listitem">MCP Servers</a>
+      <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+      <a href="compression.html" class="nav-link active" role="listitem">Compression</a>
+      <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+    </div>
+    <button class="nav-hamburger" aria-label="Open mobile menu" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+        <rect y="3" width="20" height="2" rx="1"/>
+        <rect y="9" width="20" height="2" rx="1"/>
+        <rect y="15" width="20" height="2" rx="1"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+  <a href="index.html" class="nav-link">The Big Picture</a>
+  <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+  <a href="system-prompt.html" class="nav-link">System Prompt</a>
+  <a href="tools.html" class="nav-link">Tools</a>
+  <a href="context-injection.html" class="nav-link">Context Injection</a>
+  <a href="skills.html" class="nav-link">Skills</a>
+  <a href="plugins.html" class="nav-link">Plugins</a>
+  <a href="agents.html" class="nav-link">Agents</a>
+  <a href="mcp.html" class="nav-link">MCP Servers</a>
+  <a href="context-management.html" class="nav-link">Context Mgmt</a>
+  <a href="compression.html" class="nav-link active">Compression</a>
+  <a href="persistence.html" class="nav-link">Persistence</a>
+</div>
+
+<main>
+
+<!-- ===================================================================
+     Hero
+     =================================================================== -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot"></div>
+      Chapter 9 · Context Management
+    </div>
+    <h1 class="hero-title">
+      <span class="hero-title-accent">Context Compression</span><br>System
+    </h1>
+    <p class="hero-subtitle">
+      Four layered strategies — from zero-cost server edits to full LLM summarization — that keep long-running sessions productive while minimizing API spend.
+    </p>
+
+    <!-- Waterfall animation -->
+    <div class="waterfall-wrap">
+      <svg id="waterfallSvg" viewBox="0 0 680 340" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+        <!-- Background zones -->
+        <rect x="0"   y="0"   width="680" height="340" fill="#161b22"/>
+
+        <!-- Layer bands -->
+        <rect id="band1" x="40" y="20"  width="600" height="60" rx="6" fill="rgba(57,210,192,0.06)"  stroke="rgba(57,210,192,0.2)"  stroke-width="1"/>
+        <rect id="band2" x="40" y="95"  width="600" height="60" rx="6" fill="rgba(88,166,255,0.06)"  stroke="rgba(88,166,255,0.2)"  stroke-width="1"/>
+        <rect id="band3" x="40" y="170" width="600" height="60" rx="6" fill="rgba(63,185,80,0.06)"   stroke="rgba(63,185,80,0.2)"   stroke-width="1"/>
+        <rect id="band4" x="40" y="245" width="600" height="60" rx="6" fill="rgba(188,140,255,0.06)" stroke="rgba(188,140,255,0.2)" stroke-width="1"/>
+
+        <!-- Layer labels -->
+        <text x="60"  y="55"  font-family="monospace" font-size="11" fill="rgba(57,210,192,0.9)"  font-weight="600">Layer 1 · API Microcompact</text>
+        <text x="60"  y="130" font-family="monospace" font-size="11" fill="rgba(88,166,255,0.9)"  font-weight="600">Layer 2 · Client Microcompact</text>
+        <text x="60"  y="205" font-family="monospace" font-size="11" fill="rgba(63,185,80,0.9)"   font-weight="600">Layer 3 · Session-Memory Compact</text>
+        <text x="60"  y="280" font-family="monospace" font-size="11" fill="rgba(188,140,255,0.9)" font-weight="600">Layer 4 · Full LLM Compact</text>
+
+        <!-- Cost badges -->
+        <rect x="510" y="40" width="40" height="16" rx="8" fill="rgba(63,185,80,0.2)"/>
+        <text x="530" y="52" font-family="monospace" font-size="9" fill="#3fb950" text-anchor="middle" font-weight="700">FREE</text>
+        <rect x="510" y="115" width="40" height="16" rx="8" fill="rgba(63,185,80,0.2)"/>
+        <text x="530" y="127" font-family="monospace" font-size="9" fill="#3fb950" text-anchor="middle" font-weight="700">FREE</text>
+        <rect x="510" y="190" width="40" height="16" rx="8" fill="rgba(63,185,80,0.2)"/>
+        <text x="530" y="202" font-family="monospace" font-size="9" fill="#3fb950" text-anchor="middle" font-weight="700">FREE</text>
+        <rect x="505" y="265" width="55" height="16" rx="8" fill="rgba(248,81,73,0.18)"/>
+        <text x="532" y="277" font-family="monospace" font-size="9" fill="#f85149" text-anchor="middle" font-weight="700">API CALL</text>
+
+        <!-- Connector lines between layers -->
+        <line x1="340" y1="80"  x2="340" y2="95"  stroke="rgba(200,200,220,0.15)" stroke-width="1" stroke-dasharray="3,2"/>
+        <line x1="340" y1="155" x2="340" y2="170" stroke="rgba(200,200,220,0.15)" stroke-width="1" stroke-dasharray="3,2"/>
+        <line x1="340" y1="230" x2="340" y2="245" stroke="rgba(200,200,220,0.15)" stroke-width="1" stroke-dasharray="3,2"/>
+
+        <!-- Dots (tokens) -->
+        <g id="dots"></g>
+
+        <!-- Arrow at bottom = "API Call" -->
+        <text x="340" y="328" font-family="monospace" font-size="10" fill="rgba(200,200,220,0.4)" text-anchor="middle">→ API Call →</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Section 1: Four-Layer Architecture
+     =================================================================== -->
+<section class="page-section">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Architecture</p>
+      <h2 class="section-title">Four-Layer Pipeline</h2>
+      <p class="section-desc">Each layer fires at a different threshold and has different cost tradeoffs. Click any layer to expand details. Session-Memory Compact is tried before Full LLM Compact because it is free.</p>
+    </div>
+
+    <div class="layer-diagram">
+      <div class="layer-diagram-header">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="var(--accent-purple)"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm.75 11.25h-1.5v-4.5h1.5v4.5zm0-6h-1.5v-1.5h1.5v1.5z"/></svg>
+        <span class="layer-diagram-title">Compression Pipeline — Every Turn</span>
+      </div>
+
+      <!-- Layer 1 -->
+      <div class="layer-row layer-cyan" onclick="toggleLayer(this)">
+        <div class="layer-row-header">
+          <div class="layer-num">L1</div>
+          <div class="layer-info">
+            <div class="layer-name">API Microcompact <span style="font-family:var(--font-mono);font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);">apiMicrocompact.ts</span></div>
+            <div class="layer-meta">Trigger: every request &nbsp;·&nbsp; server-side context_management edits</div>
+          </div>
+          <div class="layer-tags">
+            <span class="tag tag-zero">Zero Cost</span>
+            <span class="tag tag-ant">ant-only</span>
+            <svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"/></svg>
+          </div>
+        </div>
+        <div class="layer-details">
+          <div class="layer-details-inner">
+            <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);">Generates a <code>ContextManagementConfig</code> object sent with every API request. The server applies these edits before processing — the client never pays for cleared tokens.</p>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-key">Strategy 1</div>
+                <div class="detail-val"><code>clear_thinking_20251015</code><br>Keeps all thinking blocks by default. When idle &gt;1h + cache miss: keeps only last 1 thinking turn. Cannot clear ALL thinking (API requires value ≥ 1).</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Strategy 2</div>
+                <div class="detail-val"><code>clear_tool_uses_20250919</code><br>Fires when input_tokens &gt; 180K. Clears until ~40K tokens of tool results remain. Clearable: Shell, Glob, Grep, Read, WebFetch, WebSearch, Edit, Write.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Trigger</div>
+                <div class="detail-val">Input tokens &gt; 180,000 (DEFAULT_MAX_INPUT_TOKENS)</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Target</div>
+                <div class="detail-val">~40,000 tokens of tool results remain</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layer 2 -->
+      <div class="layer-row layer-blue" onclick="toggleLayer(this)">
+        <div class="layer-row-header">
+          <div class="layer-num">L2</div>
+          <div class="layer-info">
+            <div class="layer-name">Client Microcompact <span style="font-family:var(--font-mono);font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);">microCompact.ts</span></div>
+            <div class="layer-meta">Trigger: every request &nbsp;·&nbsp; client-side tool result clearing</div>
+          </div>
+          <div class="layer-tags">
+            <span class="tag tag-zero">Zero Cost</span>
+            <svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"/></svg>
+          </div>
+        </div>
+        <div class="layer-details">
+          <div class="layer-details-inner">
+            <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);">Two mutually exclusive paths. Time-based path fires when gap since last assistant message exceeds 60 minutes (matching server cache TTL). Cached-MC path (ant-only) uses <code>cache_edits</code> API to delete server-side without invalidating the cached prefix.</p>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-key">Time-Based</div>
+                <div class="detail-val">Gap &gt; 60 min. Keeps last 5 compactable results. Replaces older content with <code>[Old tool result content cleared]</code>.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Cached-MC</div>
+                <div class="detail-val">Queues <code>cache_edits</code> blocks. Does NOT mutate local messages. Boundary message records actual cache_deleted_input_tokens after response.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Config defaults</div>
+                <div class="detail-val">gapThresholdMinutes: 60 &nbsp;·&nbsp; keepRecent: 5</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Only runs on</div>
+                <div class="detail-val">Main thread (not subagents)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layer 3 -->
+      <div class="layer-row layer-green" onclick="toggleLayer(this)">
+        <div class="layer-row-header">
+          <div class="layer-num">L3</div>
+          <div class="layer-info">
+            <div class="layer-name">Session-Memory Compact <span style="font-family:var(--font-mono);font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);">sessionMemoryCompact.ts</span></div>
+            <div class="layer-meta">Trigger: tokens &gt; 167K &nbsp;·&nbsp; tries free summary before LLM</div>
+          </div>
+          <div class="layer-tags">
+            <span class="tag tag-zero">Zero Cost</span>
+            <span class="tag tag-gate">feature-gated</span>
+            <svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"/></svg>
+          </div>
+        </div>
+        <div class="layer-details">
+          <div class="layer-details-inner">
+            <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);">First layer inside <code>autoCompactIfNeeded()</code>. Uses the session memory file already extracted during the conversation — no new API call required. Returns <code>null</code> if post-compact count still exceeds threshold, falling through to Layer 4.</p>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-key">Prerequisites</div>
+                <div class="detail-val">tengu_session_memory + tengu_sm_compact flags enabled. Session memory file exists and is not just the template.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Keep window</div>
+                <div class="detail-val">minTokens: 10K &nbsp;·&nbsp; minTextBlocks: 5 &nbsp;·&nbsp; maxTokens: 40K</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Invariants</div>
+                <div class="detail-val">Never splits tool_use/tool_result pairs. Includes thinking blocks sharing message.id with kept messages. Never expands past last compact boundary.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Fallback</div>
+                <div class="detail-val">Returns null → Layer 4 fires</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layer 4 -->
+      <div class="layer-row layer-purple" onclick="toggleLayer(this)">
+        <div class="layer-row-header">
+          <div class="layer-num">L4</div>
+          <div class="layer-info">
+            <div class="layer-name">Full LLM Compact <span style="font-family:var(--font-mono);font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);">compact.ts</span></div>
+            <div class="layer-meta">Trigger: tokens &gt; 167K &amp; Layer 3 failed/unavailable</div>
+          </div>
+          <div class="layer-tags">
+            <span class="tag tag-cost">Full API Call</span>
+            <svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"/></svg>
+          </div>
+        </div>
+        <div class="layer-details">
+          <div class="layer-details-inner">
+            <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);">Makes an API call to summarize the conversation. Uses a forked agent (preferred) that reuses the main conversation's prompt cache. Falls back to direct streaming if the forked agent returns no text. Strips images and reinjected attachments before summarizing.</p>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-key">Forked agent</div>
+                <div class="detail-val">runForkedAgent() with querySource: 'compact'. maxTurns: 1, skipCacheWrite: true. Reuses main cache via identical cache-key params.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Output budget</div>
+                <div class="detail-val">COMPACT_MAX_OUTPUT_TOKENS: 20,000 tokens</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">PTL retry</div>
+                <div class="detail-val">Up to 3 retries. Drops oldest API round-trip groups (or 20%) each attempt.</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Circuit breaker</div>
+                <div class="detail-val">After 3 consecutive failures, auto-compact is disabled for the session.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reactive Compact (bonus) -->
+      <div class="layer-row layer-orange" onclick="toggleLayer(this)">
+        <div class="layer-row-header">
+          <div class="layer-num">RC</div>
+          <div class="layer-info">
+            <div class="layer-name">Reactive Compact <span style="font-family:var(--font-mono);font-size:var(--text-xs);font-weight:400;color:var(--text-secondary);">reactiveCompact.ts</span></div>
+            <div class="layer-meta">Trigger: 413 Prompt-Too-Long error from API &nbsp;·&nbsp; emergency recovery</div>
+          </div>
+          <div class="layer-tags">
+            <span class="tag tag-cost">API Call</span>
+            <span class="tag tag-gate">feature-gated</span>
+            <svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"/></svg>
+          </div>
+        </div>
+        <div class="layer-details">
+          <div class="layer-details-inner">
+            <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);">Safety net for cases where proactive layers fail or are disabled. Intercepted in query.ts when the API returns 413. Groups messages by API round-trip, peels groups from the tail, falls through to standard compaction. Context Collapse's recoverFromOverflow participates first.</p>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-key">Trigger</div>
+                <div class="detail-val">413 Prompt Too Long error intercepted in query.ts</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-key">Method</div>
+                <div class="detail-val">groupMessagesByApiRound() → peel tail groups → fall through to standard compact</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Section 2: Compression Simulator
+     =================================================================== -->
+<section class="page-section">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Interactive</p>
+      <h2 class="section-title">Compression Simulator</h2>
+      <p class="section-desc">Add conversation turns to watch the token meter fill. Compression events fire automatically at the real thresholds. Observe each layer activate in sequence.</p>
+    </div>
+
+    <div class="sim-wrap">
+      <div class="sim-header">
+        <span class="sim-title">Live Session Simulator</span>
+        <div class="sim-controls">
+          <button class="btn btn-primary" onclick="simAddTurn()" id="btnAddTurn">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/></svg>
+            Add Turn
+          </button>
+          <button class="btn btn-secondary" onclick="simAddToolTurn()" id="btnAddTool">+ Tool Result</button>
+          <button class="btn btn-danger" onclick="simReset()">Reset</button>
+        </div>
+      </div>
+
+      <div class="sim-body">
+        <div class="sim-main">
+          <!-- Token meter -->
+          <div>
+            <div class="token-meter-label">
+              <span class="token-meter-title">Context Usage</span>
+              <span class="token-meter-count" id="simTokenCount">24,000 / 200,000</span>
+            </div>
+            <div class="token-meter-track" id="simMeterTrack">
+              <div class="token-meter-fill" id="simMeterFill" style="width:12%"></div>
+              <div class="token-meter-thresholds">
+                <!-- 147K warning threshold at 73.5% -->
+                <div class="threshold-tick" style="left:73.5%;background:rgba(210,153,34,0.5);"></div>
+                <!-- 167K autocompact at 83.5% -->
+                <div class="threshold-tick" style="left:83.5%;background:rgba(63,185,80,0.6);"></div>
+                <!-- 177K blocking at 88.5% -->
+                <div class="threshold-tick" style="left:88.5%;background:rgba(248,81,73,0.7);"></div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:var(--space-1);">
+              <span style="font-size:10px;color:var(--text-secondary);">0</span>
+              <span style="font-size:10px;color:rgba(210,153,34,0.7);">147K warn</span>
+              <span style="font-size:10px;color:rgba(63,185,80,0.8);">167K compact</span>
+              <span style="font-size:10px;color:rgba(248,81,73,0.8);">177K block</span>
+              <span style="font-size:10px;color:var(--text-secondary);">200K</span>
+            </div>
+          </div>
+
+          <!-- Event banners -->
+          <div id="simEvents" style="display:flex;flex-direction:column;gap:var(--space-2);"></div>
+
+          <!-- Conversation log -->
+          <div class="conv-list" id="convList"></div>
+        </div>
+
+        <div class="sim-sidebar">
+          <!-- Stats -->
+          <div class="stat-block">
+            <div class="stat-block-title">Session Stats</div>
+            <div class="stat-row">
+              <span class="stat-key">Total tokens</span>
+              <span class="stat-val" id="statTotal">24,000</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-key">Turns</span>
+              <span class="stat-val" id="statTurns">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-key">Compactions</span>
+              <span class="stat-val" id="statCompacts">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-key">Failures</span>
+              <span class="stat-val" id="statFailures" style="color:var(--accent-red)">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-key">Circuit breaker</span>
+              <span class="stat-val" id="statBreaker">OFF</span>
+            </div>
+          </div>
+
+          <!-- Pipeline steps -->
+          <div class="stat-block">
+            <div class="stat-block-title">Pipeline (this turn)</div>
+            <div class="pipeline-steps" id="pipelineSteps">
+              <div class="pipeline-step" data-step="budget"><div class="pipeline-step-dot"></div>applyToolResultBudget</div>
+              <div class="pipeline-step" data-step="snip"><div class="pipeline-step-dot"></div>snipCompact (gated)</div>
+              <div class="pipeline-step" data-step="mc"><div class="pipeline-step-dot"></div>microcompactMessages</div>
+              <div class="pipeline-step" data-step="collapse"><div class="pipeline-step-dot"></div>applyCollapsesIfNeeded</div>
+              <div class="pipeline-step" data-step="auto"><div class="pipeline-step-dot"></div>autoCompactIfNeeded</div>
+              <div class="pipeline-step" data-step="api"><div class="pipeline-step-dot"></div>API call + L1 edits</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Section 3: Microcompact Details
+     =================================================================== -->
+<section class="page-section">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Layer 2 Deep Dive</p>
+      <h2 class="section-title">Microcompact Paths</h2>
+      <p class="section-desc">Layer 2 has two mutually exclusive paths. The time-based path fires when the prompt cache has gone cold. The cached-MC path fires when the cache is warm — it deletes server-side without touching local message history.</p>
+    </div>
+
+    <div class="mc-compare">
+      <!-- Time-Based -->
+      <div class="mc-card">
+        <div class="mc-card-header" style="border-top: 3px solid var(--accent-blue);">
+          <div class="mc-card-title">Time-Based Microcompact</div>
+          <div class="mc-card-sub">Cold cache &nbsp;·&nbsp; mutates local messages &nbsp;·&nbsp; timeBasedMCConfig.ts</div>
+        </div>
+        <div class="mc-card-body">
+          <div class="mc-prop-list">
+            <div class="mc-prop">
+              <span class="mc-prop-key">Trigger</span>
+              <span class="mc-prop-val">Gap since last assistant message &gt; <strong>60 minutes</strong></span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">Threshold</span>
+              <span class="mc-prop-val">Matches 1-hour server prompt-cache TTL — cache guaranteed cold</span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">Behavior</span>
+              <span class="mc-prop-val">Collect all compactable tool IDs in encounter order → keep last 5 → replace older content with <code>[Old tool result content cleared]</code></span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">keepRecent</span>
+              <span class="mc-prop-val">5 (minimum 1)</span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">Side effects</span>
+              <span class="mc-prop-val">Resets cached-MC state (cache invalidated anyway)</span>
+            </div>
+          </div>
+          <div>
+            <div class="detail-key" style="margin-bottom:var(--space-2);">Compactable Tools</div>
+            <div class="badge-wrap">
+              <span class="tool-badge tool-badge-cyan">Read</span>
+              <span class="tool-badge tool-badge-cyan">Shell</span>
+              <span class="tool-badge tool-badge-cyan">Grep</span>
+              <span class="tool-badge tool-badge-cyan">Glob</span>
+              <span class="tool-badge tool-badge-blue">WebSearch</span>
+              <span class="tool-badge tool-badge-blue">WebFetch</span>
+              <span class="tool-badge tool-badge-orange">Edit</span>
+              <span class="tool-badge tool-badge-orange">Write</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cached MC -->
+      <div class="mc-card">
+        <div class="mc-card-header" style="border-top: 3px solid var(--accent-cyan);">
+          <div class="mc-card-title">Cached Microcompact</div>
+          <div class="mc-card-sub">Warm cache &nbsp;·&nbsp; server-side only &nbsp;·&nbsp; ant-only, feature-gated</div>
+        </div>
+        <div class="mc-card-body">
+          <div class="mc-prop-list">
+            <div class="mc-prop">
+              <span class="mc-prop-key">Trigger</span>
+              <span class="mc-prop-val">Count-based threshold via persistent <strong>CachedMCState</strong></span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">Mechanism</span>
+              <span class="mc-prop-val">Queues <code>cache_edits</code> blocks for the API layer — does NOT modify local message content</span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">How it works</span>
+              <span class="mc-prop-val">Tracks tool results across turns. API receives <code>cache_reference</code> + <code>cache_edits</code>. Server deletes without invalidating cached prefix.</span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">Accounting</span>
+              <span class="mc-prop-val">After API response, deferred boundary message records actual <code>cache_deleted_input_tokens</code></span>
+            </div>
+            <div class="mc-prop">
+              <span class="mc-prop-key">Priority</span>
+              <span class="mc-prop-val">Takes precedence over time-based MC (mutually exclusive per turn)</span>
+            </div>
+          </div>
+          <div>
+            <div class="detail-key" style="margin-bottom:var(--space-2);">Key Advantage</div>
+            <div style="background:rgba(57,210,192,0.07);border:1px solid rgba(57,210,192,0.2);border-radius:var(--radius);padding:var(--space-3);font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);">
+              Preserves the prompt cache hit — the client never rewrites the cached prefix, so subsequent turns still benefit from cache reads. Time-based MC always pays full reprocessing cost.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Section 4: Full Compact Pipeline
+     =================================================================== -->
+<section class="page-section">
+  <div class="container">
+    <div class="section-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:var(--space-4);">
+      <div>
+        <p class="section-label">Layer 4 Deep Dive</p>
+        <h2 class="section-title">Full Compact Pipeline</h2>
+        <p class="section-desc">The heavyweight path: forked agent summarization, 9-section prompt, PTL retry logic, and post-compact restoration. Click any step to see details or run the full animation.</p>
+      </div>
+      <button class="btn btn-primary" id="btnRunPipeline" onclick="animatePipeline()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4.879-2.773 4.264 2.559a.25.25 0 0 1 0 .428l-4.264 2.559A.25.25 0 0 1 6 10.559V5.441a.25.25 0 0 1 .379-.214Z"/></svg>
+        Animate Pipeline
+      </button>
+    </div>
+
+    <div class="card card-purple">
+      <div class="pipeline-flow" id="pipelineFlow">
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="1">1</div>
+          <div class="pf-content">
+            <div class="pf-title">Pre-Compact Hooks Fire</div>
+            <div class="pf-desc"><code>executePreCompactHooks()</code> — registered hooks can inject custom instructions into the compact prompt or display a message to the user.</div>
+            <div class="pf-detail">Hooks are registered by extensions and plugins. They receive a context object and can return additional instructions that get prepended to the compact prompt. They can also surface a status message in the UI while compaction runs.</div>
+          </div>
+        </div>
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="2">2</div>
+          <div class="pf-content">
+            <div class="pf-title">Pre-Processing: Strip &amp; Clean</div>
+            <div class="pf-desc"><code>stripImagesFromMessages()</code> replaces image/document blocks with <code>[image]</code>/<code>[document]</code> markers. <code>stripReinjectedAttachments()</code> removes skill_discovery and skill_listing (re-surfaced post-compact anyway).</div>
+            <div class="pf-detail">Stripping images prevents the summarization call itself from hitting prompt-too-long limits. Removing skill attachments avoids redundant token spend — those will be re-injected as part of post-compact restoration regardless.</div>
+          </div>
+        </div>
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="3">3</div>
+          <div class="pf-content">
+            <div class="pf-title">streamCompactSummary() — Forked Agent</div>
+            <div class="pf-desc">Preferred path: <code>runForkedAgent()</code> with <code>querySource: 'compact'</code>. Reuses main conversation's prompt cache by sending identical cache-key params. <code>maxTurns: 1</code>, <code>skipCacheWrite: true</code>.</div>
+            <div class="pf-detail">The forked agent shares the cache with the main conversation thread, dramatically reducing cost. If the fork returns no text (e.g., model attempted a tool call), falls back to direct streaming via queryModelWithStreaming() with maxOutputTokens: 20,000.</div>
+          </div>
+        </div>
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="4">4</div>
+          <div class="pf-content">
+            <div class="pf-title">9-Section Prompt Template</div>
+            <div class="pf-desc">The LLM is instructed to produce a structured summary with 9 required sections.</div>
+            <div class="pf-detail">
+              <div class="section-pills">
+                <span class="section-pill">1. Primary Request and Intent</span>
+                <span class="section-pill">2. Key Technical Concepts</span>
+                <span class="section-pill">3. Files and Code Sections</span>
+                <span class="section-pill">4. Errors and Fixes</span>
+                <span class="section-pill">5. Problem Solving</span>
+                <span class="section-pill critical">6. All User Messages ★</span>
+                <span class="section-pill">7. Pending Tasks</span>
+                <span class="section-pill">8. Current Work</span>
+                <span class="section-pill">9. Optional Next Step</span>
+              </div>
+              <p style="margin-top:var(--space-3);font-size:var(--text-xs);color:var(--text-secondary);">Section 6 is marked critical: "List ALL user messages that are not tool results. These are critical for understanding the users' feedback and changing intent." This preserves user corrections even when the conversation is truncated.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="5">5</div>
+          <div class="pf-content">
+            <div class="pf-title">Analysis Scratchpad Stripped</div>
+            <div class="pf-desc">The prompt asks for an <code>&lt;analysis&gt;</code> block before the <code>&lt;summary&gt;</code> block. <code>formatCompactSummary()</code> strips it — the scratchpad never enters the context window.</div>
+            <div class="pf-detail">The analysis block acts as chain-of-thought drafting that improves summary quality without consuming tokens in the final output. Only the content inside &lt;summary&gt;...&lt;/summary&gt; survives into the compressed history.</div>
+          </div>
+        </div>
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="6">6</div>
+          <div class="pf-content">
+            <div class="pf-title">PTL Retry: truncateHeadForPTLRetry()</div>
+            <div class="pf-desc">If the compact request itself hits prompt-too-long: group by API round, drop oldest groups (or 20%), prepend truncation marker, retry. Up to <strong>MAX_PTL_RETRIES = 3</strong>.</div>
+            <div class="pf-detail">groupMessagesByApiRound() splits on assistant message ID boundaries — finer-grained than human turns. A synthetic "[earlier conversation truncated for compaction retry]" marker is prepended if the trimmed result starts with an assistant message (to preserve API invariants).</div>
+          </div>
+        </div>
+
+        <div class="pf-step" onclick="togglePfStep(this)">
+          <div class="pf-node pf-node-idle" data-label="7">7</div>
+          <div class="pf-content">
+            <div class="pf-title">Post-Compact Restoration</div>
+            <div class="pf-desc">Critical context re-injected: recently-read files (50K budget, 5K each), active plan, invoked skills (25K budget, 5K each), deferred tools delta, MCP instructions, SessionStart hooks.</div>
+            <div class="pf-detail">Note: sentSkillNames is NOT reset — avoids re-injecting ~4K tokens of skill listing. The model still has SkillTool in its schema. Invoked skill content survives so createSkillAttachmentIfNeeded() can include full skill text in subsequent compaction attachments.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Section 5: Post-Compact Restoration Table
+     =================================================================== -->
+<section class="page-section">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Post-Compact</p>
+      <h2 class="section-title">Restoration Budget</h2>
+      <p class="section-desc">After compaction, these resources are re-injected in order. Each has a per-item and total budget to prevent re-injected context from immediately triggering another compaction.</p>
+    </div>
+
+    <div class="restore-table-wrap">
+      <div class="restore-table-header">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="var(--accent-green)"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm3.707 6.207-4.5 4.5a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L6.5 8.586l3.793-3.793a1 1 0 0 1 1.414 1.414z"/></svg>
+        <span class="restore-table-title">What Gets Restored After Every Compaction</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="restoreTable">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Total Budget</th>
+              <th>Per-Item Cap</th>
+              <th>Source / Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="resource-name">Recently-read files</div>
+                <div class="resource-detail">Top 5 from readFileState cache</div>
+              </td>
+              <td>
+                <div class="budget-bar-wrap">
+                  <div class="budget-bar-track"><div class="budget-bar-fill" style="width:100%;background:var(--accent-blue);"></div></div>
+                  50K tokens
+                </div>
+              </td>
+              <td>5K tokens</td>
+              <td>POST_COMPACT_MAX_FILES_TO_RESTORE = 5</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">Active plan</div>
+                <div class="resource-detail">From getPlan() if plan file exists</div>
+              </td>
+              <td>Unbounded</td>
+              <td>—</td>
+              <td>Only re-injected if a plan file is active in the session</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">Invoked skills</div>
+                <div class="resource-detail">Skills loaded during session</div>
+              </td>
+              <td>
+                <div class="budget-bar-wrap">
+                  <div class="budget-bar-track"><div class="budget-bar-fill" style="width:50%;background:var(--accent-purple);"></div></div>
+                  25K tokens
+                </div>
+              </td>
+              <td>5K tokens</td>
+              <td>POST_COMPACT_SKILLS_TOKEN_BUDGET = 25,000</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">Deferred tools delta</div>
+                <div class="resource-detail">Re-announces loaded tool schemas</div>
+              </td>
+              <td>—</td>
+              <td>—</td>
+              <td>Only the delta since last announcement</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">Agent listing delta</div>
+                <div class="resource-detail">Re-announces sub-agent definitions</div>
+              </td>
+              <td>—</td>
+              <td>—</td>
+              <td>Delta only; avoids full re-listing cost</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">MCP instructions delta</div>
+                <div class="resource-detail">Re-announces MCP server instructions</div>
+              </td>
+              <td>—</td>
+              <td>—</td>
+              <td>Delta only</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">SessionStart hooks</div>
+                <div class="resource-detail">CLAUDE.md, env hooks, etc.</div>
+              </td>
+              <td>—</td>
+              <td>—</td>
+              <td>Re-fires with compact event type</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="resource-name">Post-compact hooks</div>
+                <div class="resource-detail">Registered PostCompact hooks</div>
+              </td>
+              <td>—</td>
+              <td>—</td>
+              <td>Custom extension hooks</td>
+            </tr>
+            <tr style="background:rgba(248,81,73,0.04);">
+              <td>
+                <div class="resource-name" style="color:var(--text-secondary);">Skill name listing</div>
+                <div class="resource-detail">sentSkillNames — NOT reset</div>
+              </td>
+              <td style="color:var(--accent-red);">Skipped</td>
+              <td style="color:var(--accent-red);">~4K tokens saved</td>
+              <td>Model retains SkillTool schema; re-listing would be pure cache_creation cost</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Section 6: Token Threshold Visualizer
+     =================================================================== -->
+<section class="page-section">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Thresholds</p>
+      <h2 class="section-title">200K Token Scale</h2>
+      <p class="section-desc">All meaningful thresholds mapped on a 200K context window. Each zone represents a different system behavior.</p>
+    </div>
+
+    <div class="threshold-viz">
+      <!-- SVG-based vertical scale -->
+      <div style="max-width:680px;margin:0 auto;">
+        <svg id="thresholdSvg" viewBox="0 0 680 480" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Zone fills -->
+          <!-- Safe zone: 0-147K (0-73.5%) -->
+          <rect x="80" y="20"  width="60" height="261" rx="0" fill="rgba(63,185,80,0.12)"/>
+          <!-- Warning: 147K-167K -->
+          <rect x="80" y="281" width="60" height="71"  fill="rgba(210,153,34,0.15)"/>
+          <!-- Danger: 167K-177K -->
+          <rect x="80" y="352" width="60" height="36"  fill="rgba(248,81,73,0.12)"/>
+          <!-- Blocking: 177K-180K -->
+          <rect x="80" y="388" width="60" height="10"  fill="rgba(248,81,73,0.2)"/>
+          <!-- API compact trigger zone: 180K-200K -->
+          <rect x="80" y="398" width="60" height="62"  rx="0" fill="rgba(57,210,192,0.12)"/>
+
+          <!-- Track border -->
+          <rect x="80" y="20" width="60" height="440" rx="6" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+          <!-- Tick marks and labels -->
+
+          <!-- 0K -->
+          <line x1="140" y1="460" x2="158" y2="460" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <text x="164" y="464" font-size="11" fill="rgba(255,255,255,0.4)" font-family="monospace">0</text>
+
+          <!-- 147K warning (73.5% = 20 + 0.735*440 = 343 → y=363... let me recalc: top=20, height=440, 147/200=0.735, y=20+0.735*440=343) -->
+          <line x1="140" y1="343" x2="166" y2="343" stroke="rgba(210,153,34,0.8)" stroke-width="1.5"/>
+          <text x="170" y="347" font-size="11" fill="rgba(210,153,34,0.9)" font-family="monospace" font-weight="600">147K</text>
+          <text x="220" y="347" font-size="10" fill="rgba(210,153,34,0.7)" font-family="monospace">— warning threshold</text>
+
+          <!-- 167K autocompact (167/200=0.835, y=20+0.835*440=387) -->
+          <line x1="140" y1="387" x2="166" y2="387" stroke="rgba(63,185,80,0.9)" stroke-width="2"/>
+          <text x="170" y="391" font-size="11" fill="rgba(63,185,80,1)" font-family="monospace" font-weight="700">167K</text>
+          <text x="220" y="391" font-size="10" fill="rgba(63,185,80,0.8)" font-family="monospace">— autocompact trigger</text>
+
+          <!-- 177K blocking (177/200=0.885, y=20+0.885*440=409) -->
+          <line x1="140" y1="409" x2="166" y2="409" stroke="rgba(248,81,73,0.9)" stroke-width="2"/>
+          <text x="170" y="413" font-size="11" fill="rgba(248,81,73,1)" font-family="monospace" font-weight="700">177K</text>
+          <text x="220" y="413" font-size="10" fill="rgba(248,81,73,0.8)" font-family="monospace">— blocking limit (cannot send)</text>
+
+          <!-- 180K API compact (180/200=0.9, y=20+0.9*440=416) -->
+          <line x1="140" y1="416" x2="166" y2="416" stroke="rgba(57,210,192,0.85)" stroke-width="1.5"/>
+          <text x="170" y="430" font-size="11" fill="rgba(57,210,192,0.9)" font-family="monospace" font-weight="600">180K</text>
+          <text x="220" y="430" font-size="10" fill="rgba(57,210,192,0.7)" font-family="monospace">— API microcompact trigger</text>
+
+          <!-- 200K top -->
+          <line x1="140" y1="20" x2="158" y2="20" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+          <text x="164" y="24" font-size="11" fill="rgba(255,255,255,0.6)" font-family="monospace" font-weight="700">200K</text>
+          <text x="210" y="24" font-size="10" fill="rgba(255,255,255,0.4)" font-family="monospace">— context window max</text>
+
+          <!-- Formula callouts -->
+          <text x="80" y="14" font-size="9" fill="rgba(255,255,255,0.3)" font-family="monospace" text-anchor="middle">tokens</text>
+
+          <!-- Effective window bracket -->
+          <line x1="72" y1="20"  x2="72" y2="62"  stroke="rgba(57,210,192,0.4)" stroke-width="1"/>
+          <line x1="68" y1="20"  x2="76" y2="20"  stroke="rgba(57,210,192,0.4)" stroke-width="1"/>
+          <line x1="68" y1="62"  x2="76" y2="62"  stroke="rgba(57,210,192,0.4)" stroke-width="1"/>
+          <text x="20" y="44"    font-size="9" fill="rgba(57,210,192,0.6)" font-family="monospace" text-anchor="middle" transform="rotate(-90,20,44)">-20K reserved</text>
+
+          <!-- Effective window line at 180K -->
+          <line x1="68" y1="62"  x2="80" y2="62"  stroke="rgba(57,210,192,0.6)" stroke-width="1" stroke-dasharray="3,2"/>
+          <text x="64" y="66"    font-size="9" fill="rgba(57,210,192,0.7)" font-family="monospace" text-anchor="end">180K effective</text>
+
+          <!-- Autocompact formula note -->
+          <rect x="310" y="370" width="240" height="50" rx="6" fill="rgba(63,185,80,0.08)" stroke="rgba(63,185,80,0.2)" stroke-width="1"/>
+          <text x="430" y="390" font-size="10" fill="rgba(63,185,80,0.9)" font-family="monospace" text-anchor="middle">autoCompactThreshold</text>
+          <text x="430" y="405" font-size="10" fill="rgba(63,185,80,0.7)" font-family="monospace" text-anchor="middle">= effectiveWindow − 13K = 167K</text>
+
+          <!-- Blocking formula note -->
+          <rect x="310" y="427" width="240" height="35" rx="6" fill="rgba(248,81,73,0.07)" stroke="rgba(248,81,73,0.2)" stroke-width="1"/>
+          <text x="430" y="443" font-size="10" fill="rgba(248,81,73,0.9)" font-family="monospace" text-anchor="middle">blockingLimit</text>
+          <text x="430" y="456" font-size="10" fill="rgba(248,81,73,0.7)" font-family="monospace" text-anchor="middle">= effectiveWindow − 3K = 177K</text>
+
+        </svg>
+      </div>
+
+      <div class="tv-legend">
+        <div class="tv-legend-item">
+          <div class="tv-legend-swatch" style="background:rgba(63,185,80,0.4);"></div>
+          <span class="tv-legend-label">Safe zone (0 – 147K)</span>
+        </div>
+        <div class="tv-legend-item">
+          <div class="tv-legend-swatch" style="background:rgba(210,153,34,0.5);"></div>
+          <span class="tv-legend-label">Warning zone (147K – 167K)</span>
+        </div>
+        <div class="tv-legend-item">
+          <div class="tv-legend-swatch" style="background:rgba(248,81,73,0.4);"></div>
+          <span class="tv-legend-label">Compaction zone (167K – 177K)</span>
+        </div>
+        <div class="tv-legend-item">
+          <div class="tv-legend-swatch" style="background:rgba(248,81,73,0.6);"></div>
+          <span class="tv-legend-label">Blocking limit (177K)</span>
+        </div>
+        <div class="tv-legend-item">
+          <div class="tv-legend-swatch" style="background:rgba(57,210,192,0.4);"></div>
+          <span class="tv-legend-label">API microcompact trigger (180K)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Navigation Footer
+     =================================================================== -->
+<section class="page-nav-footer">
+  <div class="container">
+    <div class="page-nav-footer-inner">
+      <a href="context-management.html" class="page-nav-btn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06Z"/></svg>
+        <div>
+          <span class="page-nav-btn-dir">Previous</span>
+          <span class="page-nav-btn-label">Context Management</span>
+        </div>
+      </a>
+      <a href="persistence.html" class="page-nav-btn">
+        <div style="text-align:right">
+          <span class="page-nav-btn-dir">Next</span>
+          <span class="page-nav-btn-label">Session Persistence</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script src="js/main.js"></script>
+<script>
+'use strict';
+
+/* =========================================================================
+   Waterfall dot animation
+   ========================================================================= */
+(function initWaterfall() {
+  const svg = document.getElementById('waterfallSvg');
+  if (!svg) return;
+  const dotsG = svg.getElementById('dots');
+  const LAYERS = [
+    { y: 20,  h: 60, color: 'rgba(57,210,192,0.8)',  filterX: 0.25 },
+    { y: 95,  h: 60, color: 'rgba(88,166,255,0.8)',  filterX: 0.35 },
+    { y: 170, h: 60, color: 'rgba(63,185,80,0.8)',   filterX: 0.5  },
+    { y: 245, h: 60, color: 'rgba(188,140,255,0.8)', filterX: 0.65 },
+  ];
+  const TOTAL = 22;
+  const dots = [];
+
+  for (let i = 0; i < TOTAL; i++) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('r', '4');
+    c.setAttribute('fill', 'rgba(230,237,243,0.7)');
+    dotsG.appendChild(c);
+    const startX = 80 + Math.random() * 540;
+    dots.push({
+      el: c,
+      x: startX,
+      y: -10 - Math.random() * 60,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: 0.8 + Math.random() * 0.6,
+      layer: -1,
+      filtered: false,
+      delay: Math.random() * 200,
+    });
+  }
+
+  let frame = 0;
+  function tick() {
+    frame++;
+    dots.forEach((d, idx) => {
+      if (frame < d.delay) return;
+      d.x += d.vx;
+      d.y += d.vy;
+
+      // Check layer intersections
+      let color = 'rgba(230,237,243,0.7)';
+      for (let li = 0; li < LAYERS.length; li++) {
+        const L = LAYERS[li];
+        if (d.y >= L.y && d.y <= L.y + L.h) {
+          color = L.color;
+          // Filter some dots at each layer
+          if (d.layer !== li) {
+            d.layer = li;
+            if (Math.random() < L.filterX && !d.filtered) {
+              d.filtered = true;
+              d.vy *= 0.1;
+              d.el.setAttribute('opacity', '0.2');
+            }
+          }
+        }
+      }
+
+      if (d.y > 340 || d.filtered && d.y > LAYERS[d.layer]?.y + LAYERS[d.layer]?.h + 10) {
+        // Reset
+        d.x = 80 + Math.random() * 540;
+        d.y = -10 - Math.random() * 40;
+        d.vy = 0.8 + Math.random() * 0.6;
+        d.vx = (Math.random() - 0.5) * 0.4;
+        d.layer = -1;
+        d.filtered = false;
+        d.delay = frame + Math.random() * 60;
+        d.el.setAttribute('opacity', '1');
+        color = 'rgba(230,237,243,0.7)';
+      }
+
+      d.el.setAttribute('cx', d.x.toFixed(1));
+      d.el.setAttribute('cy', d.y.toFixed(1));
+      d.el.setAttribute('fill', color);
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+/* =========================================================================
+   Layer accordion
+   ========================================================================= */
+function toggleLayer(row) {
+  const wasOpen = row.classList.contains('open');
+  // Close siblings
+  row.closest('.layer-diagram').querySelectorAll('.layer-row').forEach(r => r.classList.remove('open'));
+  if (!wasOpen) row.classList.add('open');
+}
+
+/* =========================================================================
+   Compression Simulator
+   ========================================================================= */
+const SIM = {
+  tokens: 24000,
+  turns: 0,
+  compacts: 0,
+  failures: 0,
+  breakerTripped: false,
+  AUTOCOMPACT: 167000,
+  WARN: 147000,
+  BLOCK: 177000,
+  WINDOW: 200000,
+};
+
+const TURN_TEMPLATES = [
+  { role:'user',    text:'Can you refactor the authentication module to use JWT?',         tokens: 320  },
+  { role:'ai',      text:'Sure, I\'ll start by reading the current implementation.',        tokens: 280  },
+  { role:'user',    text:'Also make sure the tests still pass after the refactor.',         tokens: 180  },
+  { role:'ai',      text:'I\'ll run the test suite first to establish a baseline.',         tokens: 220  },
+  { role:'user',    text:'Can you check if there are any security vulnerabilities too?',    tokens: 200  },
+  { role:'ai',      text:'Running a security audit on the authentication module now.',      tokens: 260  },
+  { role:'user',    text:'Good. Now update the API documentation to reflect the changes.',  tokens: 190  },
+  { role:'ai',      text:'Updating API docs and generating new OpenAPI spec.',              tokens: 300  },
+  { role:'user',    text:'Deploy to staging when ready and run integration tests.',         tokens: 210  },
+  { role:'ai',      text:'Deploying to staging environment and queuing integration tests.', tokens: 280  },
+];
+
+const TOOL_TEMPLATES = [
+  { text:'Shell: npm test -- --coverage\n[exit 0, 47 tests passed]',  tokens: 1800  },
+  { text:'Read: src/auth/jwt.ts (342 lines)',                          tokens: 2200  },
+  { text:'Grep: "import.*auth" across 28 files — 14 matches',         tokens: 1600  },
+  { text:'Shell: git diff HEAD~1 --stat\n12 files changed, 340 insertions', tokens: 2400 },
+  { text:'Read: package.json\n[full file content — 89 lines]',        tokens: 1400  },
+  { text:'WebSearch: "JWT best practices 2025" — 8 results',           tokens: 3200  },
+];
+
+let turnIdx = 0;
+let toolIdx = 0;
+
+function simAddTurn() {
+  if (SIM.breakerTripped) {
+    showEvent('breaker', '&#x26D4; Circuit breaker is active. Autocompact disabled for this session.', false);
+    return;
+  }
+  const t = TURN_TEMPLATES[turnIdx % TURN_TEMPLATES.length];
+  turnIdx++;
+  SIM.tokens += t.tokens;
+  SIM.turns++;
+  addConvBubble(t.role, t.text, t.tokens, false);
+  animatePipelineQuick();
+  updateSimUI();
+  checkThresholds();
+}
+
+function simAddToolTurn() {
+  if (SIM.breakerTripped) return;
+  const t = TOOL_TEMPLATES[toolIdx % TOOL_TEMPLATES.length];
+  toolIdx++;
+  const cost = t.tokens;
+  SIM.tokens += cost;
+  SIM.turns++;
+  addConvBubble('tool', t.text, cost, true);
+  animatePipelineQuick();
+  updateSimUI();
+  checkThresholds();
+}
+
+function addConvBubble(role, text, tokens, isTool) {
+  const list = document.getElementById('convList');
+  const div = document.createElement('div');
+  div.className = 'conv-turn';
+  const avatarClass = role === 'user' ? 'conv-avatar-user' : role === 'ai' ? 'conv-avatar-ai' : 'conv-avatar-system';
+  const avatarLabel = role === 'user' ? 'U' : role === 'ai' ? 'AI' : '⚙';
+  div.innerHTML = `
+    <div class="conv-avatar ${avatarClass}">${avatarLabel}</div>
+    <div class="conv-bubble${isTool?' tool-result':''}">
+      <div class="conv-bubble-header">
+        <span class="conv-bubble-role">${isTool ? 'Tool Result' : role === 'user' ? 'User' : 'Assistant'}</span>
+        <span class="conv-bubble-tokens">+${tokens.toLocaleString()} tokens</span>
+      </div>
+      <div class="conv-bubble-text">${text}</div>
+    </div>`;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+function updateSimUI() {
+  const pct = SIM.tokens / SIM.WINDOW;
+  const fill = document.getElementById('simMeterFill');
+  const track = document.getElementById('simMeterTrack');
+  fill.style.width = Math.min(pct * 100, 100) + '%';
+
+  track.className = 'token-meter-track';
+  if (SIM.tokens >= SIM.WARN && SIM.tokens < SIM.AUTOCOMPACT)
+    track.classList.add('token-meter-warning');
+  else if (SIM.tokens >= SIM.AUTOCOMPACT)
+    track.classList.add('token-meter-danger');
+
+  document.getElementById('simTokenCount').textContent =
+    SIM.tokens.toLocaleString() + ' / ' + SIM.WINDOW.toLocaleString();
+  document.getElementById('statTotal').textContent = SIM.tokens.toLocaleString();
+  document.getElementById('statTurns').textContent = SIM.turns;
+  document.getElementById('statCompacts').textContent = SIM.compacts;
+  document.getElementById('statFailures').textContent = SIM.failures;
+  document.getElementById('statBreaker').textContent = SIM.breakerTripped ? 'TRIPPED' : 'OFF';
+  document.getElementById('statBreaker').style.color = SIM.breakerTripped ? 'var(--accent-red)' : 'var(--accent-green)';
+}
+
+function checkThresholds() {
+  const evts = document.getElementById('simEvents');
+
+  if (SIM.tokens >= SIM.WARN && SIM.tokens < SIM.AUTOCOMPACT && !SIM._warnShown) {
+    SIM._warnShown = true;
+    showEvent('layer2', '&#x26A0; Warning threshold reached (147K). Context approaching limit.', true);
+  }
+
+  if (SIM.tokens >= SIM.AUTOCOMPACT && !SIM.breakerTripped) {
+    // Attempt compaction
+    SIM.compacts++;
+    // Simulate: 70% chance Layer 3 (free) succeeds, else Layer 4
+    const useL3 = SIM.compacts <= 1 || Math.random() < 0.5;
+    if (useL3) {
+      showEvent('layer3', '&#x2705; Layer 3 fired — Session-Memory Compact succeeded (free). Context reduced to ~40K.', true);
+      dimOldToolResults();
+      SIM.tokens = 42000;
+      SIM._warnShown = false;
+    } else {
+      // Layer 4
+      showEvent('layer4', '&#x1F9E0; Layer 4 firing — Full LLM Compact via forked agent. Generating 9-section summary…', true);
+      setTimeout(() => {
+        const success = SIM.failures < 2;
+        if (success) {
+          SIM.tokens = 38000;
+          SIM._warnShown = false;
+          dimOldToolResults();
+          showEvent('restore', '&#x2728; Post-compact: re-injecting files (50K budget), skills (25K), hooks, MCP instructions.', true);
+        } else {
+          SIM.failures++;
+          showEvent('layer4', '&#x274C; Compact failed (' + SIM.failures + '/3). Token count unchanged.', true);
+          if (SIM.failures >= 3) {
+            SIM.breakerTripped = true;
+            showEvent('breaker', '&#x26D4; Circuit breaker tripped after 3 failures. Autocompact disabled. Blocking limit enforced.', true);
+            document.getElementById('btnAddTurn').disabled = true;
+            document.getElementById('btnAddTool').disabled = true;
+          }
+        }
+        updateSimUI();
+      }, 1200);
+    }
+    updateSimUI();
+  }
+}
+
+function dimOldToolResults() {
+  const bubbles = document.querySelectorAll('#convList .conv-bubble.tool-result');
+  const keep = 5;
+  const toDim = Array.from(bubbles).slice(0, Math.max(0, bubbles.length - keep));
+  toDim.forEach(b => {
+    b.classList.add('dimmed');
+    b.querySelector('.conv-bubble-text').textContent = '[Old tool result content cleared]';
+  });
+}
+
+function showEvent(type, html, animated) {
+  const evts = document.getElementById('simEvents');
+  const iconMap = { layer2:'&#x1F7E6;', layer3:'&#x1F7E2;', layer4:'&#x1F7E3;', breaker:'&#x1F534;', restore:'&#x1F7E1;' };
+  const div = document.createElement('div');
+  div.className = 'event-banner ' + type + (animated ? '' : '');
+  div.innerHTML = `<span class="event-icon">${iconMap[type] || '●'}</span><span>${html}</span>`;
+  evts.appendChild(div);
+  evts.scrollTop = evts.scrollHeight;
+  // Auto-dismiss older banners
+  if (evts.children.length > 4) evts.removeChild(evts.firstChild);
+}
+
+function animatePipelineQuick() {
+  const steps = document.querySelectorAll('#pipelineSteps .pipeline-step');
+  steps.forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    setTimeout(() => {
+      steps.forEach(x => x.classList.remove('active'));
+      s.classList.add('active');
+      setTimeout(() => {
+        s.classList.remove('active');
+        s.classList.add('done');
+        if (i === steps.length - 1) {
+          setTimeout(() => steps.forEach(x => x.classList.remove('done')), 800);
+        }
+      }, 220);
+    }, i * 240);
+  });
+}
+
+function simReset() {
+  SIM.tokens = 24000;
+  SIM.turns = 0;
+  SIM.compacts = 0;
+  SIM.failures = 0;
+  SIM.breakerTripped = false;
+  SIM._warnShown = false;
+  turnIdx = 0;
+  toolIdx = 0;
+  document.getElementById('convList').innerHTML = '';
+  document.getElementById('simEvents').innerHTML = '';
+  document.getElementById('btnAddTurn').disabled = false;
+  document.getElementById('btnAddTool').disabled = false;
+  updateSimUI();
+}
+
+updateSimUI();
+
+/* =========================================================================
+   Full Compact Pipeline Step toggle
+   ========================================================================= */
+function togglePfStep(step) {
+  const wasOpen = step.classList.contains('open');
+  document.querySelectorAll('#pipelineFlow .pf-step').forEach(s => s.classList.remove('open'));
+  if (!wasOpen) step.classList.add('open');
+}
+
+/* =========================================================================
+   Pipeline animation
+   ========================================================================= */
+function animatePipeline() {
+  const steps = document.querySelectorAll('#pipelineFlow .pf-step');
+  const btn = document.getElementById('btnRunPipeline');
+  btn.disabled = true;
+
+  steps.forEach(s => {
+    s.classList.remove('open');
+    s.querySelector('.pf-node').className = 'pf-node pf-node-idle';
+    s.querySelector('.pf-node').textContent = s.querySelector('.pf-node').dataset.label;
+  });
+
+  steps.forEach((s, i) => {
+    setTimeout(() => {
+      s.classList.add('open', 'animating');
+      const node = s.querySelector('.pf-node');
+      node.className = 'pf-node pf-node-active';
+      node.textContent = '▶';
+
+      setTimeout(() => {
+        s.classList.remove('animating');
+        node.className = 'pf-node pf-node-done';
+        node.textContent = '✓';
+        if (i === steps.length - 1) {
+          btn.disabled = false;
+        }
+      }, 700);
+    }, i * 900);
+  });
+}
+</script>
+</body>
+</html>

@@ -1601,6 +1601,1542 @@
     </section>
 
     <!-- ===================================================================
+         The Complete Hook System (Source Code Revealed)
+         =================================================================== -->
+    <section class="page-section" id="complete-hook-system" aria-labelledby="complete-hook-system-title">
+      <div class="container">
+
+        <header class="section-header reveal">
+          <p class="section-label">Section 7 — Source Code Revealed</p>
+          <h2 class="section-title" id="complete-hook-system-title">The Complete Hook System</h2>
+          <p class="section-desc">27 hook events, four execution strategies, a typed JSON output protocol, and SSRF protection — all documented from the source.</p>
+        </header>
+
+        <style>
+          /* ================================================================
+             Hook Catalog Grid
+             ================================================================ */
+          .hook-catalog-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            margin-bottom: var(--space-6);
+          }
+
+          .cat-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-1) var(--space-3);
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            letter-spacing: 0.06em;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+
+          .cat-filter-btn:hover {
+            border-color: rgba(255,255,255,0.15);
+            color: var(--text-primary);
+          }
+
+          .cat-filter-btn.active {
+            color: var(--text-primary);
+          }
+
+          .cat-filter-btn[data-cat="all"].active { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+          .cat-filter-btn[data-cat="tool"].active { background: rgba(210,153,34,0.12); border-color: rgba(210,153,34,0.35); color: var(--accent-orange); }
+          .cat-filter-btn[data-cat="session"].active { background: rgba(63,185,80,0.12); border-color: rgba(63,185,80,0.35); color: var(--accent-green); }
+          .cat-filter-btn[data-cat="turn"].active { background: rgba(88,166,255,0.12); border-color: rgba(88,166,255,0.35); color: var(--accent-blue); }
+          .cat-filter-btn[data-cat="subagent"].active { background: rgba(188,140,255,0.12); border-color: rgba(188,140,255,0.35); color: var(--accent-purple); }
+          .cat-filter-btn[data-cat="compaction"].active { background: rgba(57,210,192,0.12); border-color: rgba(57,210,192,0.35); color: var(--accent-cyan); }
+          .cat-filter-btn[data-cat="teams"].active { background: rgba(255,123,114,0.12); border-color: rgba(255,123,114,0.35); color: #ff7b72; }
+          .cat-filter-btn[data-cat="elicitation"].active { background: rgba(255,166,87,0.12); border-color: rgba(255,166,87,0.35); color: #ffa657; }
+          .cat-filter-btn[data-cat="config"].active { background: rgba(210,153,34,0.08); border-color: rgba(210,153,34,0.25); color: #d4a830; }
+          .cat-filter-btn[data-cat="filesystem"].active { background: rgba(88,166,255,0.08); border-color: rgba(88,166,255,0.25); color: #79c0ff; }
+          .cat-filter-btn[data-cat="worktree"].active { background: rgba(63,185,80,0.08); border-color: rgba(63,185,80,0.25); color: #56d364; }
+
+          .hook-catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: var(--space-3);
+          }
+
+          .hook-catalog-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            cursor: pointer;
+            transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .hook-catalog-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+          }
+
+          .hook-catalog-card.expanded {
+            border-radius: var(--radius-lg);
+          }
+
+          .hook-catalog-card[data-cat="tool"]         { border-top: 2px solid rgba(210,153,34,0.5); }
+          .hook-catalog-card[data-cat="session"]      { border-top: 2px solid rgba(63,185,80,0.5); }
+          .hook-catalog-card[data-cat="turn"]         { border-top: 2px solid rgba(88,166,255,0.5); }
+          .hook-catalog-card[data-cat="subagent"]     { border-top: 2px solid rgba(188,140,255,0.5); }
+          .hook-catalog-card[data-cat="compaction"]   { border-top: 2px solid rgba(57,210,192,0.5); }
+          .hook-catalog-card[data-cat="teams"]        { border-top: 2px solid rgba(255,123,114,0.5); }
+          .hook-catalog-card[data-cat="elicitation"]  { border-top: 2px solid rgba(255,166,87,0.5); }
+          .hook-catalog-card[data-cat="config"]       { border-top: 2px solid rgba(210,153,34,0.3); }
+          .hook-catalog-card[data-cat="filesystem"]   { border-top: 2px solid rgba(88,166,255,0.3); }
+          .hook-catalog-card[data-cat="worktree"]     { border-top: 2px solid rgba(63,185,80,0.3); }
+
+          .hook-catalog-card.hidden { display: none; }
+
+          .hook-cat-badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 10px;
+            font-weight: var(--font-semibold);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border-radius: var(--radius-full);
+            padding: 2px 8px;
+            margin-bottom: var(--space-2);
+          }
+
+          .hook-cat-badge-tool        { background: rgba(210,153,34,0.12); color: var(--accent-orange); }
+          .hook-cat-badge-session     { background: rgba(63,185,80,0.12);  color: var(--accent-green); }
+          .hook-cat-badge-turn        { background: rgba(88,166,255,0.12); color: var(--accent-blue); }
+          .hook-cat-badge-subagent    { background: rgba(188,140,255,0.12);color: var(--accent-purple); }
+          .hook-cat-badge-compaction  { background: rgba(57,210,192,0.12); color: var(--accent-cyan); }
+          .hook-cat-badge-teams       { background: rgba(255,123,114,0.12);color: #ff7b72; }
+          .hook-cat-badge-elicitation { background: rgba(255,166,87,0.12); color: #ffa657; }
+          .hook-cat-badge-config      { background: rgba(210,153,34,0.08); color: #d4a830; }
+          .hook-cat-badge-filesystem  { background: rgba(88,166,255,0.08); color: #79c0ff; }
+          .hook-cat-badge-worktree    { background: rgba(63,185,80,0.08);  color: #56d364; }
+
+          .hook-catalog-name {
+            font-size: var(--text-sm);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            margin-bottom: var(--space-1);
+          }
+
+          .hook-catalog-when {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+            margin-bottom: var(--space-3);
+          }
+
+          .hook-catalog-expand {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.2s ease;
+          }
+
+          .hook-catalog-card:hover .hook-catalog-expand { color: var(--text-primary); }
+
+          .hook-catalog-expand svg {
+            transition: transform 0.2s ease;
+          }
+
+          .hook-catalog-card.expanded .hook-catalog-expand svg {
+            transform: rotate(180deg);
+          }
+
+          .hook-catalog-detail {
+            display: none;
+            margin-top: var(--space-3);
+            padding-top: var(--space-3);
+            border-top: 1px solid var(--border);
+          }
+
+          .hook-catalog-card.expanded .hook-catalog-detail { display: block; }
+
+          .hook-catalog-dl {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: var(--space-1) var(--space-3);
+            font-size: var(--text-xs);
+          }
+
+          .hook-catalog-dl dt {
+            color: var(--text-secondary);
+            font-weight: var(--font-semibold);
+            white-space: nowrap;
+            padding-top: 2px;
+          }
+
+          .hook-catalog-dl dd {
+            color: var(--text-primary);
+            line-height: var(--leading-relaxed);
+          }
+
+          .hook-catalog-dl dd code {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--accent-cyan);
+            background: var(--bg-tertiary);
+            padding: 1px 4px;
+            border-radius: 3px;
+          }
+
+          /* ================================================================
+             Execution Strategy Cards
+             ================================================================ */
+          .exec-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-4);
+          }
+
+          @media (max-width: 700px) {
+            .exec-grid { grid-template-columns: 1fr; }
+          }
+
+          .exec-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .exec-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+          }
+
+          .exec-card-shell::before   { background: linear-gradient(90deg, var(--accent-orange), rgba(210,153,34,0.3)); }
+          .exec-card-http::before    { background: linear-gradient(90deg, var(--accent-blue),   rgba(88,166,255,0.3)); }
+          .exec-card-agent::before   { background: linear-gradient(90deg, var(--accent-purple), rgba(188,140,255,0.3)); }
+          .exec-card-prompt::before  { background: linear-gradient(90deg, var(--accent-cyan),   rgba(57,210,192,0.3)); }
+
+          .exec-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: var(--space-4);
+          }
+
+          .exec-card-shell .exec-card-icon  { background: rgba(210,153,34,0.1); }
+          .exec-card-http .exec-card-icon   { background: rgba(88,166,255,0.1); }
+          .exec-card-agent .exec-card-icon  { background: rgba(188,140,255,0.1); }
+          .exec-card-prompt .exec-card-icon { background: rgba(57,210,192,0.1); }
+
+          .exec-card-type-badge {
+            display: inline-flex;
+            align-items: center;
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            font-weight: var(--font-bold);
+            border-radius: var(--radius-full);
+            padding: 3px 10px;
+            margin-bottom: var(--space-3);
+          }
+
+          .exec-card-shell .exec-card-type-badge  { background: rgba(210,153,34,0.12); color: var(--accent-orange); }
+          .exec-card-http .exec-card-type-badge   { background: rgba(88,166,255,0.12); color: var(--accent-blue); }
+          .exec-card-agent .exec-card-type-badge  { background: rgba(188,140,255,0.12); color: var(--accent-purple); }
+          .exec-card-prompt .exec-card-type-badge { background: rgba(57,210,192,0.12); color: var(--accent-cyan); }
+
+          .exec-card-title {
+            font-size: var(--text-lg);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
+          }
+
+          .exec-card-desc {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+            margin-bottom: var(--space-4);
+          }
+
+          .exec-flow {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            margin-bottom: var(--space-4);
+          }
+
+          .exec-flow-title {
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-2);
+          }
+
+          .exec-flow-steps {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+          }
+
+          .exec-flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            font-size: var(--text-xs);
+            color: var(--text-primary);
+            line-height: var(--leading-relaxed);
+          }
+
+          .exec-flow-step-num {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: var(--font-bold);
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            margin-top: 1px;
+          }
+
+          .exec-card-key-facts {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+          }
+
+          .exec-fact {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+          }
+
+          .exec-fact-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+          }
+
+          .exec-card-shell .exec-fact-dot  { background: var(--accent-orange); }
+          .exec-card-http .exec-fact-dot   { background: var(--accent-blue); }
+          .exec-card-agent .exec-fact-dot  { background: var(--accent-purple); }
+          .exec-card-prompt .exec-fact-dot { background: var(--accent-cyan); }
+
+          /* ================================================================
+             Hook JSON Output Protocol
+             ================================================================ */
+          .json-protocol-wrap {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+          }
+
+          .json-protocol-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-3) var(--space-5);
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+          }
+
+          .json-protocol-label {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+          }
+
+          .json-protocol-hint {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            font-style: italic;
+          }
+
+          .json-protocol-body {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+          }
+
+          @media (max-width: 860px) {
+            .json-protocol-body { grid-template-columns: 1fr; }
+          }
+
+          .json-protocol-code {
+            padding: var(--space-5);
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            line-height: 1.8;
+            overflow-x: auto;
+            border-right: 1px solid var(--border);
+          }
+
+          @media (max-width: 860px) {
+            .json-protocol-code { border-right: none; border-bottom: 1px solid var(--border); }
+          }
+
+          .json-clickable-field {
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.15s ease;
+            padding: 0 3px;
+            margin: 0 -3px;
+          }
+
+          .json-clickable-field:hover { background: rgba(255,255,255,0.06); }
+          .json-clickable-field.active { background: rgba(88,166,255,0.12); }
+
+          .json-protocol-panel {
+            padding: var(--space-5);
+          }
+
+          .json-protocol-panel-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: var(--text-secondary);
+            gap: var(--space-3);
+            min-height: 180px;
+          }
+
+          .json-protocol-panel-placeholder svg {
+            opacity: 0.3;
+          }
+
+          .json-protocol-panel-placeholder p {
+            font-size: var(--text-sm);
+          }
+
+          .json-field-detail { display: none; }
+          .json-field-detail.visible { display: block; }
+
+          .json-field-name {
+            font-family: var(--font-mono);
+            font-size: var(--text-base);
+            font-weight: var(--font-bold);
+            color: var(--accent-blue);
+            margin-bottom: var(--space-1);
+          }
+
+          .json-field-type {
+            display: inline-flex;
+            align-items: center;
+            font-size: var(--text-xs);
+            font-family: var(--font-mono);
+            color: var(--accent-purple);
+            background: rgba(188,140,255,0.1);
+            border: 1px solid rgba(188,140,255,0.2);
+            border-radius: var(--radius-full);
+            padding: 2px 8px;
+            margin-bottom: var(--space-3);
+          }
+
+          .json-field-desc {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+            margin-bottom: var(--space-4);
+          }
+
+          .json-field-values {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+          }
+
+          .json-field-values-title {
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-2);
+          }
+
+          .json-field-value-row {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            padding: var(--space-2) 0;
+            border-top: 1px solid var(--border);
+          }
+
+          .json-field-value-row:first-of-type { border-top: none; }
+
+          .json-field-value-key {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--accent-green);
+            background: rgba(63,185,80,0.08);
+            border-radius: 3px;
+            padding: 2px 6px;
+            white-space: nowrap;
+            flex-shrink: 0;
+          }
+
+          .json-field-value-desc {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+          }
+
+          /* ================================================================
+             SSRF Protection Diagram
+             ================================================================ */
+          .ssrf-diagram {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+          }
+
+          .ssrf-diagram-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-6);
+          }
+
+          @media (max-width: 700px) {
+            .ssrf-diagram-cols { grid-template-columns: 1fr; }
+          }
+
+          .ssrf-col-title {
+            font-size: var(--text-sm);
+            font-weight: var(--font-bold);
+            letter-spacing: 0.04em;
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+          }
+
+          .ssrf-col-title-blocked { color: #ff7b72; }
+          .ssrf-col-title-allowed { color: var(--accent-green); }
+
+          .ssrf-range-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+          }
+
+          .ssrf-range {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            border: 1px solid;
+          }
+
+          .ssrf-range-blocked {
+            background: rgba(255,123,114,0.05);
+            border-color: rgba(255,123,114,0.2);
+          }
+
+          .ssrf-range-allowed {
+            background: rgba(63,185,80,0.07);
+            border-color: rgba(63,185,80,0.3);
+          }
+
+          .ssrf-range-cidr {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            font-weight: var(--font-bold);
+            white-space: nowrap;
+            flex-shrink: 0;
+            padding-top: 1px;
+          }
+
+          .ssrf-range-blocked .ssrf-range-cidr { color: #ff7b72; }
+          .ssrf-range-allowed .ssrf-range-cidr { color: var(--accent-green); }
+
+          .ssrf-range-note {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+          }
+
+          .ssrf-range-note strong {
+            color: var(--text-primary);
+          }
+
+          .ssrf-bypass-note {
+            margin-top: var(--space-5);
+            padding: var(--space-4);
+            background: rgba(88,166,255,0.05);
+            border: 1px solid rgba(88,166,255,0.2);
+            border-radius: var(--radius-md);
+          }
+
+          .ssrf-bypass-note-title {
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent-blue);
+            margin-bottom: var(--space-2);
+          }
+
+          .ssrf-bypass-note-text {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+          }
+
+          .ssrf-bypass-note-text code {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--accent-cyan);
+            background: var(--bg-tertiary);
+            padding: 1px 4px;
+            border-radius: 3px;
+          }
+
+          /* Sub-section labels */
+          .sub-section-label {
+            font-size: var(--text-xs);
+            font-weight: var(--font-semibold);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-2);
+          }
+
+          .sub-section-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-2);
+          }
+
+          .sub-section-desc {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+            max-width: 640px;
+            margin-bottom: var(--space-6);
+          }
+        </style>
+
+        <!-- ---------------------------------------------------------------
+             7a. All Hook Events Catalog
+             --------------------------------------------------------------- -->
+        <div style="margin-bottom: var(--space-16);" class="reveal">
+
+          <p class="sub-section-label">7a</p>
+          <h3 class="sub-section-title">All Hook Events Catalog</h3>
+          <p class="sub-section-desc">27 hook events from <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--accent-cyan);">src/entrypoints/sdk/coreTypes.ts</code>. Click any card to expand input fields and return values.</p>
+
+          <!-- Category filters -->
+          <div class="hook-catalog-filters" role="group" aria-label="Filter hook events by category">
+            <button class="cat-filter-btn active" data-cat="all">All <span id="cat-count-all"></span></button>
+            <button class="cat-filter-btn" data-cat="tool">Tool Lifecycle</button>
+            <button class="cat-filter-btn" data-cat="session">Session</button>
+            <button class="cat-filter-btn" data-cat="turn">Turns</button>
+            <button class="cat-filter-btn" data-cat="subagent">Subagents</button>
+            <button class="cat-filter-btn" data-cat="compaction">Compaction</button>
+            <button class="cat-filter-btn" data-cat="teams">Teams/Tasks</button>
+            <button class="cat-filter-btn" data-cat="elicitation">Elicitation</button>
+            <button class="cat-filter-btn" data-cat="config">Config</button>
+            <button class="cat-filter-btn" data-cat="filesystem">File System</button>
+            <button class="cat-filter-btn" data-cat="worktree">Worktree</button>
+          </div>
+
+          <div class="hook-catalog-grid" id="hook-catalog-grid" role="list">
+            <!-- Cards are injected by JS -->
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             7b. Four Execution Strategies
+             --------------------------------------------------------------- -->
+        <div style="margin-bottom: var(--space-16);" class="reveal">
+
+          <p class="sub-section-label">7b</p>
+          <h3 class="sub-section-title">Four Execution Strategies</h3>
+          <p class="sub-section-desc">Every hook declaration has a <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--accent-cyan);">type</code> field. Four public types determine how the engine executes the hook.</p>
+
+          <div class="exec-grid">
+
+            <!-- Shell -->
+            <div class="exec-card exec-card-shell">
+              <div class="exec-card-icon">&#x1F4BB;</div>
+              <div class="exec-card-type-badge">type: "command"</div>
+              <h4 class="exec-card-title">Shell Execution</h4>
+              <p class="exec-card-desc">Default type. Spawns a child process via <code style="font-family:var(--font-mono);font-size:0.85em;color:var(--accent-cyan);">child_process.spawn</code>. Hook input JSON is piped on stdin; stdout lines are parsed for JSON responses.</p>
+              <div class="exec-flow">
+                <p class="exec-flow-title">Execution flow</p>
+                <ol class="exec-flow-steps">
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">1</span>
+                    <span>Input JSON serialised and piped to process stdin</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">2</span>
+                    <span>Env vars set: <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">CLAUDE_SESSION_ID</code>, <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">CLAUDE_CWD</code>, <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">CLAUDE_PLUGIN_ROOT</code></span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">3</span>
+                    <span>stdout lines parsed as JSON (one object per line)</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">4</span>
+                    <span>Exit code interpreted: 0 = silent ok, 2 = block/continue, other = show to user</span>
+                  </li>
+                </ol>
+              </div>
+              <div class="exec-card-key-facts">
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Default timeout: 10 minutes (<code style="font-family:var(--font-mono);font-size:10px">TOOL_HOOK_EXECUTION_TIMEOUT_MS</code>)</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Supports <code style="font-family:var(--font-mono);font-size:10px">bash</code>, <code style="font-family:var(--font-mono);font-size:10px">powershell</code>, or custom shell</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Async mode: first line <code style="font-family:var(--font-mono);font-size:10px">{"async":true}</code> backgrounds the process</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Interactive prompts via <code style="font-family:var(--font-mono);font-size:10px">PromptRequest</code> JSON to stdout</div>
+              </div>
+            </div>
+
+            <!-- HTTP -->
+            <div class="exec-card exec-card-http">
+              <div class="exec-card-icon">&#x1F310;</div>
+              <div class="exec-card-type-badge">type: "http"</div>
+              <h4 class="exec-card-title">HTTP POST</h4>
+              <p class="exec-card-desc">Fires an HTTP POST to an external policy server. Hook input JSON is the request body. Response body is parsed as JSON using the same schema as shell hooks.</p>
+              <div class="exec-flow">
+                <p class="exec-flow-title">Execution flow</p>
+                <ol class="exec-flow-steps">
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">1</span>
+                    <span>SSRF guard validates the resolved IP before connection</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">2</span>
+                    <span>POST body = hook input JSON, <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">Content-Type: application/json</code></span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">3</span>
+                    <span>Header <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">$VAR</code> patterns resolved from <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">allowedEnvVars</code> list only</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">4</span>
+                    <span>Response body parsed as <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">hookJSONOutputSchema</code></span>
+                  </li>
+                </ol>
+              </div>
+              <div class="exec-card-key-facts">
+                <div class="exec-fact"><span class="exec-fact-dot"></span>SSRF guard blocks private/link-local ranges (loopback allowed)</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Admin <code style="font-family:var(--font-mono);font-size:10px">allowedHttpHookUrls</code> glob-list enforced</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Sandbox mode routes through network proxy</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Env vars only interpolated if explicitly listed</div>
+              </div>
+            </div>
+
+            <!-- Agent -->
+            <div class="exec-card exec-card-agent">
+              <div class="exec-card-icon">&#x1F916;</div>
+              <div class="exec-card-type-badge">type: "agent"</div>
+              <h4 class="exec-card-title">Agent (LLM Query)</h4>
+              <p class="exec-card-desc">Spawns a multi-turn LLM conversation to evaluate a condition. The agent has access to all tools and can inspect the codebase before returning a structured verdict.</p>
+              <div class="exec-flow">
+                <p class="exec-flow-title">Execution flow</p>
+                <ol class="exec-flow-steps">
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">1</span>
+                    <span><code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">$ARGUMENTS</code> in prompt replaced with hook JSON input</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">2</span>
+                    <span>System prompt injected: agent must verify a stop condition</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">3</span>
+                    <span>Agent runs up to 50 turns using available tools (no subagents)</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">4</span>
+                    <span>Must call <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">SyntheticOutputTool</code> with <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">{ok:true}</code> or <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">{ok:false,reason}</code></span>
+                  </li>
+                </ol>
+              </div>
+              <div class="exec-card-key-facts">
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Default model: small/fast (Haiku-class)</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Max 50 turns; thinking disabled; non-interactive mode</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Gets transcript file access for full context</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span><code style="font-family:var(--font-mono);font-size:10px">ok:false</code> → <code style="font-family:var(--font-mono);font-size:10px">preventContinuation:true</code></div>
+              </div>
+            </div>
+
+            <!-- Prompt -->
+            <div class="exec-card exec-card-prompt">
+              <div class="exec-card-icon">&#x1F4AC;</div>
+              <div class="exec-card-type-badge">type: "prompt"</div>
+              <h4 class="exec-card-title">Prompt (LLM Query)</h4>
+              <p class="exec-card-desc">Single-shot LLM query with no tool use. Simpler and faster than Agent hooks. The model returns <code style="font-family:var(--font-mono);font-size:0.85em;color:var(--accent-cyan);">{ok, reason}</code> as structured JSON output.</p>
+              <div class="exec-flow">
+                <p class="exec-flow-title">Execution flow</p>
+                <ol class="exec-flow-steps">
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">1</span>
+                    <span><code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">$ARGUMENTS</code> substituted with hook JSON input in prompt</span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">2</span>
+                    <span>Single call via <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">queryModelWithoutStreaming</code></span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">3</span>
+                    <span>Structured JSON output enforced: <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">{ok: boolean, reason?: string}</code></span>
+                  </li>
+                  <li class="exec-flow-step">
+                    <span class="exec-flow-step-num">4</span>
+                    <span>If <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">ok:false</code> → blocking error with <code style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan)">preventContinuation:true</code></span>
+                  </li>
+                </ol>
+              </div>
+              <div class="exec-card-key-facts">
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Default timeout: 30 seconds</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Default model: small/fast (Haiku-class)</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>No tool use — faster and cheaper than Agent type</div>
+                <div class="exec-fact"><span class="exec-fact-dot"></span>Best for simple pass/fail conditions on content</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             7c. Hook JSON Output Protocol
+             --------------------------------------------------------------- -->
+        <div style="margin-bottom: var(--space-16);" class="reveal">
+
+          <p class="sub-section-label">7c</p>
+          <h3 class="sub-section-title">Hook JSON Output Protocol</h3>
+          <p class="sub-section-desc">Regardless of execution strategy, all hooks communicate back via <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--accent-cyan);">hookJSONOutputSchema</code> (from <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--accent-cyan);">src/types/hooks.ts</code>). Click any highlighted field to see details.</p>
+
+          <div class="json-protocol-wrap">
+            <div class="json-protocol-header">
+              <span class="json-protocol-label">hookJSONOutputSchema — sync response</span>
+              <span class="json-protocol-hint">Click a field to explore</span>
+            </div>
+            <div class="json-protocol-body">
+              <div class="json-protocol-code" id="json-protocol-code">
+<span style="color:var(--json-bracket,#8b949e)">{</span>
+  <span class="json-clickable-field" data-field="continue" tabindex="0" role="button" aria-label="continue field"><span style="color:var(--accent-blue)">"continue"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-purple)">true</span><span style="color:var(--text-secondary)">,</span></span>
+  <span class="json-clickable-field" data-field="suppressOutput" tabindex="0" role="button" aria-label="suppressOutput field"><span style="color:var(--accent-blue)">"suppressOutput"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-purple)">false</span><span style="color:var(--text-secondary)">,</span></span>
+  <span class="json-clickable-field" data-field="stopReason" tabindex="0" role="button" aria-label="stopReason field"><span style="color:var(--accent-blue)">"stopReason"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-green)">"..."</span><span style="color:var(--text-secondary)">,</span></span>
+  <span class="json-clickable-field" data-field="decision" tabindex="0" role="button" aria-label="decision field"><span style="color:var(--accent-blue)">"decision"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-green)">"approve"</span><span style="color:var(--text-secondary)">,</span></span>
+  <span class="json-clickable-field" data-field="reason" tabindex="0" role="button" aria-label="reason field"><span style="color:var(--accent-blue)">"reason"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-green)">"..."</span><span style="color:var(--text-secondary)">,</span></span>
+  <span class="json-clickable-field" data-field="systemMessage" tabindex="0" role="button" aria-label="systemMessage field"><span style="color:var(--accent-blue)">"systemMessage"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-green)">"..."</span><span style="color:var(--text-secondary)">,</span></span>
+  <span class="json-clickable-field" data-field="hookSpecificOutput" tabindex="0" role="button" aria-label="hookSpecificOutput field"><span style="color:var(--accent-blue)">"hookSpecificOutput"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--text-secondary)">{</span>
+    <span style="color:var(--accent-blue)">"hookEventName"</span><span style="color:var(--text-secondary)">:</span> <span style="color:var(--accent-green)">"PreToolUse"</span><span style="color:var(--text-secondary)">,</span>
+    <span style="color:var(--text-secondary)">// event-specific fields...</span>
+  <span style="color:var(--text-secondary)">}</span></span>
+<span style="color:var(--text-secondary)">}</span>
+              </div>
+
+              <div class="json-protocol-panel" id="json-protocol-panel">
+                <div class="json-protocol-panel-placeholder" id="json-field-placeholder">
+                  <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0zm6-1.25A.75.75 0 0 1 8.25 6h.5a.75.75 0 0 1 .75.75v3.5h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2.75H7.5a.75.75 0 0 1-.75-.75zM8 5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+                  </svg>
+                  <p>Click any highlighted field in the schema to see its type, purpose, and accepted values.</p>
+                </div>
+
+                <div class="json-field-detail" id="jf-continue">
+                  <div class="json-field-name">"continue"</div>
+                  <div class="json-field-type">boolean?</div>
+                  <p class="json-field-desc">Controls whether Claude continues after the hook runs. Defaults to <strong>true</strong>. Set to <strong>false</strong> to stop the current operation immediately and display <code>stopReason</code> to the user.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Values</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">true</span>
+                      <span class="json-field-value-desc">Default. Claude continues normally after the hook.</span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">false</span>
+                      <span class="json-field-value-desc">Stop current operation. Display <code>stopReason</code> message to the user.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="json-field-detail" id="jf-suppressOutput">
+                  <div class="json-field-name">"suppressOutput"</div>
+                  <div class="json-field-type">boolean?</div>
+                  <p class="json-field-desc">When <strong>true</strong>, the hook's stdout is hidden from the conversation transcript. Useful for hooks that produce verbose diagnostic output that shouldn't pollute context.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Values</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">false</span>
+                      <span class="json-field-value-desc">Default. stdout is visible in transcript.</span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">true</span>
+                      <span class="json-field-value-desc">stdout is suppressed from transcript and context.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="json-field-detail" id="jf-stopReason">
+                  <div class="json-field-name">"stopReason"</div>
+                  <div class="json-field-type">string?</div>
+                  <p class="json-field-desc">Human-readable message displayed to the user when <code>continue: false</code> is returned. Explains why the hook stopped Claude's response.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Example</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">"stopReason"</span>
+                      <span class="json-field-value-desc">"Blocked: destructive git command detected. Please confirm manually."</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="json-field-detail" id="jf-decision">
+                  <div class="json-field-name">"decision"</div>
+                  <div class="json-field-type">"approve" | "block"</div>
+                  <p class="json-field-desc">Simple approve/block decision for hooks that gate an action. <code>approve</code> allows the action to proceed; <code>block</code> prevents it. Pair with <code>reason</code> for user-visible explanation.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Values</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">"approve"</span>
+                      <span class="json-field-value-desc">Allow the gated action to proceed.</span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">"block"</span>
+                      <span class="json-field-value-desc">Prevent the action. <code>reason</code> is shown to the user.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="json-field-detail" id="jf-reason">
+                  <div class="json-field-name">"reason"</div>
+                  <div class="json-field-type">string?</div>
+                  <p class="json-field-desc">Explanation for the <code>decision</code> (approve or block). Shown to the user in the permission dialog or error output. Also used as the reason text in PreToolUse permission decisions.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Example</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">"reason"</span>
+                      <span class="json-field-value-desc">"This command modifies production database. Manual review required."</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="json-field-detail" id="jf-systemMessage">
+                  <div class="json-field-name">"systemMessage"</div>
+                  <div class="json-field-type">string?</div>
+                  <p class="json-field-desc">A warning or informational message displayed directly to the user in the UI (not injected into Claude's context). Used for out-of-band notifications that don't need to influence the model.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Example</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">"systemMessage"</span>
+                      <span class="json-field-value-desc">"Warning: 3 uncommitted changes detected. Consider committing before continuing."</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="json-field-detail" id="jf-hookSpecificOutput">
+                  <div class="json-field-name">"hookSpecificOutput"</div>
+                  <div class="json-field-type">object?</div>
+                  <p class="json-field-desc">Event-specific return data. Discriminated union on <code>hookEventName</code>. Contains fields that only make sense for a particular event — e.g., <code>permissionDecision</code> for PreToolUse, <code>additionalContext</code> for SessionStart.</p>
+                  <div class="json-field-values">
+                    <p class="json-field-values-title">Key event-specific fields</p>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">PreToolUse</span>
+                      <span class="json-field-value-desc"><code>permissionDecision</code> (allow/deny/ask/passthrough), <code>updatedInput</code> to rewrite tool args</span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">PostToolUse</span>
+                      <span class="json-field-value-desc"><code>additionalContext</code>, <code>updatedMCPToolOutput</code> to rewrite MCP results</span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">SessionStart</span>
+                      <span class="json-field-value-desc"><code>additionalContext</code>, <code>initialUserMessage</code>, <code>watchPaths[]</code></span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">PermissionRequest</span>
+                      <span class="json-field-value-desc"><code>decision: {behavior:'allow'|'deny', updatedInput?, message?}</code></span>
+                    </div>
+                    <div class="json-field-value-row">
+                      <span class="json-field-value-key">CwdChanged / FileChanged</span>
+                      <span class="json-field-value-desc"><code>watchPaths[]</code> to dynamically update the file watcher</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             7d. SSRF Protection Diagram
+             --------------------------------------------------------------- -->
+        <div class="reveal">
+
+          <p class="sub-section-label">7d</p>
+          <h3 class="sub-section-title">SSRF Protection</h3>
+          <p class="sub-section-desc">HTTP hooks are guarded at DNS resolution level — the IP is validated <em>after</em> DNS lookup, eliminating the rebind window. Source: <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--accent-cyan);">src/utils/hooks/ssrfGuard.ts</code>.</p>
+
+          <div class="ssrf-diagram">
+            <div class="ssrf-diagram-cols">
+
+              <!-- Blocked -->
+              <div>
+                <div class="ssrf-col-title ssrf-col-title-blocked">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M2.343 13.657A8 8 0 1 1 13.657 2.343 8 8 0 0 1 2.343 13.657zM6.03 4.97a.75.75 0 0 0-1.06 1.06L6.94 8 4.97 9.97a.75.75 0 1 0 1.06 1.06L8 9.06l1.97 1.97a.75.75 0 1 0 1.06-1.06L9.06 8l1.97-1.97a.75.75 0 0 0-1.06-1.06L8 6.94 6.03 4.97z"/>
+                  </svg>
+                  Blocked Address Ranges
+                </div>
+
+                <div class="ssrf-range-list">
+
+                  <div style="font-size:var(--text-xs);font-weight:var(--font-semibold);letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:var(--space-1);">IPv4</div>
+
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">0.0.0.0/8</div>
+                    <div class="ssrf-range-note">"This" network — the unspecified address block</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">10.0.0.0/8</div>
+                    <div class="ssrf-range-note"><strong>Private</strong> — class A internal networks</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">100.64.0.0/10</div>
+                    <div class="ssrf-range-note"><strong>Shared / CGNAT</strong> — catches cloud metadata endpoints (e.g. Alibaba <code>100.100.100.200</code>)</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">169.254.0.0/16</div>
+                    <div class="ssrf-range-note"><strong>Link-local</strong> — catches AWS metadata at <code>169.254.169.254</code></div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">172.16.0.0/12</div>
+                    <div class="ssrf-range-note"><strong>Private</strong> — class B internal networks</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">192.168.0.0/16</div>
+                    <div class="ssrf-range-note"><strong>Private</strong> — class C home/office networks</div>
+                  </div>
+
+                  <div style="font-size:var(--text-xs);font-weight:var(--font-semibold);letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);margin-top:var(--space-3);margin-bottom:var(--space-1);">IPv6</div>
+
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">::</div>
+                    <div class="ssrf-range-note">Unspecified address</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">fc00::/7</div>
+                    <div class="ssrf-range-note"><strong>Unique-local</strong> — private IPv6 equivalent of RFC 1918</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">fe80::/10</div>
+                    <div class="ssrf-range-note"><strong>Link-local</strong> — auto-configured addresses</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-blocked">
+                    <div class="ssrf-range-cidr">::ffff:&lt;blocked-v4&gt;</div>
+                    <div class="ssrf-range-note"><strong>IPv4-mapped IPv6</strong> — prevents hex bypass (e.g. <code>::ffff:a9fe:a9fe</code> = 169.254.169.254)</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Allowed -->
+              <div>
+                <div class="ssrf-col-title ssrf-col-title-allowed">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0zm10.28-1.72a.75.75 0 0 0-1.06-1.06L6.75 9.19 5.28 7.72a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l4.5-4.5z"/>
+                  </svg>
+                  Intentionally Allowed
+                </div>
+
+                <div class="ssrf-range-list">
+                  <div class="ssrf-range ssrf-range-allowed">
+                    <div class="ssrf-range-cidr">127.0.0.0/8</div>
+                    <div class="ssrf-range-note"><strong>IPv4 loopback</strong> — local policy servers are a primary HTTP hook use case. Sidecar servers on <code>localhost</code> are explicitly supported.</div>
+                  </div>
+                  <div class="ssrf-range ssrf-range-allowed">
+                    <div class="ssrf-range-cidr">::1</div>
+                    <div class="ssrf-range-note"><strong>IPv6 loopback</strong> — same rationale as IPv4 loopback. Local servers reachable via <code>[::1]</code> are allowed.</div>
+                  </div>
+                </div>
+
+                <div style="margin-top:var(--space-5)">
+                  <div class="ssrf-col-title" style="color:var(--accent-blue);font-size:var(--text-sm);">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0zm6-1.25A.75.75 0 0 1 8.25 6h.5a.75.75 0 0 1 .75.75v3.5h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2.75H7.5a.75.75 0 0 1-.75-.75zM8 5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+                    </svg>
+                    Guard bypass conditions
+                  </div>
+                  <div class="ssrf-range-list">
+                    <div class="ssrf-range" style="background:rgba(88,166,255,0.04);border-color:rgba(88,166,255,0.15);">
+                      <div class="ssrf-range-cidr" style="color:var(--accent-blue);">Sandbox</div>
+                      <div class="ssrf-range-note">When sandbox network proxy is active, the guard is skipped — the proxy enforces its own domain allowlist.</div>
+                    </div>
+                    <div class="ssrf-range" style="background:rgba(88,166,255,0.04);border-color:rgba(88,166,255,0.15);">
+                      <div class="ssrf-range-cidr" style="color:var(--accent-blue);">HTTP Proxy</div>
+                      <div class="ssrf-range-note">When an env-var HTTP proxy is configured, the guard is bypassed (the proxy does DNS; validating the proxy IP is not useful).</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ssrf-bypass-note">
+                  <div class="ssrf-bypass-note-title">Implementation detail</div>
+                  <p class="ssrf-bypass-note-text">The guard uses a custom <code>dns.lookup</code> function passed to axios. This ensures the validated IP is the same one the socket connects to — closing the DNS rebind window that would exist if validation happened before the connection.</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <script>
+      /* ==========================================================================
+         Complete Hook System — Section 7 Interactive Components
+         ========================================================================== */
+
+      /* --------------------------------------------------------------------------
+         Hook Catalog Data
+         -------------------------------------------------------------------------- */
+      const HOOK_CATALOG = [
+        // Tool Lifecycle
+        {
+          name: 'PreToolUse',
+          cat: 'tool',
+          catLabel: 'Tool Lifecycle',
+          when: 'Fires before a tool executes. The most powerful hook for gatekeeping.',
+          matcher: 'Matches against tool_name (e.g. "Bash").',
+          inputs: 'tool_name, tool_input, tool_use_id',
+          returns: 'permissionDecision (allow/deny/ask/passthrough), updatedInput, additionalContext, continue: false',
+          exitCodes: 'Exit 0: silent ok. Exit 2: block tool + show stderr to model. Other: show stderr to user only.'
+        },
+        {
+          name: 'PostToolUse',
+          cat: 'tool',
+          catLabel: 'Tool Lifecycle',
+          when: 'Fires after a tool completes successfully.',
+          matcher: 'Matches against tool_name.',
+          inputs: 'tool_name, tool_input, tool_response, tool_use_id',
+          returns: 'additionalContext, updatedMCPToolOutput (rewrites MCP output), continue: false',
+          exitCodes: 'Standard exit code semantics.'
+        },
+        {
+          name: 'PostToolUseFailure',
+          cat: 'tool',
+          catLabel: 'Tool Lifecycle',
+          when: 'Fires when a tool execution fails with an error.',
+          matcher: 'Matches against tool_name.',
+          inputs: 'tool_name, tool_input, tool_use_id, error, is_interrupt?',
+          returns: 'additionalContext',
+          exitCodes: 'Standard exit code semantics.'
+        },
+        {
+          name: 'PermissionRequest',
+          cat: 'tool',
+          catLabel: 'Tool Lifecycle',
+          when: 'Fires when a permission dialog would normally be shown to the user.',
+          matcher: 'Matches against tool_name.',
+          inputs: 'tool_name, tool_input, permission_suggestions?',
+          returns: 'decision: {behavior: "allow", updatedInput?, updatedPermissions?} or {behavior: "deny", message?, interrupt?}',
+          exitCodes: 'Standard.'
+        },
+        {
+          name: 'PermissionDenied',
+          cat: 'tool',
+          catLabel: 'Tool Lifecycle',
+          when: 'Fires after the auto-mode classifier denies a tool call.',
+          matcher: 'Matches against tool_name.',
+          inputs: 'tool_name, tool_input, tool_use_id, reason',
+          returns: 'retry: true — tells the model it may retry the denied call',
+          exitCodes: 'Standard.'
+        },
+        // Session
+        {
+          name: 'SessionStart',
+          cat: 'session',
+          catLabel: 'Session',
+          when: 'Fires when a session begins, and after /clear or /compact.',
+          matcher: 'Matches against source ("startup", "resume", "clear", "compact").',
+          inputs: 'source, agent_type?, model?',
+          returns: 'additionalContext, initialUserMessage, watchPaths[]',
+          exitCodes: 'Standard.'
+        },
+        {
+          name: 'SessionEnd',
+          cat: 'session',
+          catLabel: 'Session',
+          when: 'Fires when a session is ending.',
+          matcher: 'Matches against reason enum.',
+          inputs: 'reason ("clear", "resume", "logout", "prompt_input_exit", "other", "bypass_permissions_disabled")',
+          returns: 'Fire-and-forget — output and exit codes are ignored.',
+          exitCodes: 'Timeout: 1.5s default (CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS). Runs in parallel.'
+        },
+        {
+          name: 'Setup',
+          cat: 'session',
+          catLabel: 'Session',
+          when: 'Fires for repository setup — on init or maintenance trigger.',
+          matcher: 'Matches against trigger ("init" or "maintenance").',
+          inputs: 'trigger',
+          returns: 'additionalContext',
+          exitCodes: 'Standard.'
+        },
+        // Turn
+        {
+          name: 'Stop',
+          cat: 'turn',
+          catLabel: 'Turns',
+          when: 'Fires right before Claude concludes its response.',
+          matcher: 'No matcher — always fires at turn end.',
+          inputs: 'stop_hook_active, last_assistant_message?',
+          returns: 'Exit 2 = show stderr to model and continue conversation (model does not stop).',
+          exitCodes: 'Exit 2: force continuation. Exit 0: allow stop. Async rewake mode available.'
+        },
+        {
+          name: 'StopFailure',
+          cat: 'turn',
+          catLabel: 'Turns',
+          when: 'Fires when the turn ends due to an API error (rate limit, auth failure, etc.).',
+          matcher: 'Matches against error type.',
+          inputs: 'error (SDK error object), error_details?, last_assistant_message?',
+          returns: 'Fire-and-forget — output and exit codes ignored.',
+          exitCodes: 'Matcher values: rate_limit, authentication_failed, billing_error, invalid_request, server_error, max_output_tokens, unknown.'
+        },
+        {
+          name: 'UserPromptSubmit',
+          cat: 'turn',
+          catLabel: 'Turns',
+          when: 'Fires when the user submits a prompt, before Claude processes it.',
+          matcher: 'No matcher.',
+          inputs: 'prompt (the user\'s text)',
+          returns: 'additionalContext. Exit 2: block processing + erase prompt + show stderr to user.',
+          exitCodes: 'Exit 2: block and erase prompt. Exit 0: allow.'
+        },
+        // Subagents
+        {
+          name: 'SubagentStart',
+          cat: 'subagent',
+          catLabel: 'Subagents',
+          when: 'Fires when a subagent (Agent tool call) is launched.',
+          matcher: 'Matches against agent_type.',
+          inputs: 'agent_id, agent_type',
+          returns: 'additionalContext (injected into subagent context)',
+          exitCodes: 'Standard.'
+        },
+        {
+          name: 'SubagentStop',
+          cat: 'subagent',
+          catLabel: 'Subagents',
+          when: 'Fires before a subagent concludes its response.',
+          matcher: 'Matches against agent_type.',
+          inputs: 'stop_hook_active, agent_id, agent_transcript_path, agent_type, last_assistant_message?',
+          returns: 'Exit 2: show stderr to subagent and continue (subagent keeps running).',
+          exitCodes: 'Note: frontmatter Stop hooks on agents auto-convert to SubagentStop at registration.'
+        },
+        // Compaction
+        {
+          name: 'PreCompact',
+          cat: 'compaction',
+          catLabel: 'Compaction',
+          when: 'Fires before conversation compaction begins.',
+          matcher: 'Matches against trigger ("manual" or "auto").',
+          inputs: 'trigger, custom_instructions?',
+          returns: 'Exit 0: stdout appended as custom compaction instructions. Exit 2: blocks compaction entirely.',
+          exitCodes: 'Exit 0: add instructions. Exit 2: block compaction.'
+        },
+        {
+          name: 'PostCompact',
+          cat: 'compaction',
+          catLabel: 'Compaction',
+          when: 'Fires after compaction completes.',
+          matcher: 'Matches against trigger.',
+          inputs: 'trigger, compact_summary (the summary produced)',
+          returns: 'Observability hook — output fields not documented.',
+          exitCodes: 'Standard.'
+        },
+        // Notification
+        {
+          name: 'Notification',
+          cat: 'teams',
+          catLabel: 'Teams/Tasks',
+          when: 'Fires when a notification is sent to the user.',
+          matcher: 'Matches against notification_type.',
+          inputs: 'message, title?, notification_type',
+          returns: 'additionalContext',
+          exitCodes: 'Matcher values: permission_prompt, idle_prompt, auth_success, elicitation_dialog, elicitation_complete, elicitation_response.'
+        },
+        // Teams
+        {
+          name: 'TeammateIdle',
+          cat: 'teams',
+          catLabel: 'Teams/Tasks',
+          when: 'Fires when a teammate is about to go idle.',
+          matcher: 'Matches against teammate_name.',
+          inputs: 'teammate_name, team_name',
+          returns: 'Exit 2: show stderr to teammate and prevent idle (teammate keeps working).',
+          exitCodes: 'Exit 2: prevent idle.'
+        },
+        {
+          name: 'TaskCreated',
+          cat: 'teams',
+          catLabel: 'Teams/Tasks',
+          when: 'Fires when a task is being created.',
+          matcher: 'No matcher.',
+          inputs: 'task_id, task_subject, task_description?, teammate_name?, team_name?',
+          returns: 'Exit 2: show stderr to model and prevent task creation.',
+          exitCodes: 'Exit 2: block creation.'
+        },
+        {
+          name: 'TaskCompleted',
+          cat: 'teams',
+          catLabel: 'Teams/Tasks',
+          when: 'Fires when a task is marked as completed.',
+          matcher: 'No matcher.',
+          inputs: 'task_id, task_subject, task_description?, teammate_name?, team_name?',
+          returns: 'Exit 2: prevents task completion.',
+          exitCodes: 'Exit 2: block completion.'
+        },
+        // Elicitation
+        {
+          name: 'Elicitation',
+          cat: 'elicitation',
+          catLabel: 'Elicitation',
+          when: 'Fires when an MCP server requests user input.',
+          matcher: 'No matcher.',
+          inputs: 'mcp_server_name, message, mode? ("form"|"url"), url?, elicitation_id?, requested_schema?',
+          returns: 'action ("accept"/"decline"/"cancel"), content — to auto-respond without user intervention.',
+          exitCodes: 'Standard.'
+        },
+        {
+          name: 'ElicitationResult',
+          cat: 'elicitation',
+          catLabel: 'Elicitation',
+          when: 'Fires after a user responds to an MCP elicitation.',
+          matcher: 'No matcher.',
+          inputs: 'mcp_server_name, elicitation_id?, mode?, action ("accept"|"decline"|"cancel"), content?',
+          returns: 'Can override the response action and content.',
+          exitCodes: 'Standard.'
+        },
+        // Config
+        {
+          name: 'ConfigChange',
+          cat: 'config',
+          catLabel: 'Config',
+          when: 'Fires when configuration files change during a session.',
+          matcher: 'Matches against source.',
+          inputs: 'source ("user_settings"|"project_settings"|"local_settings"|"policy_settings"|"skills"), file_path?',
+          returns: 'Exit 2: blocks the change from being applied to the current session.',
+          exitCodes: 'Exit 2: block config change.'
+        },
+        {
+          name: 'InstructionsLoaded',
+          cat: 'config',
+          catLabel: 'Config',
+          when: 'Fires when a CLAUDE.md or rule file is loaded.',
+          matcher: 'No matcher.',
+          inputs: 'file_path, memory_type ("User"|"Project"|"Local"|"Managed"), load_reason, globs?, trigger_file_path?, parent_file_path?',
+          returns: 'Observability-only — does not support blocking.',
+          exitCodes: 'Output ignored.'
+        },
+        // Filesystem
+        {
+          name: 'CwdChanged',
+          cat: 'filesystem',
+          catLabel: 'File System',
+          when: 'Fires after the working directory changes.',
+          matcher: 'No matcher.',
+          inputs: 'old_cwd, new_cwd',
+          returns: 'watchPaths[] — paths to register with the FileChanged watcher. CLAUDE_ENV_FILE set for env exports.',
+          exitCodes: 'Standard.'
+        },
+        {
+          name: 'FileChanged',
+          cat: 'filesystem',
+          catLabel: 'File System',
+          when: 'Fires when a watched file changes (uses chokidar).',
+          matcher: 'Specifies filenames to watch (e.g. ".envrc|.env").',
+          inputs: 'file_path, event ("change"|"add"|"unlink")',
+          returns: 'watchPaths[] — dynamically update the watch list. CLAUDE_ENV_FILE set.',
+          exitCodes: 'Standard.'
+        },
+        // Worktree
+        {
+          name: 'WorktreeCreate',
+          cat: 'worktree',
+          catLabel: 'Worktree',
+          when: 'Fires to create an isolated worktree for VCS-agnostic isolation.',
+          matcher: 'No matcher.',
+          inputs: 'name (suggested worktree slug)',
+          returns: 'stdout must contain the absolute path to the created worktree directory.',
+          exitCodes: 'Standard.'
+        },
+        {
+          name: 'WorktreeRemove',
+          cat: 'worktree',
+          catLabel: 'Worktree',
+          when: 'Fires to remove a previously created worktree.',
+          matcher: 'No matcher.',
+          inputs: 'worktree_path (absolute path to worktree)',
+          returns: 'No return fields documented.',
+          exitCodes: 'Standard.'
+        }
+      ];
+
+      function buildHookCatalog() {
+        const grid = document.getElementById('hook-catalog-grid');
+        if (!grid) return;
+
+        HOOK_CATALOG.forEach(hook => {
+          const card = document.createElement('div');
+          card.className = 'hook-catalog-card';
+          card.setAttribute('data-cat', hook.cat);
+          card.setAttribute('role', 'listitem');
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('aria-expanded', 'false');
+
+          card.innerHTML = `
+            <div class="hook-cat-badge hook-cat-badge-${hook.cat}">${hook.catLabel}</div>
+            <div class="hook-catalog-name">${hook.name}</div>
+            <div class="hook-catalog-when">${hook.when}</div>
+            <div class="hook-catalog-expand">
+              <span>Show details</span>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427z"/>
+              </svg>
+            </div>
+            <div class="hook-catalog-detail" aria-hidden="true">
+              <dl class="hook-catalog-dl">
+                <dt>Matcher</dt>
+                <dd>${hook.matcher}</dd>
+                <dt>Inputs</dt>
+                <dd><code>${hook.inputs}</code></dd>
+                <dt>Returns</dt>
+                <dd>${hook.returns}</dd>
+                <dt>Exit codes</dt>
+                <dd>${hook.exitCodes}</dd>
+              </dl>
+            </div>
+          `;
+
+          card.addEventListener('click', () => toggleCatalogCard(card));
+          card.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCatalogCard(card); }
+          });
+
+          grid.appendChild(card);
+        });
+
+        // Update all-count
+        const countEl = document.getElementById('cat-count-all');
+        if (countEl) countEl.textContent = `(${HOOK_CATALOG.length})`;
+      }
+
+      function toggleCatalogCard(card) {
+        const isExpanded = card.classList.contains('expanded');
+        card.classList.toggle('expanded', !isExpanded);
+        card.setAttribute('aria-expanded', !isExpanded);
+        const detail = card.querySelector('.hook-catalog-detail');
+        if (detail) detail.setAttribute('aria-hidden', isExpanded ? 'true' : 'false');
+        const expandLabel = card.querySelector('.hook-catalog-expand span');
+        if (expandLabel) expandLabel.textContent = isExpanded ? 'Show details' : 'Hide details';
+      }
+
+      function setupCatalogFilters() {
+        document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const cat = btn.getAttribute('data-cat');
+            document.querySelectorAll('.hook-catalog-card').forEach(card => {
+              if (cat === 'all' || card.getAttribute('data-cat') === cat) {
+                card.classList.remove('hidden');
+              } else {
+                card.classList.add('hidden');
+              }
+            });
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+         JSON Protocol — clickable fields
+         -------------------------------------------------------------------------- */
+      const JSON_FIELD_DETAILS = {
+        'continue':           'jf-continue',
+        'suppressOutput':     'jf-suppressOutput',
+        'stopReason':         'jf-stopReason',
+        'decision':           'jf-decision',
+        'reason':             'jf-reason',
+        'systemMessage':      'jf-systemMessage',
+        'hookSpecificOutput': 'jf-hookSpecificOutput'
+      };
+
+      function setupJsonProtocol() {
+        document.querySelectorAll('.json-clickable-field').forEach(el => {
+          el.addEventListener('click', () => selectJsonField(el));
+          el.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectJsonField(el); }
+          });
+        });
+      }
+
+      function selectJsonField(el) {
+        // Deactivate all
+        document.querySelectorAll('.json-clickable-field').forEach(f => f.classList.remove('active'));
+        document.querySelectorAll('.json-field-detail').forEach(d => d.classList.remove('visible'));
+
+        el.classList.add('active');
+        const field = el.getAttribute('data-field');
+        const detailId = JSON_FIELD_DETAILS[field];
+        const placeholder = document.getElementById('json-field-placeholder');
+
+        if (detailId) {
+          const detail = document.getElementById(detailId);
+          if (detail) {
+            detail.classList.add('visible');
+            if (placeholder) placeholder.style.display = 'none';
+          }
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         Init
+         -------------------------------------------------------------------------- */
+      document.addEventListener('DOMContentLoaded', () => {
+        buildHookCatalog();
+        setupCatalogFilters();
+        setupJsonProtocol();
+      });
+    </script>
+
+    <!-- ===================================================================
          Navigation Footer
          =================================================================== -->
     <nav class="nav-footer" aria-label="Page navigation">

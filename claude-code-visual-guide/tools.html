@@ -873,6 +873,501 @@
       .prop-seg { font-size: 10px; }
       .nav-footer-center { display: none; }
     }
+
+    /* =====================================================================
+       Section 6 — Tool Orchestration Engine
+       ===================================================================== */
+
+    /* ---- Subsection header ---- */
+    .orch-subsection {
+      margin-bottom: var(--space-10);
+    }
+
+    .orch-sub-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      margin-bottom: var(--space-2);
+    }
+
+    .orch-sub-title {
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      margin-bottom: var(--space-2);
+    }
+
+    .orch-sub-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      max-width: 640px;
+    }
+
+    /* ---- Batching diagram ---- */
+    .batch-diagram {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .batch-diagram-header {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .batch-diagram-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .batch-diagram-sub {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    .batch-diagram-body {
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+
+    /* Input row */
+    .batch-input-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .batch-input-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      min-width: 60px;
+    }
+
+    .batch-tool-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      font-family: var(--font-mono);
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      position: relative;
+      cursor: default;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+    }
+
+    .batch-tool-chip.chip-read    { border-color: rgba(88,166,255,0.4);  background: rgba(88,166,255,0.08);  color: var(--accent-blue); }
+    .batch-tool-chip.chip-grep    { border-color: rgba(57,210,192,0.4);  background: rgba(57,210,192,0.08);  color: var(--accent-cyan); }
+    .batch-tool-chip.chip-bash    { border-color: rgba(210,153,34,0.4);  background: rgba(210,153,34,0.08);  color: var(--accent-orange); }
+    .batch-tool-chip.chip-write   { border-color: rgba(188,140,255,0.4); background: rgba(188,140,255,0.08); color: var(--accent-purple); }
+
+    /* Output batches */
+    .batch-output-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .batch-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .batch-group.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    .batch-group-label {
+      font-size: 10px;
+      font-weight: var(--font-bold);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      text-align: center;
+    }
+
+    .batch-group-label.concurrent {
+      background: rgba(63,185,80,0.12);
+      color: var(--accent-green);
+      border: 1px solid rgba(63,185,80,0.25);
+    }
+
+    .batch-group-label.serial {
+      background: rgba(210,153,34,0.12);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210,153,34,0.25);
+    }
+
+    .batch-group-chips {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      padding: var(--space-3);
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border);
+    }
+
+    .batch-group-chips.concurrent {
+      border-color: rgba(63,185,80,0.3);
+      background: rgba(63,185,80,0.04);
+    }
+
+    .batch-group-chips.serial {
+      border-color: rgba(210,153,34,0.25);
+      background: rgba(210,153,34,0.04);
+    }
+
+    .batch-arrow {
+      align-self: center;
+      font-size: 20px;
+      color: var(--text-secondary);
+      padding: 0 var(--space-1);
+      flex-shrink: 0;
+    }
+
+    .batch-parallel-icon {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: var(--space-1);
+    }
+
+    .batch-parallel-bar {
+      width: 3px;
+      height: 12px;
+      border-radius: 2px;
+      background: var(--accent-green);
+      animation: parallelPulse 1.2s ease-in-out infinite;
+    }
+
+    .batch-parallel-bar:nth-child(2) { animation-delay: 0.15s; }
+    .batch-parallel-bar:nth-child(3) { animation-delay: 0.30s; }
+
+    @keyframes parallelPulse {
+      0%, 100% { opacity: 0.4; transform: scaleY(0.7); }
+      50%       { opacity: 1;   transform: scaleY(1); }
+    }
+
+    /* ---- Execution pipeline ---- */
+    .pipeline-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .pipeline-header {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pipeline-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .pipeline-body {
+      padding: var(--space-5) var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .pipeline-step {
+      display: flex;
+      align-items: stretch;
+      gap: var(--space-4);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .pipeline-step:focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 2px;
+    }
+
+    /* Left gutter: step number + connector line */
+    .pipeline-step-gutter {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 32px;
+    }
+
+    .pipeline-step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      transition: background var(--transition), border-color var(--transition), color var(--transition);
+      position: relative;
+      z-index: 1;
+    }
+
+    .pipeline-step.open .pipeline-step-num {
+      background: rgba(88,166,255,0.15);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .pipeline-connector {
+      flex: 1;
+      width: 1.5px;
+      background: var(--border);
+      margin: 2px 0;
+      min-height: 12px;
+    }
+
+    .pipeline-step:last-child .pipeline-connector {
+      display: none;
+    }
+
+    /* Right side: content */
+    .pipeline-step-content {
+      flex: 1;
+      padding-bottom: var(--space-4);
+      min-width: 0;
+    }
+
+    .pipeline-step-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) 0;
+      min-height: 32px;
+    }
+
+    .pipeline-step-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      transition: color var(--transition);
+    }
+
+    .pipeline-step.open .pipeline-step-name {
+      color: var(--accent-blue);
+    }
+
+    .pipeline-step-tag {
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      margin-left: auto;
+    }
+
+    .tag-validate { background: rgba(88,166,255,0.1);  color: var(--accent-blue);   border: 1px solid rgba(88,166,255,0.2); }
+    .tag-security { background: rgba(248,81,73,0.1);   color: var(--accent-red);    border: 1px solid rgba(248,81,73,0.2); }
+    .tag-execute  { background: rgba(63,185,80,0.1);   color: var(--accent-green);  border: 1px solid rgba(63,185,80,0.2); }
+    .tag-hook     { background: rgba(188,140,255,0.1); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.2); }
+    .tag-telemetry { background: rgba(210,153,34,0.1); color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.2); }
+
+    .pipeline-step-chevron {
+      margin-left: auto;
+      color: var(--text-secondary);
+      font-size: 12px;
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+
+    .pipeline-step.open .pipeline-step-chevron {
+      transform: rotate(90deg);
+    }
+
+    .pipeline-step-detail {
+      display: none;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-3);
+    }
+
+    .pipeline-step-detail.open {
+      display: block;
+    }
+
+    .pipeline-step-detail code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.08);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .pipeline-step-detail strong {
+      color: var(--text-primary);
+    }
+
+    /* ---- Hook-Permission Matrix ---- */
+    .hook-matrix-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .hook-matrix-header {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hook-matrix-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .hook-matrix-body {
+      padding: var(--space-6);
+      overflow-x: auto;
+    }
+
+    .hook-matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 480px;
+    }
+
+    .hook-matrix-table th,
+    .hook-matrix-table td {
+      padding: var(--space-3) var(--space-4);
+      text-align: center;
+      border: 1px solid var(--border);
+      font-size: var(--text-sm);
+    }
+
+    .hook-matrix-table th {
+      background: var(--bg-tertiary);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .hook-matrix-table th.col-hook {
+      text-align: left;
+      color: var(--accent-purple);
+    }
+
+    .hook-matrix-table td.row-hook {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .matrix-cell {
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .cell-allow  { background: rgba(63,185,80,0.15);  color: var(--accent-green);  border: 1px solid rgba(63,185,80,0.3); }
+    .cell-deny   { background: rgba(248,81,73,0.12);  color: var(--accent-red);    border: 1px solid rgba(248,81,73,0.25); }
+    .cell-ask    { background: rgba(210,153,34,0.12); color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.25); }
+    .cell-dialog { background: rgba(88,166,255,0.1);  color: var(--accent-blue);   border: 1px solid rgba(88,166,255,0.2); }
+
+    .hook-matrix-footnote {
+      margin-top: var(--space-4);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hook-matrix-footnote strong {
+      color: var(--text-primary);
+    }
+
+    .hook-matrix-footnote code {
+      font-family: var(--font-mono);
+      color: var(--accent-blue);
+      background: rgba(88,166,255,0.08);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* Orchestration source badge */
+    .orch-source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      padding: 3px 10px;
+      font-family: var(--font-mono);
+    }
+
+    .orch-source-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .batch-output-row { flex-direction: column; }
+      .batch-arrow { transform: rotate(90deg); align-self: flex-start; margin-left: 40px; }
+      .pipeline-step-tag { display: none; }
+      .hook-matrix-table { min-width: 360px; }
+    }
   </style>
 </head>
 <body>
@@ -1289,6 +1784,216 @@
             </div>
             <div style="padding:var(--space-5);display:flex;flex-wrap:wrap;gap:var(--space-2)" id="plugin-pill-list">
               <!-- Pills injected by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 6 — Tool Orchestration Engine
+         =================================================================== -->
+    <section class="page-section" id="orchestration" aria-labelledby="orch-heading">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <p class="section-label">Source Code Revealed</p>
+          <h2 class="section-title" id="orch-heading">Tool Orchestration Engine</h2>
+          <p class="section-desc">
+            The internal machinery that governs how tools are batched, validated, permission-checked,
+            and executed. Sourced directly from the Claude Code source tree.
+          </p>
+          <span class="orch-source-badge" style="margin-top:var(--space-3);display:inline-flex">
+            <span class="orch-source-dot"></span>
+            src/services/tools/toolOrchestration.ts · toolExecution.ts · toolHooks.ts
+          </span>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             6a — Tool Batching Diagram
+        --------------------------------------------------------------- -->
+        <div class="orch-subsection reveal">
+          <div class="orch-sub-label">partitionToolCalls()</div>
+          <div class="orch-sub-title">Tool Batching Diagram</div>
+          <p class="orch-sub-desc">
+            When the model returns multiple tool calls, the orchestrator groups them into
+            <strong>concurrent</strong> batches (run in parallel) and <strong>serial</strong>
+            batches (run alone). A non-concurrency-safe tool always breaks the chain and
+            starts a new solo batch.
+          </p>
+        </div>
+
+        <div class="batch-diagram reveal" id="batch-diagram">
+          <div class="batch-diagram-header">
+            <span class="batch-diagram-title">Partitioning 5 tool calls</span>
+            <span class="batch-diagram-sub">Max concurrency: <code style="font-family:var(--font-mono);color:var(--accent-orange)">CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY</code> (default 10)</span>
+          </div>
+          <div class="batch-diagram-body">
+
+            <!-- Input row -->
+            <div class="batch-input-row">
+              <span class="batch-input-label">Input</span>
+              <span class="batch-tool-chip chip-read" data-index="0">Read</span>
+              <span class="batch-tool-chip chip-grep" data-index="1">Grep</span>
+              <span class="batch-tool-chip chip-read" data-index="2">Read</span>
+              <span class="batch-tool-chip chip-bash" data-index="3">Bash</span>
+              <span class="batch-tool-chip chip-write" data-index="4">Write</span>
+            </div>
+
+            <!-- Divider + label -->
+            <div style="display:flex;align-items:center;gap:var(--space-3)">
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+              <span style="font-size:var(--text-xs);color:var(--text-secondary);white-space:nowrap;font-family:var(--font-mono)">partitionToolCalls()</span>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+
+            <!-- Output batches -->
+            <div class="batch-output-row" id="batch-output-row">
+
+              <!-- Batch 1: concurrent -->
+              <div class="batch-group" id="batch-g1" style="transition-delay:0.05s">
+                <span class="batch-group-label concurrent">Concurrent Batch</span>
+                <div class="batch-group-chips concurrent">
+                  <span class="batch-tool-chip chip-read">Read</span>
+                  <span class="batch-tool-chip chip-grep">Grep</span>
+                  <span class="batch-tool-chip chip-read">Read</span>
+                  <div class="batch-parallel-icon">
+                    <div class="batch-parallel-bar"></div>
+                    <div class="batch-parallel-bar"></div>
+                    <div class="batch-parallel-bar"></div>
+                    <span style="font-size:10px;color:var(--accent-green);margin-left:4px">run in parallel</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="batch-arrow">&#8594;</div>
+
+              <!-- Batch 2: serial (Bash) -->
+              <div class="batch-group" id="batch-g2" style="transition-delay:0.18s">
+                <span class="batch-group-label serial">Serial Batch</span>
+                <div class="batch-group-chips serial">
+                  <span class="batch-tool-chip chip-bash">Bash</span>
+                  <span style="font-size:10px;color:var(--accent-orange);margin-top:var(--space-1)">not concurrency-safe</span>
+                </div>
+              </div>
+
+              <div class="batch-arrow">&#8594;</div>
+
+              <!-- Batch 3: serial (Write) -->
+              <div class="batch-group" id="batch-g3" style="transition-delay:0.31s">
+                <span class="batch-group-label serial">Serial Batch</span>
+                <div class="batch-group-chips serial">
+                  <span class="batch-tool-chip chip-write">Write</span>
+                  <span style="font-size:10px;color:var(--accent-orange);margin-top:var(--space-1)">not concurrency-safe</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Legend -->
+            <div style="display:flex;gap:var(--space-6);flex-wrap:wrap;padding-top:var(--space-2);border-top:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:var(--space-2)">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--accent-green)"></div>
+                <span style="font-size:var(--text-xs);color:var(--text-secondary)"><strong style="color:var(--text-primary)">Concurrent:</strong> isConcurrencySafe() = true (Read, Grep, Glob)</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--space-2)">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--accent-orange)"></div>
+                <span style="font-size:var(--text-xs);color:var(--text-secondary)"><strong style="color:var(--text-primary)">Serial:</strong> isConcurrencySafe() = false (Bash, Write, Edit)</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             6b — Execution Pipeline Flow
+        --------------------------------------------------------------- -->
+        <div class="orch-subsection reveal" style="margin-top:var(--space-10)">
+          <div class="orch-sub-label">checkPermissionsAndCallTool()</div>
+          <div class="orch-sub-title">Execution Pipeline — 9 Phases</div>
+          <p class="orch-sub-desc">
+            Every tool call passes through nine phases. Click any step to expand the details.
+            Defense-in-depth: each layer enforces its own safety invariant independently.
+          </p>
+        </div>
+
+        <div class="pipeline-wrap reveal" id="pipeline-wrap">
+          <div class="pipeline-header">
+            <div class="pipeline-title">checkPermissionsAndCallTool() — full execution pipeline</div>
+          </div>
+          <div class="pipeline-body" id="pipeline-body">
+            <!-- Steps injected by JS -->
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             6c — Hook-Permission Integration Matrix
+        --------------------------------------------------------------- -->
+        <div class="orch-subsection reveal" style="margin-top:var(--space-10)">
+          <div class="orch-sub-label">resolveHookPermissionDecision()</div>
+          <div class="orch-sub-title">Hook-Permission Decision Matrix</div>
+          <p class="orch-sub-desc">
+            The critical security invariant: hooks can grant convenience, but rules always
+            have the final word. This matrix shows every outcome of
+            <code style="font-family:var(--font-mono);font-size:0.85em;color:var(--accent-blue)">resolveHookPermissionDecision()</code>.
+          </p>
+        </div>
+
+        <div class="hook-matrix-wrap reveal">
+          <div class="hook-matrix-header">
+            <div class="hook-matrix-title">Hook decision × Rule-based permission = Final outcome</div>
+          </div>
+          <div class="hook-matrix-body">
+            <table class="hook-matrix-table" role="grid" aria-label="Hook and permission decision matrix">
+              <thead>
+                <tr>
+                  <th class="col-hook" scope="col">Hook Decision</th>
+                  <th scope="col">No Rule Match</th>
+                  <th scope="col">Deny Rule Matches</th>
+                  <th scope="col">Ask Rule Matches</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="row-hook">Hook: Allow</td>
+                  <td><span class="matrix-cell cell-allow">Allow</span></td>
+                  <td><span class="matrix-cell cell-deny">Deny</span></td>
+                  <td><span class="matrix-cell cell-dialog">Ask Dialog</span></td>
+                </tr>
+                <tr>
+                  <td class="row-hook">Hook: Allow + updatedInput<br><span style="font-weight:400;color:var(--text-secondary);font-size:10px">(requiresUserInteraction tool)</span></td>
+                  <td><span class="matrix-cell cell-allow">Allow</span></td>
+                  <td><span class="matrix-cell cell-deny">Deny</span></td>
+                  <td><span class="matrix-cell cell-dialog">Ask Dialog</span></td>
+                </tr>
+                <tr>
+                  <td class="row-hook">Hook: Deny</td>
+                  <td><span class="matrix-cell cell-deny">Deny</span></td>
+                  <td><span class="matrix-cell cell-deny">Deny</span></td>
+                  <td><span class="matrix-cell cell-deny">Deny</span></td>
+                </tr>
+                <tr>
+                  <td class="row-hook">Hook: Ask</td>
+                  <td><span class="matrix-cell cell-dialog">Ask Dialog</span></td>
+                  <td><span class="matrix-cell cell-dialog">Ask Dialog</span></td>
+                  <td><span class="matrix-cell cell-dialog">Ask Dialog</span></td>
+                </tr>
+                <tr>
+                  <td class="row-hook">No Hook Decision</td>
+                  <td><span class="matrix-cell cell-dialog">canUseTool()</span></td>
+                  <td><span class="matrix-cell cell-deny">Deny</span></td>
+                  <td><span class="matrix-cell cell-dialog">Ask Dialog</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="hook-matrix-footnote">
+              <strong>Key invariant:</strong> A <code>deny</code> rule always overrides a hook <code>allow</code>.
+              A hook <code>allow</code> with no rule match is the only path to unconditional execution without a dialog.
+              The <code>requiresUserInteraction</code> exception: when a hook provides <code>updatedInput</code>,
+              the hook itself satisfies the interaction requirement — the interactive prompt is skipped,
+              but deny/ask rules still apply.
             </div>
           </div>
         </div>
@@ -2059,6 +2764,137 @@
          Update total count badge
       ------------------------------------------------------------------ */
       countEl.textContent = allCards.length + ' tools';
+
+      /* ================================================================
+         Section 6 — Tool Orchestration Engine
+         ================================================================ */
+
+      /* ---- 6a: Batch diagram — animate groups on scroll ---- */
+      const batchDiagram = document.getElementById('batch-diagram');
+      if (batchDiagram) {
+        const batchObs = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              ['batch-g1', 'batch-g2', 'batch-g3'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('visible');
+              });
+              batchObs.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.25 });
+        batchObs.observe(batchDiagram);
+      }
+
+      /* ---- 6b: Execution pipeline — expandable steps ---- */
+      const PIPELINE_STEPS = [
+        {
+          num: '1',
+          name: 'Zod Schema Validation',
+          tag: 'Validate',
+          tagClass: 'tag-validate',
+          detail: `<strong>Entry point for every tool call.</strong> <code>tool.inputSchema.safeParse(input)</code> validates the raw JSON from the model against the tool's Zod schema. On failure, <code>formatZodValidationError()</code> returns a structured error. For <strong>deferred tools</strong> (those requiring ToolSearch), a special hint is appended: "Load the tool first with ToolSearch, then retry" — this catches the case where the model called a tool without loading its schema first.`
+        },
+        {
+          num: '2',
+          name: 'Custom Validation',
+          tag: 'Validate',
+          tagClass: 'tag-validate',
+          detail: `<strong>Tool-specific validation beyond what Zod checks.</strong> <code>await tool.validateInput?(parsedInput, context)</code> — each tool can implement its own checks. Returns <code>{result: true}</code> or <code>{result: false, message, errorCode}</code>. Failure yields a <code>&lt;tool_use_error&gt;</code> message without reaching any further phases.`
+        },
+        {
+          num: '3',
+          name: 'Speculative Classifier',
+          tag: 'Security',
+          tagClass: 'tag-security',
+          detail: `<strong>Bash-only performance optimization.</strong> <code>startSpeculativeClassifierCheck()</code> fires the auto-mode security classifier in parallel with subsequent phases rather than blocking on it. The classifier result is consumed later in Phase 6. The UI indicator is intentionally <em>not</em> shown here to avoid flashing "classifier running" for commands that auto-allow via prefix rules.`
+        },
+        {
+          num: '4',
+          name: 'Input Sanitization',
+          tag: 'Security',
+          tagClass: 'tag-security',
+          detail: `<strong>Defense-in-depth strip of internal fields.</strong> Removes <code>_simulatedSedEdit</code> from any model-provided Bash input — this field is internal-only, injected by the permission system after user approval. The schema's <code>strictObject</code> should already reject it, but this is an explicit safeguard. Then <code>backfillObservableInput()</code> runs on a <em>shallow clone</em> so hooks and observers see derived fields without mutating the original (preserving prompt cache).`
+        },
+        {
+          num: '5',
+          name: 'Pre-Tool Hooks',
+          tag: 'Hook',
+          tagClass: 'tag-hook',
+          detail: `<strong>Extensible hook layer before execution.</strong> <code>runPreToolUseHooks()</code> streams results from all registered hooks. Hooks can: modify input (<code>updatedInput</code>), block execution (<code>blockingError</code>), inject context (<code>additionalContexts</code>), prevent continuation (<code>preventContinuation</code>), or make permission decisions (<code>permissionBehavior: allow | deny | ask</code>). If hooks exceed <strong>500ms</strong>, an inline timing summary is emitted.`
+        },
+        {
+          num: '6',
+          name: 'Permission Resolution',
+          tag: 'Security',
+          tagClass: 'tag-security',
+          detail: `<strong>The critical hook-rule integration point.</strong> <code>resolveHookPermissionDecision()</code> combines hook results with rule-based permissions. This is the single function enforcing the invariant: <em>rules always override hooks</em>. In auto mode, the speculative classifier result from Phase 3 is consumed here. Outcomes: Allow, Deny, or Ask (interactive dialog via <code>canUseTool()</code>).`
+        },
+        {
+          num: '7',
+          name: 'OTel Tracking',
+          tag: 'Telemetry',
+          tagClass: 'tag-telemetry',
+          detail: `<strong>OpenTelemetry instrumentation.</strong> <code>tool_decision</code> events are emitted for all non-interactive permission outcomes. The <code>source</code> vocabulary maps to: <code>config</code>, <code>hook</code>, <code>user_permanent</code>, <code>user_temporary</code>, <code>user_reject</code>. Code-edit tool decisions get additional counter instrumentation to track edit frequency.`
+        },
+        {
+          num: '8',
+          name: 'tool.call()',
+          tag: 'Execute',
+          tagClass: 'tag-execute',
+          detail: `<strong>The actual tool execution.</strong> <code>await tool.call(callInput, context, canUseTool, assistantMessage, onProgress)</code>. Input is carefully managed: if no hook/permission modified it, the <em>pre-backfill original</em> is passed to preserve transcript and VCR fixture hashes. If a hook replaced input, the replacement flows through. Session activity tracking brackets the call. Progress events stream back via <code>onProgress</code> callback.`
+        },
+        {
+          num: '9',
+          name: 'Post-Tool Hooks',
+          tag: 'Hook',
+          tagClass: 'tag-hook',
+          detail: `<strong>Extensible hook layer after execution.</strong> <code>runPostToolUseHooks()</code> can: inject additional context, block (yielding <code>hook_blocking_error</code>), prevent continuation, or modify MCP tool output (<code>updatedMCPToolOutput</code> — MCP tools only). On failure, <code>runPostToolUseFailureHooks()</code> runs instead, receiving the error string and <code>isInterrupt</code> flag. Individual hook errors are caught and do not crash the pipeline.`
+        }
+      ];
+
+      const pipelineBody = document.getElementById('pipeline-body');
+      if (pipelineBody) {
+        PIPELINE_STEPS.forEach((step, i) => {
+          const div = document.createElement('div');
+          div.className = 'pipeline-step';
+          div.setAttribute('role', 'button');
+          div.setAttribute('tabindex', '0');
+          div.setAttribute('aria-expanded', 'false');
+          div.setAttribute('aria-label', 'Phase ' + step.num + ': ' + step.name);
+          div.innerHTML = `
+            <div class="pipeline-step-gutter">
+              <div class="pipeline-step-num">${escapeHtml(step.num)}</div>
+              <div class="pipeline-connector"></div>
+            </div>
+            <div class="pipeline-step-content">
+              <div class="pipeline-step-header">
+                <span class="pipeline-step-name">${escapeHtml(step.name)}</span>
+                <span class="pipeline-step-tag ${escapeHtml(step.tagClass)}">${escapeHtml(step.tag)}</span>
+                <span class="pipeline-step-chevron">&#9654;</span>
+              </div>
+              <div class="pipeline-step-detail" role="region" aria-hidden="true">
+                ${step.detail}
+              </div>
+            </div>
+          `;
+
+          const toggle = () => {
+            const isOpen = div.classList.toggle('open');
+            const detail = div.querySelector('.pipeline-step-detail');
+            detail.classList.toggle('open', isOpen);
+            detail.setAttribute('aria-hidden', String(!isOpen));
+            div.setAttribute('aria-expanded', String(isOpen));
+          };
+
+          div.addEventListener('click', toggle);
+          div.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+          });
+
+          pipelineBody.appendChild(div);
+        });
+      }
 
     }); /* end DOMContentLoaded */
   </script>

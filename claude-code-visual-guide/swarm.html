@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Agent Swarm/Team System — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(188,140,255,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 15% 60%, rgba(88,166,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 85% 60%, rgba(57,210,192,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.08);
+      border: 1px solid rgba(188,140,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+    .hero-eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 580px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 820px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-blue), transparent);
+      opacity: 0.5;
+    }
+
+    /* =====================================================================
+       Shared section styles
+       ===================================================================== */
+    .page-section { padding: var(--space-16) 0; }
+    .page-section + .page-section { border-top: 1px solid var(--border); }
+    .section-header { margin-bottom: var(--space-10); }
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 640px;
+      line-height: var(--leading-relaxed);
+    }
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* =====================================================================
+       Architecture Comparison Toggle
+       ===================================================================== */
+    .arch-toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-6);
+    }
+    .arch-toggle-btn {
+      padding: var(--space-2) var(--space-5);
+      border-radius: var(--radius-full);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .arch-toggle-btn.active {
+      background: rgba(188,140,255,0.12);
+      border-color: rgba(188,140,255,0.4);
+      color: var(--accent-purple);
+    }
+    .arch-toggle-btn:hover:not(.active) {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    .arch-panels {
+      position: relative;
+      min-height: 420px;
+    }
+    .arch-panel {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+      animation: fadeIn 0.3s ease;
+    }
+    .arch-panel.active { display: grid; }
+    @media (max-width: 720px) {
+      .arch-panel.active { grid-template-columns: 1fr; }
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .arch-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      position: relative;
+      overflow: hidden;
+    }
+    .arch-card-accent-purple { border-top: 2px solid var(--accent-purple); }
+    .arch-card-accent-blue { border-top: 2px solid var(--accent-blue); }
+    .arch-card-accent-cyan { border-top: 2px solid var(--accent-cyan); }
+    .arch-card-accent-green { border-top: 2px solid var(--accent-green); }
+    .arch-card-title {
+      font-size: var(--text-lg);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+    .arch-card-sub {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-5);
+      font-family: var(--font-mono);
+    }
+    .arch-diff-list { display: flex; flex-direction: column; gap: var(--space-2); }
+    .arch-diff-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+    .arch-diff-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .dot-purple { background: var(--accent-purple); }
+    .dot-blue { background: var(--accent-blue); }
+    .dot-green { background: var(--accent-green); }
+    .dot-cyan { background: var(--accent-cyan); }
+    .dot-orange { background: var(--accent-orange); }
+
+    /* =====================================================================
+       Backend Cards
+       ===================================================================== */
+    .backend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-5);
+    }
+    @media (max-width: 900px) { .backend-grid { grid-template-columns: 1fr; } }
+    .backend-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      transition: box-shadow var(--transition), border-color var(--transition);
+    }
+    .backend-card:hover { box-shadow: var(--shadow-lg); }
+    .backend-card-tmux { border-top: 3px solid var(--accent-green); }
+    .backend-card-iterm { border-top: 3px solid var(--accent-blue); }
+    .backend-card-inproc { border-top: 3px solid var(--accent-purple); }
+    .backend-card-header {
+      padding: var(--space-5) var(--space-5) var(--space-4);
+    }
+    .backend-card-icon {
+      width: 44px; height: 44px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: var(--space-3);
+      font-size: 22px;
+    }
+    .backend-card-name {
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+    .backend-card-tagline {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+    .backend-diagram {
+      margin: 0 var(--space-5) var(--space-4);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .backend-props {
+      padding: 0 var(--space-5) var(--space-5);
+    }
+    .backend-prop-row {
+      display: flex;
+      gap: var(--space-2);
+      align-items: baseline;
+      font-size: var(--text-xs);
+      margin-bottom: var(--space-2);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+    .backend-prop-row strong {
+      color: var(--text-primary);
+      font-weight: var(--font-semibold);
+      white-space: nowrap;
+    }
+    .pros-cons { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+    .pros-cons-col { flex: 1; }
+    .pros-cons-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-2);
+    }
+    .pros-label { color: var(--accent-green); }
+    .cons-label { color: var(--accent-red); }
+    .pros-cons-item {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-1);
+      padding-left: var(--space-3);
+      position: relative;
+      line-height: var(--leading-relaxed);
+    }
+    .pros-cons-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 6px;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+    }
+    .pros-cons-col.pros .pros-cons-item::before { background: var(--accent-green); }
+    .pros-cons-col.cons .pros-cons-item::before { background: var(--accent-red); }
+
+    /* tmux pane diagram */
+    .tmux-pane-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 3px;
+      width: 100%;
+      height: 90px;
+    }
+    .tmux-pane {
+      border-radius: 3px;
+      padding: 4px 6px;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: rgba(255,255,255,0.6);
+      display: flex; align-items: flex-start;
+    }
+    .tmux-pane-leader { background: rgba(63,185,80,0.15); border: 1px solid rgba(63,185,80,0.3); color: rgba(63,185,80,0.9); }
+    .tmux-pane-worker { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); }
+    .tmux-pane-worker2 { background: rgba(188,140,255,0.08); border: 1px solid rgba(188,140,255,0.2); }
+    .tmux-pane-worker3 { background: rgba(57,210,192,0.08); border: 1px solid rgba(57,210,192,0.2); }
+
+    /* iTerm2 tab diagram */
+    .iterm-tabs {
+      display: flex; flex-direction: column; gap: 3px; width: 100%;
+    }
+    .iterm-tab-bar {
+      display: flex; gap: 2px; padding-bottom: 3px;
+      border-bottom: 1px solid rgba(88,166,255,0.2);
+    }
+    .iterm-tab {
+      padding: 3px 8px;
+      border-radius: 3px 3px 0 0;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      background: rgba(88,166,255,0.08);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-bottom: none;
+      color: rgba(88,166,255,0.7);
+    }
+    .iterm-tab.active { background: rgba(88,166,255,0.18); color: rgba(88,166,255,1); }
+    .iterm-content {
+      background: rgba(88,166,255,0.05);
+      border: 1px solid rgba(88,166,255,0.15);
+      border-radius: 0 0 4px 4px;
+      padding: 6px 8px;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: rgba(88,166,255,0.6);
+      flex: 1;
+      min-height: 50px;
+    }
+
+    /* in-process ALS diagram */
+    .als-wrap {
+      display: flex; flex-direction: column; gap: 4px; width: 100%;
+    }
+    .als-process-box {
+      border: 1px solid rgba(188,140,255,0.35);
+      border-radius: 6px;
+      padding: 6px 8px;
+      background: rgba(188,140,255,0.05);
+    }
+    .als-process-label {
+      font-size: 9px; font-family: var(--font-mono);
+      color: rgba(188,140,255,0.8);
+      margin-bottom: 4px;
+    }
+    .als-contexts { display: flex; gap: 4px; }
+    .als-ctx {
+      flex: 1; border-radius: 4px; padding: 4px 5px;
+      font-size: 9px; font-family: var(--font-mono);
+      text-align: center;
+    }
+    .als-ctx-leader { background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.25); color: rgba(63,185,80,0.9); }
+    .als-ctx-worker { background: rgba(188,140,255,0.10); border: 1px solid rgba(188,140,255,0.25); color: rgba(188,140,255,0.8); }
+
+    /* =====================================================================
+       Mailbox Flow
+       ===================================================================== */
+    .flow-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+    .flow-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      flex-wrap: wrap;
+      gap: var(--space-3);
+    }
+    .flow-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+    .flow-controls { display: flex; gap: var(--space-2); align-items: center; }
+    .flow-btn {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all var(--transition);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+    .flow-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .flow-btn-play {
+      background: rgba(188,140,255,0.1);
+      border-color: rgba(188,140,255,0.3);
+      color: var(--accent-purple);
+    }
+    .flow-btn-play:hover {
+      background: rgba(188,140,255,0.18);
+      border-color: var(--accent-purple);
+    }
+    .flow-btn-play.playing {
+      background: rgba(248,81,73,0.1);
+      border-color: rgba(248,81,73,0.3);
+      color: var(--accent-red);
+    }
+    .flow-step-counter {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      padding: var(--space-1) var(--space-2);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      min-width: 52px;
+      text-align: center;
+    }
+    .flow-body { padding: var(--space-6); }
+    .flow-sequence {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .flow-step {
+      display: flex;
+      gap: var(--space-4);
+      align-items: flex-start;
+      padding: var(--space-3) 0;
+      opacity: 0.25;
+      transition: opacity 0.4s ease;
+      position: relative;
+    }
+    .flow-step.active { opacity: 1; }
+    .flow-step-left {
+      display: flex; flex-direction: column; align-items: center;
+      flex-shrink: 0; width: 44px;
+    }
+    .flow-step-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      border: 2px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      transition: all 0.4s ease;
+    }
+    .flow-step.active .flow-step-num {
+      border-color: var(--accent-purple);
+      background: rgba(188,140,255,0.12);
+      color: var(--accent-purple);
+    }
+    .flow-step-line {
+      width: 2px; flex: 1; min-height: 20px;
+      background: var(--border);
+      margin-top: 4px;
+    }
+    .flow-step:last-child .flow-step-line { display: none; }
+    .flow-step-content { padding-top: 4px; padding-bottom: var(--space-3); flex: 1; }
+    .flow-step-label {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+    .flow-step-detail {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      line-height: 1.6;
+    }
+    .flow-step-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      margin-left: var(--space-2);
+    }
+    .badge-leader { background: rgba(63,185,80,0.12); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.25); }
+    .badge-worker { background: rgba(88,166,255,0.12); color: var(--accent-blue); border: 1px solid rgba(88,166,255,0.25); }
+    .badge-fs { background: rgba(210,153,34,0.12); color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.25); }
+
+    /* Animated dot on active step */
+    .flow-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      margin-right: var(--space-2);
+      animation: dotPulse 1s ease-in-out infinite;
+      vertical-align: middle;
+    }
+    @keyframes dotPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.6); opacity: 0.5; }
+    }
+
+    /* Routing cascade */
+    .routing-cascade {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      margin-top: var(--space-6);
+    }
+    .routing-cascade-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-4);
+    }
+    .routing-row {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+    .routing-row:last-child { border-bottom: none; }
+    .routing-label {
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+      flex: 0 0 160px;
+      font-size: 11px;
+    }
+    .routing-arrow { color: var(--text-secondary); }
+    .routing-dest { flex: 1; }
+
+    /* =====================================================================
+       Permission Sync
+       ===================================================================== */
+    .perm-flow-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+    }
+    @media (max-width: 800px) { .perm-flow-grid { grid-template-columns: 1fr; } }
+    .perm-path-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+    .perm-path-header {
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+    .perm-path-icon {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .perm-path-name { font-size: var(--text-sm); font-weight: var(--font-semibold); color: var(--text-primary); }
+    .perm-path-sub { font-size: var(--text-xs); color: var(--text-secondary); }
+    .perm-steps { padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+    .perm-step {
+      display: flex; gap: var(--space-3); align-items: flex-start;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      border: 1px solid transparent;
+      transition: border-color 0.3s ease, background 0.3s ease;
+    }
+    .perm-step.perm-active {
+      border-color: rgba(188,140,255,0.3);
+      background: rgba(188,140,255,0.05);
+    }
+    .perm-step-n {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      font-weight: var(--font-bold);
+      color: var(--text-secondary);
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .perm-step-text { font-size: var(--text-xs); color: var(--text-secondary); line-height: var(--leading-relaxed); }
+    .perm-step-text strong { color: var(--text-primary); font-weight: var(--font-semibold); }
+    .perm-play-btn {
+      margin: 0 var(--space-5) var(--space-5);
+      width: calc(100% - var(--space-10));
+      padding: var(--space-2) 0;
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .perm-play-purple {
+      background: rgba(188,140,255,0.1);
+      border: 1px solid rgba(188,140,255,0.3);
+      color: var(--accent-purple);
+    }
+    .perm-play-purple:hover { background: rgba(188,140,255,0.18); border-color: var(--accent-purple); }
+    .perm-play-cyan {
+      background: rgba(57,210,192,0.1);
+      border: 1px solid rgba(57,210,192,0.3);
+      color: var(--accent-cyan);
+    }
+    .perm-play-cyan:hover { background: rgba(57,210,192,0.18); border-color: var(--accent-cyan); }
+
+    /* =====================================================================
+       Coordinator Workflow
+       ===================================================================== */
+    .coord-phases {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-4);
+    }
+    @media (max-width: 900px) { .coord-phases { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 500px) { .coord-phases { grid-template-columns: 1fr; } }
+    .coord-phase-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      cursor: pointer;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .coord-phase-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--phase-color, var(--accent-blue));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+    .coord-phase-card.phase-active::after { transform: scaleX(1); }
+    .coord-phase-card.phase-active {
+      border-color: rgba(88,166,255,0.3);
+      box-shadow: 0 0 0 1px rgba(88,166,255,0.1), var(--shadow-md);
+    }
+    .coord-phase-card.phase-done { border-color: rgba(63,185,80,0.3); }
+    .coord-phase-num {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-2);
+    }
+    .coord-phase-icon { font-size: 24px; margin-bottom: var(--space-2); }
+    .coord-phase-name { font-size: var(--text-base); font-weight: var(--font-bold); color: var(--text-primary); margin-bottom: var(--space-2); }
+    .coord-phase-who {
+      font-size: var(--text-xs);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      display: inline-block;
+      margin-bottom: var(--space-3);
+    }
+    .who-workers { background: rgba(88,166,255,0.1); color: var(--accent-blue); border: 1px solid rgba(88,166,255,0.2); }
+    .who-coord { background: rgba(188,140,255,0.1); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.2); }
+    .coord-phase-details {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease, opacity 0.3s ease;
+      opacity: 0;
+    }
+    .coord-phase-card.phase-active .coord-phase-details,
+    .coord-phase-card.phase-expanded .coord-phase-details {
+      max-height: 200px;
+      opacity: 1;
+    }
+    .coord-phase-detail-item {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      padding: var(--space-1) 0;
+      border-top: 1px solid rgba(48,54,61,0.5);
+      line-height: var(--leading-relaxed);
+    }
+    .coord-phase-detail-item:first-child { border-top: none; padding-top: var(--space-2); }
+    .coord-progress-bar {
+      margin-top: var(--space-6);
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+    .coord-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue), var(--accent-green));
+      border-radius: var(--radius-full);
+      width: 0%;
+      transition: width 0.6s ease;
+    }
+    .coord-controls { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-5); }
+    .coord-btn {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all var(--transition);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+    .coord-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .coord-btn-primary {
+      background: rgba(88,166,255,0.1);
+      border-color: rgba(88,166,255,0.3);
+      color: var(--accent-blue);
+    }
+    .coord-btn-primary:hover { background: rgba(88,166,255,0.18); border-color: var(--accent-blue); }
+
+    /* =====================================================================
+       Team Lifecycle Timeline
+       ===================================================================== */
+    .timeline-wrap {
+      position: relative;
+      padding-left: 48px;
+    }
+    .timeline-line {
+      position: absolute;
+      left: 19px; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .timeline-line-fill {
+      position: absolute;
+      left: 0; top: 0;
+      width: 100%;
+      background: linear-gradient(180deg, var(--accent-purple), var(--accent-blue), var(--accent-green));
+      height: 0%;
+      transition: height 0.6s ease;
+    }
+    .timeline-event {
+      position: relative;
+      margin-bottom: var(--space-8);
+      opacity: 0.3;
+      transition: opacity 0.4s ease;
+    }
+    .timeline-event.tl-active { opacity: 1; }
+    .timeline-dot {
+      position: absolute;
+      left: -35px; top: 0;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      transition: border-color 0.4s ease, background 0.4s ease;
+      z-index: 1;
+    }
+    .timeline-event.tl-active .timeline-dot {
+      border-color: var(--accent-purple);
+      background: rgba(188,140,255,0.1);
+    }
+    .timeline-body {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      transition: border-color 0.4s ease;
+    }
+    .timeline-event.tl-active .timeline-body { border-color: rgba(188,140,255,0.25); }
+    .timeline-event-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+    .timeline-event-code {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--accent-purple);
+      margin-bottom: var(--space-3);
+    }
+    .timeline-event-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+    .timeline-event-detail {
+      margin-top: var(--space-3);
+      padding: var(--space-3);
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      line-height: 1.7;
+    }
+    .tl-controls { display: flex; gap: var(--space-2); margin-bottom: var(--space-6); }
+
+    /* =====================================================================
+       Key Insight callout
+       ===================================================================== */
+    .insight-box {
+      background: rgba(188,140,255,0.05);
+      border: 1px solid rgba(188,140,255,0.2);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      margin-top: var(--space-6);
+      display: flex; gap: var(--space-3); align-items: flex-start;
+    }
+    .insight-icon {
+      font-size: 18px; flex-shrink: 0; margin-top: 1px;
+    }
+    .insight-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+    .insight-text strong { color: var(--text-primary); }
+
+    /* =====================================================================
+       Nav footer & site footer
+       ===================================================================== */
+    .nav-footer { border-top: 1px solid var(--border); padding: var(--space-8) 0; }
+    .nav-footer-inner {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+    }
+    .nav-footer-link {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-sm); font-weight: var(--font-medium);
+      color: var(--text-secondary); text-decoration: none;
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all var(--transition);
+    }
+    .nav-footer-link:hover {
+      color: var(--accent-blue);
+      border-color: rgba(88,166,255,0.3);
+      background: rgba(88,166,255,0.05);
+      text-decoration: none;
+    }
+    .nav-footer-center {
+      font-size: var(--text-xs); color: var(--text-secondary);
+      font-family: var(--font-mono); letter-spacing: 0.04em;
+    }
+    .site-footer { border-top: 1px solid var(--border); padding: var(--space-8) 0; text-align: center; }
+    .site-footer-text { font-size: var(--text-sm); color: var(--text-secondary); }
+
+    @media (max-width: 640px) {
+      .nav-footer-center { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <div class="nav-inner">
+        <a href="index.html" class="nav-brand" aria-label="Claude Code Architecture Home">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="22" height="22" rx="6" fill="rgba(88,166,255,0.15)"/>
+            <circle cx="11" cy="11" r="3.5" stroke="#58a6ff" stroke-width="1.5"/>
+            <path d="M11 4v2M11 16v2M4 11h2M16 11h2" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6.5 6.5l1.5 1.5M14 14l1.5 1.5M14 6.5l-1.5 1.5M8 14l-1.5 1.5" stroke="#bc8cff" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <span>Claude Code Architecture</span>
+        </a>
+        <div class="nav-links" role="list">
+          <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+          <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+          <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+          <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+          <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+          <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+          <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+          <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+          <a href="mcp.html" class="nav-link" role="listitem">MCP</a>
+          <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+          <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+          <a href="emulator.html" class="nav-link" role="listitem">Emulator</a>
+          <a href="swarm.html" class="nav-link active" role="listitem">Swarm</a>
+        </div>
+        <button class="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+    <a href="index.html" class="nav-link">The Big Picture</a>
+    <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+    <a href="system-prompt.html" class="nav-link">System Prompt</a>
+    <a href="tools.html" class="nav-link">Tools</a>
+    <a href="context-injection.html" class="nav-link">Context Injection</a>
+    <a href="skills.html" class="nav-link">Skills</a>
+    <a href="plugins.html" class="nav-link">Plugins</a>
+    <a href="agents.html" class="nav-link">Agents</a>
+    <a href="mcp.html" class="nav-link">MCP</a>
+    <a href="context-management.html" class="nav-link">Context Mgmt</a>
+    <a href="persistence.html" class="nav-link">Persistence</a>
+    <a href="emulator.html" class="nav-link">Emulator</a>
+    <a href="swarm.html" class="nav-link active">Swarm</a>
+  </div>
+
+  <main>
+
+    <!-- ===================================================================
+         Hero
+         =================================================================== -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+        <div class="hero-eyebrow">
+          <span class="hero-eyebrow-dot"></span>
+          Chapter 13 &mdash; Multi-Agent Systems
+        </div>
+        <h1 class="hero-title" id="hero-title">
+          <span class="hero-title-accent">Swarm / Team</span><br>System
+        </h1>
+        <p class="hero-subtitle">
+          Peer agents with file-based mailboxes, three spawning backends, and a full team lifecycle. Internally codenamed &ldquo;tengu.&rdquo;
+        </p>
+
+        <!-- Animated SVG: leader + worker nodes -->
+        <div class="hero-diagram-wrap" id="hero-diagram-wrap">
+          <svg id="hero-svg" viewBox="0 0 720 260" fill="none" xmlns="http://www.w3.org/2000/svg"
+               aria-label="Swarm team topology diagram" role="img" style="width:100%;height:auto;display:block;">
+
+            <!-- Connection lines -->
+            <line id="line-a" x1="260" y1="130" x2="160" y2="80" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="4 3" opacity="0"/>
+            <line id="line-b" x1="260" y1="130" x2="160" y2="130" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="4 3" opacity="0"/>
+            <line id="line-c" x1="260" y1="130" x2="160" y2="180" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="4 3" opacity="0"/>
+            <line id="line-d" x1="260" y1="130" x2="160" y2="230" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3" opacity="0"/>
+
+            <!-- Right side: routing box -->
+            <line id="line-r" x1="360" y1="130" x2="430" y2="130" stroke="#39d2c0" stroke-width="1.5" stroke-dasharray="4 3" opacity="0"/>
+
+            <!-- Mailbox icons on lines -->
+            <g id="mb-a" opacity="0">
+              <rect x="194" y="68" width="22" height="16" rx="3" fill="#21262d" stroke="#bc8cff" stroke-width="1"/>
+              <path d="M194 71l11 7 11-7" stroke="#bc8cff" stroke-width="1" stroke-linecap="round"/>
+            </g>
+            <g id="mb-b" opacity="0">
+              <rect x="194" y="122" width="22" height="16" rx="3" fill="#21262d" stroke="#bc8cff" stroke-width="1"/>
+              <path d="M194 125l11 7 11-7" stroke="#bc8cff" stroke-width="1" stroke-linecap="round"/>
+            </g>
+            <g id="mb-c" opacity="0">
+              <rect x="194" y="172" width="22" height="16" rx="3" fill="#21262d" stroke="#bc8cff" stroke-width="1"/>
+              <path d="M194 175l11 7 11-7" stroke="#bc8cff" stroke-width="1" stroke-linecap="round"/>
+            </g>
+            <g id="mb-d" opacity="0">
+              <rect x="194" y="222" width="22" height="16" rx="3" fill="#21262d" stroke="#58a6ff" stroke-width="1"/>
+              <path d="M194 225l11 7 11-7" stroke="#58a6ff" stroke-width="1" stroke-linecap="round"/>
+            </g>
+
+            <!-- Leader node -->
+            <g id="leader-node" opacity="0">
+              <circle cx="310" cy="130" r="46" fill="rgba(188,140,255,0.08)" stroke="rgba(188,140,255,0.4)" stroke-width="1.5"/>
+              <circle cx="310" cy="130" r="34" fill="rgba(188,140,255,0.12)" stroke="rgba(188,140,255,0.6)" stroke-width="1.5"/>
+              <circle cx="310" cy="130" r="22" fill="rgba(188,140,255,0.2)" stroke="#bc8cff" stroke-width="2"/>
+              <text x="310" y="127" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="monospace" font-weight="600">team</text>
+              <text x="310" y="139" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="monospace" font-weight="600">lead</text>
+            </g>
+
+            <!-- Worker nodes -->
+            <g id="worker-a" opacity="0">
+              <circle cx="110" cy="80" r="28" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.35)" stroke-width="1.5"/>
+              <circle cx="110" cy="80" r="18" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="1.5"/>
+              <text x="110" y="77" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="monospace">research</text>
+              <text x="110" y="88" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="monospace">er</text>
+            </g>
+            <g id="worker-b" opacity="0">
+              <circle cx="110" cy="130" r="28" fill="rgba(63,185,80,0.08)" stroke="rgba(63,185,80,0.35)" stroke-width="1.5"/>
+              <circle cx="110" cy="130" r="18" fill="rgba(63,185,80,0.15)" stroke="#3fb950" stroke-width="1.5"/>
+              <text x="110" y="127" text-anchor="middle" fill="#3fb950" font-size="9" font-family="monospace">coder</text>
+              <text x="110" y="138" text-anchor="middle" fill="#3fb950" font-size="9" font-family="monospace">A</text>
+            </g>
+            <g id="worker-c" opacity="0">
+              <circle cx="110" cy="180" r="28" fill="rgba(57,210,192,0.08)" stroke="rgba(57,210,192,0.35)" stroke-width="1.5"/>
+              <circle cx="110" cy="180" r="18" fill="rgba(57,210,192,0.15)" stroke="#39d2c0" stroke-width="1.5"/>
+              <text x="110" y="177" text-anchor="middle" fill="#39d2c0" font-size="9" font-family="monospace">coder</text>
+              <text x="110" y="188" text-anchor="middle" fill="#39d2c0" font-size="9" font-family="monospace">B</text>
+            </g>
+            <g id="worker-d" opacity="0">
+              <circle cx="110" cy="230" r="28" fill="rgba(210,153,34,0.08)" stroke="rgba(210,153,34,0.35)" stroke-width="1.5"/>
+              <circle cx="110" cy="230" r="18" fill="rgba(210,153,34,0.15)" stroke="#d29922" stroke-width="1.5"/>
+              <text x="110" y="227" text-anchor="middle" fill="#d29922" font-size="9" font-family="monospace">verify</text>
+              <text x="110" y="238" text-anchor="middle" fill="#d29922" font-size="9" font-family="monospace">er</text>
+            </g>
+
+            <!-- Animated message dots -->
+            <circle id="dot1" r="4" fill="#bc8cff" opacity="0"/>
+            <circle id="dot2" r="4" fill="#58a6ff" opacity="0"/>
+
+            <!-- Right panel: routing info -->
+            <g id="routing-box" opacity="0">
+              <rect x="430" y="70" width="270" height="120" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+              <text x="450" y="93" fill="#8b949e" font-size="9" font-family="monospace" font-weight="600" letter-spacing="0.06em">SENDMESSAGE ROUTING</text>
+              <line x1="440" y1="100" x2="690" y2="100" stroke="#30363d" stroke-width="1"/>
+              <text x="450" y="116" fill="#39d2c0" font-size="10" font-family="monospace">bridge:&lt;session&gt;</text>
+              <text x="600" y="116" fill="#8b949e" font-size="10" font-family="monospace">→ Remote bridge</text>
+              <text x="450" y="133" fill="#58a6ff" font-size="10" font-family="monospace">uds:&lt;socket&gt;</text>
+              <text x="600" y="133" fill="#8b949e" font-size="10" font-family="monospace">→ Unix socket</text>
+              <text x="450" y="150" fill="#bc8cff" font-size="10" font-family="monospace">in-process name</text>
+              <text x="600" y="150" fill="#8b949e" font-size="10" font-family="monospace">→ Memory queue</text>
+              <text x="450" y="167" fill="#d29922" font-size="10" font-family="monospace">default</text>
+              <text x="600" y="167" fill="#8b949e" font-size="10" font-family="monospace">→ File mailbox</text>
+            </g>
+
+            <!-- Legend -->
+            <g id="legend" opacity="0">
+              <rect x="430" y="205" width="270" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+              <circle cx="448" cy="226" r="4" fill="rgba(188,140,255,0.3)" stroke="#bc8cff" stroke-width="1.5"/>
+              <text x="458" y="230" fill="#8b949e" font-size="9" font-family="monospace">Leader (team-lead)</text>
+              <circle cx="548" cy="226" r="4" fill="rgba(88,166,255,0.2)" stroke="#58a6ff" stroke-width="1.5"/>
+              <text x="558" y="230" fill="#8b949e" font-size="9" font-family="monospace">Peer agents</text>
+              <rect x="620" y="221" width="14" height="10" rx="2" fill="#21262d" stroke="#bc8cff" stroke-width="1"/>
+              <path d="M620 224l7 4 7-4" stroke="#bc8cff" stroke-width="0.8" stroke-linecap="round"/>
+              <text x="640" y="230" fill="#8b949e" font-size="9" font-family="monospace">Mailbox</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Architecture Comparison
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="arch-title">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-label">Architecture</div>
+          <h2 class="section-title" id="arch-title">Two Multi-Agent Models</h2>
+          <p class="section-desc">Claude Code provides two distinct multi-agent architectures that serve different needs. Toggle to compare their design philosophies and trade-offs.</p>
+        </div>
+
+        <div class="reveal">
+          <div class="arch-toggle-wrap" role="tablist" aria-label="Architecture comparison">
+            <button class="arch-toggle-btn active" id="tab-swarm" role="tab" aria-selected="true" aria-controls="panel-swarm" onclick="switchArch('swarm')">
+              Swarm / Team Model
+            </button>
+            <button class="arch-toggle-btn" id="tab-coord" role="tab" aria-selected="false" aria-controls="panel-coord" onclick="switchArch('coord')">
+              Coordinator Mode
+            </button>
+          </div>
+
+          <div class="arch-panels">
+
+            <!-- Swarm Panel -->
+            <div class="arch-panel active" id="panel-swarm" role="tabpanel" aria-labelledby="tab-swarm">
+              <div class="arch-card arch-card-accent-purple">
+                <div class="arch-card-title">Swarm / Team Model</div>
+                <div class="arch-card-sub">Codenamed &ldquo;tengu&rdquo; &mdash; TeamCreateTool + TeammateTool + SendMessageTool</div>
+                <svg viewBox="0 0 280 160" width="100%" style="margin-bottom:1rem;display:block;" aria-hidden="true">
+                  <circle cx="140" cy="80" r="32" fill="rgba(188,140,255,0.1)" stroke="#bc8cff" stroke-width="1.5"/>
+                  <text x="140" y="77" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="monospace">team-lead</text>
+                  <text x="140" y="89" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="monospace">(leader)</text>
+                  <line x1="112" y1="68" x2="60" y2="36" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3 2" opacity="0.6"/>
+                  <line x1="112" y1="80" x2="60" y2="80" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3 2" opacity="0.6"/>
+                  <line x1="112" y1="92" x2="60" y2="124" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3 2" opacity="0.6"/>
+                  <line x1="168" y1="68" x2="220" y2="36" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3 2" opacity="0.6"/>
+                  <circle cx="45" cy="36" r="22" fill="rgba(88,166,255,0.08)" stroke="#58a6ff" stroke-width="1.2"/>
+                  <text x="45" y="40" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="monospace">peer A</text>
+                  <circle cx="45" cy="80" r="22" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.2"/>
+                  <text x="45" y="84" text-anchor="middle" fill="#3fb950" font-size="9" font-family="monospace">peer B</text>
+                  <circle cx="45" cy="124" r="22" fill="rgba(57,210,192,0.08)" stroke="#39d2c0" stroke-width="1.2"/>
+                  <text x="45" y="128" text-anchor="middle" fill="#39d2c0" font-size="9" font-family="monospace">peer C</text>
+                  <circle cx="235" cy="36" r="22" fill="rgba(210,153,34,0.08)" stroke="#d29922" stroke-width="1.2"/>
+                  <text x="235" y="40" text-anchor="middle" fill="#d29922" font-size="9" font-family="monospace">peer D</text>
+                  <!-- peer-to-peer arrows -->
+                  <path d="M67 46 Q56 62 67 74" stroke="#8b949e" stroke-width="1" stroke-dasharray="2 2" fill="none" opacity="0.5"/>
+                  <text x="130" y="148" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">Peers can message each other directly</text>
+                </svg>
+                <div class="arch-diff-list">
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-purple"></span>Persistent team with named agents and a shared task list</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-purple"></span>File-based mailboxes in <code>~/.claude/teams/{name}/inboxes/</code></div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-purple"></span>Agents poll at 500ms intervals; can message each other directly</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-purple"></span>Three spawning backends: tmux, iTerm2, in-process</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-purple"></span>Permission requests route through leader&#39;s terminal UI</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-purple"></span>One team per leader enforced; cleaned up on session end</div>
+                </div>
+              </div>
+              <div class="arch-card arch-card-accent-blue">
+                <div class="arch-card-title">Best For</div>
+                <div class="arch-card-sub">Long-lived collaborative sessions with agent autonomy</div>
+                <div style="margin: 1rem 0; background: var(--bg-primary); border-radius: var(--radius-md); padding: 1rem; font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-secondary); line-height: 1.7;">
+                  TeamCreateTool &rarr; creates team file<br>
+                  TeammateTool &rarr; spawns peer agents<br>
+                  SendMessageTool &rarr; routes to mailbox<br>
+                  ~/.claude/teams/{name}/config.json<br>
+                  ~/.claude/teams/{name}/inboxes/<br>
+                  ~/.claude/teams/{name}/permissions/
+                </div>
+                <div class="arch-diff-list">
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-blue"></span>Semi-independent agents working on shared task list</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-blue"></span>Idle agents auto-claim next available task</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-blue"></span>Team-wide path permissions granted from leader</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-blue"></span>Workers send idle notification when they finish</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Coordinator Panel -->
+            <div class="arch-panel" id="panel-coord" role="tabpanel" aria-labelledby="tab-coord">
+              <div class="arch-card arch-card-accent-cyan">
+                <div class="arch-card-title">Coordinator Mode</div>
+                <div class="arch-card-sub">CLAUDE_CODE_COORDINATOR_MODE=1 &mdash; repurposes AgentTool</div>
+                <svg viewBox="0 0 280 160" width="100%" style="margin-bottom:1rem;display:block;" aria-hidden="true">
+                  <rect x="90" y="20" width="100" height="42" rx="8" fill="rgba(57,210,192,0.08)" stroke="#39d2c0" stroke-width="1.5"/>
+                  <text x="140" y="38" text-anchor="middle" fill="#39d2c0" font-size="10" font-family="monospace">Coordinator</text>
+                  <text x="140" y="52" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">AgentTool + SendMessage</text>
+                  <line x1="100" y1="62" x2="60" y2="100" stroke="#39d2c0" stroke-width="1.2" opacity="0.7"/>
+                  <line x1="140" y1="62" x2="140" y2="100" stroke="#39d2c0" stroke-width="1.2" opacity="0.7"/>
+                  <line x1="180" y1="62" x2="220" y2="100" stroke="#39d2c0" stroke-width="1.2" opacity="0.7"/>
+                  <rect x="28" y="100" width="64" height="36" rx="6" fill="rgba(88,166,255,0.08)" stroke="#58a6ff" stroke-width="1.2"/>
+                  <text x="60" y="118" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="monospace">Worker 1</text>
+                  <text x="60" y="129" text-anchor="middle" fill="#8b949e" font-size="8" font-family="monospace">AgentTool</text>
+                  <rect x="108" y="100" width="64" height="36" rx="6" fill="rgba(88,166,255,0.08)" stroke="#58a6ff" stroke-width="1.2"/>
+                  <text x="140" y="118" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="monospace">Worker 2</text>
+                  <text x="140" y="129" text-anchor="middle" fill="#8b949e" font-size="8" font-family="monospace">AgentTool</text>
+                  <rect x="188" y="100" width="64" height="36" rx="6" fill="rgba(88,166,255,0.08)" stroke="#58a6ff" stroke-width="1.2"/>
+                  <text x="220" y="118" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="monospace">Worker 3</text>
+                  <text x="220" y="129" text-anchor="middle" fill="#8b949e" font-size="8" font-family="monospace">AgentTool</text>
+                  <text x="140" y="152" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">Workers return &lt;task-notification&gt; XML</text>
+                </svg>
+                <div class="arch-diff-list">
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-cyan"></span>No TeamCreateTool or team file system — uses AgentTool directly</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-cyan"></span>Workers report results as <code>&lt;task-notification&gt;</code> XML</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-cyan"></span>Four phases: Research → Synthesis → Implementation → Verification</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-cyan"></span>Coordinator must synthesize — never lazy-delegate</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-cyan"></span>Workers lack TeamCreateTool, SendMessageTool, SyntheticOutputTool</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-cyan"></span>Optional scratchpad dir for cross-worker knowledge sharing</div>
+                </div>
+              </div>
+              <div class="arch-card arch-card-accent-green">
+                <div class="arch-card-title">Best For</div>
+                <div class="arch-card-sub">Structured workflows with centralized control</div>
+                <div style="margin: 1rem 0; background: var(--bg-primary); border-radius: var(--radius-md); padding: 1rem; font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-secondary); line-height: 1.7;">
+                  &lt;task-notification&gt;<br>
+                  &nbsp;&nbsp;&lt;task-id&gt;{agentId}&lt;/task-id&gt;<br>
+                  &nbsp;&nbsp;&lt;status&gt;completed&lt;/status&gt;<br>
+                  &nbsp;&nbsp;&lt;summary&gt;...&lt;/summary&gt;<br>
+                  &nbsp;&nbsp;&lt;result&gt;...&lt;/result&gt;<br>
+                  &lt;/task-notification&gt;
+                </div>
+                <div class="arch-diff-list">
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-green"></span>Parallel research, then coordinator synthesizes findings</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-green"></span>Self-contained prompts with full context per worker</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-green"></span>Continue vs. spawn decision after each phase</div>
+                  <div class="arch-diff-item"><span class="arch-diff-dot dot-green"></span>Session mode matching prevents resume confusion</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="insight-box reveal">
+          <span class="insight-icon">&#x1F4A1;</span>
+          <div class="insight-text">
+            <strong>Key Insight:</strong> The Swarm/Team model is designed for long-lived collaborative sessions where multiple agents work semi-independently on a shared task list. Coordinator mode is designed for structured workflows where one agent maintains full control of task decomposition and synthesis.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Three Backend Cards
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="backends-title">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-label">Spawning Backends</div>
+          <h2 class="section-title" id="backends-title">Three Execution Backends</h2>
+          <p class="section-desc">Once a team exists, teammates are spawned through one of three backends. Auto-detected from environment or set via <code>--teammate-mode</code>.</p>
+        </div>
+
+        <div class="backend-grid reveal">
+
+          <!-- tmux -->
+          <article class="backend-card backend-card-tmux">
+            <div class="backend-card-header">
+              <div class="backend-card-icon" style="background:rgba(63,185,80,0.12);">&#x1F5A5;</div>
+              <div class="backend-card-name">tmux</div>
+              <div class="backend-card-tagline">--teammate-mode tmux</div>
+            </div>
+            <div class="backend-diagram" aria-label="tmux pane layout">
+              <div class="tmux-pane-wrap">
+                <div class="tmux-pane tmux-pane-leader">team-lead$&nbsp;_</div>
+                <div class="tmux-pane tmux-pane-worker">researcher$&nbsp;_</div>
+                <div class="tmux-pane tmux-pane-worker2">coder-A$&nbsp;_</div>
+                <div class="tmux-pane tmux-pane-worker3">verifier$&nbsp;_</div>
+              </div>
+            </div>
+            <div class="backend-props">
+              <div class="backend-prop-row"><strong>Process:</strong> Separate OS process per teammate</div>
+              <div class="backend-prop-row"><strong>Socket:</strong> <code>claude-swarm-{PID}</code> (isolated)</div>
+              <div class="backend-prop-row"><strong>Visual:</strong> Colored borders + pane titles</div>
+              <div class="backend-prop-row"><strong>Init:</strong> 200ms delay for shell rc files</div>
+              <div class="backend-prop-row"><strong>Lock:</strong> Sequential pane creation to prevent races</div>
+              <div class="pros-cons">
+                <div class="pros-cons-col pros">
+                  <div class="pros-cons-label pros-label">Pros</div>
+                  <div class="pros-cons-item">Full process isolation</div>
+                  <div class="pros-cons-item">Visual pane per agent</div>
+                  <div class="pros-cons-item">Works without GUI</div>
+                </div>
+                <div class="pros-cons-col cons">
+                  <div class="pros-cons-label cons-label">Cons</div>
+                  <div class="pros-cons-item">Higher resource cost</div>
+                  <div class="pros-cons-item">Env vars must be propagated</div>
+                  <div class="pros-cons-item">tmux must be available</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- iTerm2 -->
+          <article class="backend-card backend-card-iterm">
+            <div class="backend-card-header">
+              <div class="backend-card-icon" style="background:rgba(88,166,255,0.12);">&#x1F4BB;</div>
+              <div class="backend-card-name">iTerm2</div>
+              <div class="backend-card-tagline">--teammate-mode iterm2 (macOS only)</div>
+            </div>
+            <div class="backend-diagram" aria-label="iTerm2 split pane layout">
+              <div class="iterm-tabs">
+                <div class="iterm-tab-bar">
+                  <div class="iterm-tab active">team-lead</div>
+                  <div class="iterm-tab">researcher</div>
+                  <div class="iterm-tab">coder-A</div>
+                </div>
+                <div class="iterm-content">
+                  [team-lead] Creating team...<br>
+                  [team-lead] Spawning researcher...
+                </div>
+              </div>
+            </div>
+            <div class="backend-props">
+              <div class="backend-prop-row"><strong>Tool:</strong> Uses <code>it2</code> CLI for native split panes</div>
+              <div class="backend-prop-row"><strong>Sessions:</strong> Tracks session IDs from <code>it2 session split</code></div>
+              <div class="backend-prop-row"><strong>Fallback:</strong> Falls back to tmux if <code>it2</code> not found</div>
+              <div class="backend-prop-row"><strong>Detection:</strong> Auto-detected if running inside iTerm2</div>
+              <div class="pros-cons">
+                <div class="pros-cons-col pros">
+                  <div class="pros-cons-label pros-label">Pros</div>
+                  <div class="pros-cons-item">Native macOS tabs</div>
+                  <div class="pros-cons-item">Better GUI integration</div>
+                  <div class="pros-cons-item">Native split panes</div>
+                </div>
+                <div class="pros-cons-col cons">
+                  <div class="pros-cons-label cons-label">Cons</div>
+                  <div class="pros-cons-item">macOS only</div>
+                  <div class="pros-cons-item">Requires iTerm2 app</div>
+                  <div class="pros-cons-item">Separate processes</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- in-process -->
+          <article class="backend-card backend-card-inproc">
+            <div class="backend-card-header">
+              <div class="backend-card-icon" style="background:rgba(188,140,255,0.12);">&#x26A1;</div>
+              <div class="backend-card-name">In-Process</div>
+              <div class="backend-card-tagline">--teammate-mode in-process (default fallback)</div>
+            </div>
+            <div class="backend-diagram" aria-label="In-process AsyncLocalStorage isolation">
+              <div class="als-wrap">
+                <div class="als-process-box">
+                  <div class="als-process-label">Node.js Process (shared)</div>
+                  <div class="als-contexts">
+                    <div class="als-ctx als-ctx-leader">team-lead<br><span style="font-size:8px;opacity:0.7">ALS ctx A</span></div>
+                    <div class="als-ctx als-ctx-worker">worker-1<br><span style="font-size:8px;opacity:0.7">ALS ctx B</span></div>
+                    <div class="als-ctx als-ctx-worker">worker-2<br><span style="font-size:8px;opacity:0.7">ALS ctx C</span></div>
+                  </div>
+                </div>
+                <div style="font-size:9px;font-family:var(--font-mono);color:rgba(188,140,255,0.5);text-align:center;margin-top:2px;">AsyncLocalStorage isolation</div>
+              </div>
+            </div>
+            <div class="backend-props">
+              <div class="backend-prop-row"><strong>Isolation:</strong> <code>AsyncLocalStorage</code> per agent context</div>
+              <div class="backend-prop-row"><strong>Abort:</strong> Independent AbortController (not linked to leader)</div>
+              <div class="backend-prop-row"><strong>Sharing:</strong> Shared API client + MCP connections</div>
+              <div class="backend-prop-row"><strong>Messages:</strong> In-memory queue (no filesystem round-trip)</div>
+              <div class="pros-cons">
+                <div class="pros-cons-col pros">
+                  <div class="pros-cons-label pros-label">Pros</div>
+                  <div class="pros-cons-item">Cheapest to spawn</div>
+                  <div class="pros-cons-item">Shared API client</div>
+                  <div class="pros-cons-item">No env propagation</div>
+                </div>
+                <div class="pros-cons-col cons">
+                  <div class="pros-cons-label cons-label">Cons</div>
+                  <div class="pros-cons-item">Shared process resources</div>
+                  <div class="pros-cons-item">No visual panes</div>
+                  <div class="pros-cons-item">Less crash isolation</div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+        </div>
+
+        <div class="insight-box reveal" style="margin-top: var(--space-6);">
+          <span class="insight-icon">&#x1F4A1;</span>
+          <div class="insight-text">
+            <strong>Detection priority:</strong> Explicit <code>--teammate-mode</code> flag &rarr; Running inside iTerm2 &rarr; Running inside tmux &rarr; tmux available (external session) &rarr; In-process fallback. In-process teammates share the leader&apos;s API client and MCP connections, making them significantly cheaper to spawn.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Interactive Mailbox Flow
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="mailbox-title">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-label">Communication</div>
+          <h2 class="section-title" id="mailbox-title">Mailbox Message Flow</h2>
+          <p class="section-desc">All inter-agent communication flows through <code>SendMessageTool</code>, which uses a cascading routing strategy. File-based mailboxes are the universal transport.</p>
+        </div>
+
+        <div class="flow-wrap reveal">
+          <div class="flow-header">
+            <div class="flow-title">SendMessage Sequence</div>
+            <div class="flow-controls">
+              <span class="flow-step-counter" id="flow-counter">0 / 7</span>
+              <button class="flow-btn" id="flow-prev-btn" onclick="flowPrev()" disabled>&#8592; Prev</button>
+              <button class="flow-btn flow-btn-play" id="flow-play-btn" onclick="flowToggle()">&#9654; Play</button>
+              <button class="flow-btn" id="flow-next-btn" onclick="flowNext()">Next &#8594;</button>
+              <button class="flow-btn" onclick="flowReset()">Reset</button>
+            </div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-sequence" id="flow-sequence">
+
+              <div class="flow-step" id="fstep-0">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">1</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Leader creates team <span class="flow-step-badge badge-leader">Leader</span></div>
+                  <div class="flow-step-detail">TeamCreateTool() &rarr; writes ~/.claude/teams/my-team/config.json<br>Registers team for session cleanup &bull; Sets up task list directory</div>
+                </div>
+              </div>
+
+              <div class="flow-step" id="fstep-1">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">2</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Worker spawns <span class="flow-step-badge badge-worker">Worker</span></div>
+                  <div class="flow-step-detail">TeammateTool() &rarr; selects backend (tmux / iTerm2 / in-process)<br>initializeTeammateHooks() &bull; applies team-wide path permissions</div>
+                </div>
+              </div>
+
+              <div class="flow-step" id="fstep-2">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">3</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Worker sends message <span class="flow-step-badge badge-worker">Worker</span></div>
+                  <div class="flow-step-detail">SendMessageTool({ to: "team-lead", message: "Found the bug in auth.ts" })<br>Routing cascade begins...</div>
+                </div>
+              </div>
+
+              <div class="flow-step" id="fstep-3">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">4</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Routing decision <span class="flow-step-badge badge-fs">Router</span></div>
+                  <div class="flow-step-detail">Is to: "bridge:*" ? &rarr; Remote Control bridge<br>Is to: "uds:*" ? &rarr; Unix Domain Socket<br>Is in-process agent? &rarr; queuePendingMessage() in memory<br>Default &rarr; write to file mailbox</div>
+                </div>
+              </div>
+
+              <div class="flow-step" id="fstep-4">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">5</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Mailbox file written <span class="flow-step-badge badge-fs">Filesystem</span></div>
+                  <div class="flow-step-detail">~/.claude/teams/my-team/inboxes/team-lead.json<br>[ { from, text, timestamp, read: false, summary } ]<br>File lock with 10 retries, 5-100ms backoff</div>
+                </div>
+              </div>
+
+              <div class="flow-step" id="fstep-5">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">6</div>
+                  <div class="flow-step-line"></div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Leader polls mailbox <span class="flow-step-badge badge-leader">Leader</span></div>
+                  <div class="flow-step-detail">Polling interval: 500ms<br>Reads inbox JSON &bull; marks messages as read: true</div>
+                </div>
+              </div>
+
+              <div class="flow-step" id="fstep-6">
+                <div class="flow-step-left">
+                  <div class="flow-step-num">7</div>
+                </div>
+                <div class="flow-step-content">
+                  <div class="flow-step-label">Message received <span class="flow-step-badge badge-leader">Leader</span></div>
+                  <div class="flow-step-detail">Leader processes message on next tool round<br>Can reply via SendMessageTool({ to: "researcher", ... })<br>Broadcast: to: "*" &rarr; writes to every teammate&#39;s inbox</div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Routing cascade reference -->
+            <div class="routing-cascade">
+              <div class="routing-cascade-title">SendMessage Routing Cascade</div>
+              <div class="routing-row">
+                <span class="routing-label">to: "bridge:&lt;id&gt;"</span>
+                <span class="routing-arrow">&rarr;</span>
+                <span class="routing-dest">Remote Control bridge (<code>postInterClaudeMessage</code>)</span>
+              </div>
+              <div class="routing-row">
+                <span class="routing-label">to: "uds:&lt;path&gt;"</span>
+                <span class="routing-arrow">&rarr;</span>
+                <span class="routing-dest">Unix Domain Socket (<code>sendToUdsSocket</code>)</span>
+              </div>
+              <div class="routing-row">
+                <span class="routing-label">to: in-process name</span>
+                <span class="routing-arrow">&rarr;</span>
+                <span class="routing-dest">Running? <code>queuePendingMessage()</code> &bull; Stopped? <code>resumeAgentBackground()</code></span>
+              </div>
+              <div class="routing-row">
+                <span class="routing-label">to: "*"</span>
+                <span class="routing-arrow">&rarr;</span>
+                <span class="routing-dest">Broadcast: <code>handleBroadcast()</code> &rarr; write to each teammate&#39;s mailbox</span>
+              </div>
+              <div class="routing-row">
+                <span class="routing-label">default</span>
+                <span class="routing-arrow">&rarr;</span>
+                <span class="routing-dest"><code>handleMessage()</code> &rarr; write to recipient&#39;s file mailbox</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Permission Sync
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="perm-title">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-label">Permission Synchronization</div>
+          <h2 class="section-title" id="perm-title">Worker &rarr; Leader Permission Flow</h2>
+          <p class="section-desc">When a teammate needs to perform an action requiring user approval, the permission must be routed to the leader who has the user&apos;s terminal. Two paths exist.</p>
+        </div>
+
+        <div class="perm-flow-grid reveal">
+
+          <!-- Process-based path -->
+          <div class="perm-path-card">
+            <div class="perm-path-header">
+              <div class="perm-path-icon" style="background:rgba(210,153,34,0.12);">&#x1F4C1;</div>
+              <div>
+                <div class="perm-path-name">Process-Based Path</div>
+                <div class="perm-path-sub">tmux / iTerm2 backends &mdash; file-based</div>
+              </div>
+            </div>
+            <div class="perm-steps" id="perm-proc-steps">
+              <div class="perm-step" id="ps-0">
+                <div class="perm-step-n">1</div>
+                <div class="perm-step-text">Worker encounters <strong>&#39;ask&#39; permission</strong> on a tool action</div>
+              </div>
+              <div class="perm-step" id="ps-1">
+                <div class="perm-step-n">2</div>
+                <div class="perm-step-text">Creates <strong>SwarmPermissionRequest</strong> with id <code>perm-{ts}-{rand}</code></div>
+              </div>
+              <div class="perm-step" id="ps-2">
+                <div class="perm-step-n">3</div>
+                <div class="perm-step-text">Written to <strong><code>permissions/pending/{id}.json</code></strong> inside team dir</div>
+              </div>
+              <div class="perm-step" id="ps-3">
+                <div class="perm-step-n">4</div>
+                <div class="perm-step-text">Permission request sent to <strong>leader&#39;s mailbox</strong> via SendMessage</div>
+              </div>
+              <div class="perm-step" id="ps-4">
+                <div class="perm-step-n">5</div>
+                <div class="perm-step-text">Leader shows <strong>approval dialog</strong> to user with tool-specific UI</div>
+              </div>
+              <div class="perm-step" id="ps-5">
+                <div class="perm-step-n">6</div>
+                <div class="perm-step-text">Response written to <strong>worker&#39;s mailbox</strong> + <code>resolved/{id}.json</code></div>
+              </div>
+              <div class="perm-step" id="ps-6">
+                <div class="perm-step-n">7</div>
+                <div class="perm-step-text">Worker polls, reads response, <strong>proceeds or aborts</strong></div>
+              </div>
+            </div>
+            <button class="perm-play-btn perm-play-purple" onclick="playPermProc()">&#9654; Animate sequence</button>
+          </div>
+
+          <!-- In-process shortcut -->
+          <div class="perm-path-card">
+            <div class="perm-path-header">
+              <div class="perm-path-icon" style="background:rgba(57,210,192,0.12);">&#x26A1;</div>
+              <div>
+                <div class="perm-path-name">In-Process Shortcut</div>
+                <div class="perm-path-sub">Direct ToolUseConfirmQueue bridge</div>
+              </div>
+            </div>
+            <div class="perm-steps" id="perm-inproc-steps">
+              <div class="perm-step" id="ip-0">
+                <div class="perm-step-n">1</div>
+                <div class="perm-step-text">Worker encounters <strong>&#39;ask&#39; permission</strong></div>
+              </div>
+              <div class="perm-step" id="ip-1">
+                <div class="perm-step-n">2</div>
+                <div class="perm-step-text"><strong>Bash classifier</strong> pre-check — auto-approve safe commands first</div>
+              </div>
+              <div class="perm-step" id="ip-2">
+                <div class="perm-step-n">3</div>
+                <div class="perm-step-text"><code>getLeaderToolUseConfirmQueue()</code> returns leader&#39;s UI queue reference</div>
+              </div>
+              <div class="perm-step" id="ip-3">
+                <div class="perm-step-n">4</div>
+                <div class="perm-step-text">Worker pushes request directly onto queue with <strong>workerBadge</strong> (name + color)</div>
+              </div>
+              <div class="perm-step" id="ip-4">
+                <div class="perm-step-n">5</div>
+                <div class="perm-step-text">User sees <strong>same tool UI</strong> as leader&#39;s own tools — BashPermissionRequest, FileEditToolDiff etc.</div>
+              </div>
+              <div class="perm-step" id="ip-5">
+                <div class="perm-step-n">6</div>
+                <div class="perm-step-text">Permission updates written back to <strong>both</strong> worker context and leader&#39;s shared context</div>
+              </div>
+            </div>
+            <button class="perm-play-btn perm-play-cyan" onclick="playPermInproc()">&#9654; Animate sequence</button>
+          </div>
+
+        </div>
+
+        <div class="insight-box reveal" style="margin-top:var(--space-6);">
+          <span class="insight-icon">&#x1F512;</span>
+          <div class="insight-text">
+            <strong>The In-Process Shortcut is elegant:</strong> the worker pushes its permission request directly onto the leader&#39;s UI queue. The user sees the exact same approval dialog they would for the leader&apos;s own tools, with a colored worker badge identifying which agent is asking. No filesystem round-trip needed.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Coordinator Mode Workflow
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="coord-title">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-label">Coordinator Mode</div>
+          <h2 class="section-title" id="coord-title">Four-Phase Coordinator Workflow</h2>
+          <p class="section-desc">The coordinator system prompt defines a structured workflow with four phases. Click any phase to expand it, or use the controls to animate the full progression.</p>
+        </div>
+
+        <div class="reveal">
+          <div class="coord-phases" id="coord-phases">
+
+            <div class="coord-phase-card" id="cp-0" style="--phase-color: #58a6ff;" onclick="toggleCoordPhase(0)">
+              <div class="coord-phase-num" style="color:#58a6ff;">Phase 1</div>
+              <div class="coord-phase-icon">&#x1F50D;</div>
+              <div class="coord-phase-name">Research</div>
+              <div class="coord-phase-who who-workers">Workers (parallel)</div>
+              <div class="coord-phase-details">
+                <div class="coord-phase-detail-item">Investigate codebase, find relevant files</div>
+                <div class="coord-phase-detail-item">Read-only tasks run freely in parallel</div>
+                <div class="coord-phase-detail-item">Workers return <code>&lt;task-notification&gt;</code> with findings</div>
+                <div class="coord-phase-detail-item">Coordinator collects all results before moving on</div>
+              </div>
+            </div>
+
+            <div class="coord-phase-card" id="cp-1" style="--phase-color: #bc8cff;" onclick="toggleCoordPhase(1)">
+              <div class="coord-phase-num" style="color:#bc8cff;">Phase 2</div>
+              <div class="coord-phase-icon">&#x1F9E0;</div>
+              <div class="coord-phase-name">Synthesis</div>
+              <div class="coord-phase-who who-coord">Coordinator only</div>
+              <div class="coord-phase-details">
+                <div class="coord-phase-detail-item">Coordinator reads all worker findings</div>
+                <div class="coord-phase-detail-item">Understands the problem space deeply</div>
+                <div class="coord-phase-detail-item">Writes specific implementation specs with file paths, line numbers, exact changes</div>
+                <div class="coord-phase-detail-item">Never lazy-delegates — must synthesize directly</div>
+              </div>
+            </div>
+
+            <div class="coord-phase-card" id="cp-2" style="--phase-color: #3fb950;" onclick="toggleCoordPhase(2)">
+              <div class="coord-phase-num" style="color:#3fb950;">Phase 3</div>
+              <div class="coord-phase-icon">&#x2699;&#xFE0F;</div>
+              <div class="coord-phase-name">Implementation</div>
+              <div class="coord-phase-who who-workers">Workers</div>
+              <div class="coord-phase-details">
+                <div class="coord-phase-detail-item">Workers make targeted changes per spec</div>
+                <div class="coord-phase-detail-item">Write-heavy tasks serialized per file set</div>
+                <div class="coord-phase-detail-item">Self-contained prompts with all necessary context</div>
+                <div class="coord-phase-detail-item">Workers commit changes on completion</div>
+              </div>
+            </div>
+
+            <div class="coord-phase-card" id="cp-3" style="--phase-color: #d29922;" onclick="toggleCoordPhase(3)">
+              <div class="coord-phase-num" style="color:#d29922;">Phase 4</div>
+              <div class="coord-phase-icon">&#x2705;</div>
+              <div class="coord-phase-name">Verification</div>
+              <div class="coord-phase-who who-workers">Workers</div>
+              <div class="coord-phase-details">
+                <div class="coord-phase-detail-item">Test that changes work as expected</div>
+                <div class="coord-phase-detail-item">Continue existing worker (high context overlap) or spawn fresh (low overlap)</div>
+                <div class="coord-phase-detail-item">Report pass/fail back to coordinator</div>
+                <div class="coord-phase-detail-item">Coordinator decides next action based on results</div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="coord-progress-bar">
+            <div class="coord-progress-fill" id="coord-progress"></div>
+          </div>
+
+          <div class="coord-controls">
+            <button class="coord-btn coord-btn-primary" id="coord-play-btn" onclick="coordPlay()">&#9654; Animate Progression</button>
+            <button class="coord-btn" onclick="coordReset()">Reset</button>
+          </div>
+        </div>
+
+        <div class="insight-box reveal" style="margin-top:var(--space-6);">
+          <span class="insight-icon">&#x1F4CB;</span>
+          <div class="insight-text">
+            <strong>The coordinator must synthesize.</strong> The prompt explicitly forbids lazy delegation like &ldquo;based on your findings, fix the bug.&rdquo; The coordinator must read worker findings, understand them, and write specific implementation specs with file paths, line numbers, and exact changes.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Team Lifecycle Timeline
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="lifecycle-title">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-label">Lifecycle</div>
+          <h2 class="section-title" id="lifecycle-title">Team Lifecycle Timeline</h2>
+          <p class="section-desc">From <code>TeamCreate</code> to final cleanup. Teams are ephemeral by design — registered for session cleanup and removed when the session ends.</p>
+        </div>
+
+        <div class="reveal">
+          <div class="tl-controls">
+            <button class="coord-btn coord-btn-primary" id="tl-play-btn" onclick="tlPlay()">&#9654; Animate Timeline</button>
+            <button class="coord-btn" onclick="tlReset()">Reset</button>
+          </div>
+
+          <div class="timeline-wrap">
+            <div class="timeline-line">
+              <div class="timeline-line-fill" id="tl-line-fill"></div>
+            </div>
+
+            <div class="timeline-event" id="tl-0">
+              <div class="timeline-dot">&#x1F4C4;</div>
+              <div class="timeline-body">
+                <div class="timeline-event-name">Team Created</div>
+                <div class="timeline-event-code">TeamCreateTool.call()</div>
+                <div class="timeline-event-desc">Leader calls <code>TeamCreateTool</code>. Team file written to <code>~/.claude/teams/{name}/config.json</code>. One team per leader enforced — throws if leader already has a <code>teamContext</code> in AppState.</div>
+                <div class="timeline-event-detail">
+                  TeamFile: { name, leadAgentId, leadSessionId,<br>
+                  &nbsp;&nbsp;teamAllowedPaths, members: [leader],<br>
+                  &nbsp;&nbsp;createdAt }
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-event" id="tl-1">
+              <div class="timeline-dot">&#x1F680;</div>
+              <div class="timeline-body">
+                <div class="timeline-event-name">Workers Spawned</div>
+                <div class="timeline-event-code">TeammateTool &rarr; backend.spawn()</div>
+                <div class="timeline-event-desc">Each teammate is spawned via the selected backend. <code>initializeTeammateHooks()</code> configures the agent for team participation — reads team file, applies team-wide path permissions, registers Stop hook.</div>
+                <div class="timeline-event-detail">
+                  Member added to config.json &bull; inbox file created<br>
+                  TEAMMATE_SYSTEM_PROMPT_ADDENDUM injected<br>
+                  buildInheritedCliFlags() + buildInheritedEnvVars()
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-event" id="tl-2">
+              <div class="timeline-dot">&#x1F4EC;</div>
+              <div class="timeline-body">
+                <div class="timeline-event-name">Workers Communicate</div>
+                <div class="timeline-event-code">SendMessageTool &rarr; mailbox polling</div>
+                <div class="timeline-event-desc">Workers execute tasks, send status updates via <code>SendMessageTool</code>. Agents poll mailboxes every 500ms. Permission requests route through the leader. Task claiming from shared task list.</div>
+                <div class="timeline-event-detail">
+                  File locking: 10 retries, 5-100ms backoff<br>
+                  In-process: in-memory queue shortcut<br>
+                  Broadcast: to: "*" &rarr; all teammates
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-event" id="tl-3">
+              <div class="timeline-dot">&#x23F8;&#xFE0F;</div>
+              <div class="timeline-body">
+                <div class="timeline-event-name">Workers Idle</div>
+                <div class="timeline-event-code">waitForNextPromptOrShutdown()</div>
+                <div class="timeline-event-desc">When a teammate finishes its work, the Stop hook sends an idle notification to the leader&apos;s mailbox with an accomplishment summary. The teammate enters <code>waitForNextPromptOrShutdown()</code>, polling at 500ms.</div>
+                <div class="timeline-event-detail">
+                  Polls: in-memory messages, mailbox,<br>
+                  available tasks, abort signal<br>
+                  setMemberActive(teamName, agentName, false)
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-event" id="tl-4">
+              <div class="timeline-dot">&#x1F9F9;</div>
+              <div class="timeline-body">
+                <div class="timeline-event-name">Team Cleanup</div>
+                <div class="timeline-event-code">registerTeamForSessionCleanup()</div>
+                <div class="timeline-event-desc">When the session ends, the team directory is removed. <code>registerTeamForSessionCleanup()</code> was added to fix gh-32730 — without it, team directories accumulated on disk indefinitely.</div>
+                <div class="timeline-event-detail">
+                  ~/.claude/teams/{name}/ &rarr; deleted<br>
+                  Resolved permissions cleaned every 1 hour<br>
+                  TeamDeleteTool available for explicit teardown
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Navigation Footer
+         =================================================================== -->
+    <div class="nav-footer">
+      <div class="container">
+        <div class="nav-footer-inner">
+          <a href="agents.html" class="nav-footer-link">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M9 2L4 7l5 5"/></svg>
+            Sub-Agents
+          </a>
+          <span class="nav-footer-center">Chapter 13 of 13</span>
+          <a href="index.html" class="nav-footer-link">
+            Index
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M5 2l5 5-5 5"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="site-footer-text">Claude Code Visual Guide &mdash; Multi-Agent Swarm/Team System</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+  'use strict';
+
+  /* ========================================================================
+     Hero SVG Animation
+     ======================================================================== */
+
+  (function initHero() {
+    const wrap = document.getElementById('hero-diagram-wrap');
+    if (!wrap) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      obs.disconnect();
+      runHero();
+    }, { threshold: 0.3 });
+    obs.observe(wrap);
+
+    function show(id, delay) {
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) { el.style.opacity = '1'; el.style.transition = 'opacity 0.5s ease'; }
+      }, delay);
+    }
+
+    function runHero() {
+      show('leader-node', 200);
+      show('line-a', 600);
+      show('line-b', 750);
+      show('line-c', 900);
+      show('line-d', 1050);
+      show('worker-a', 700);
+      show('worker-b', 900);
+      show('worker-c', 1100);
+      show('worker-d', 1300);
+      show('mb-a', 1000);
+      show('mb-b', 1150);
+      show('mb-c', 1300);
+      show('mb-d', 1450);
+      show('line-r', 1600);
+      show('routing-box', 1700);
+      show('legend', 1900);
+      // Animate message dots
+      setTimeout(animateDots, 2200);
+    }
+
+    function animateDots() {
+      const dot1 = document.getElementById('dot1');
+      const dot2 = document.getElementById('dot2');
+      if (!dot1 || !dot2) return;
+
+      let t = 0;
+      const path1 = { x1: 110, y1: 80, x2: 264, y2: 118 };
+      const path2 = { x1: 264, y1: 142, x2: 110, y2: 180 };
+
+      function lerp(a, b, p) { return a + (b - a) * p; }
+
+      let lastTime = null;
+      function step(ts) {
+        if (!lastTime) lastTime = ts;
+        const dt = (ts - lastTime) / 1000;
+        lastTime = ts;
+        t = (t + dt * 0.3) % 1;
+        const t2 = (t + 0.5) % 1;
+
+        dot1.setAttribute('cx', lerp(path1.x1, path1.x2, t));
+        dot1.setAttribute('cy', lerp(path1.y1, path1.y2, t));
+        dot1.style.opacity = '0.9';
+
+        dot2.setAttribute('cx', lerp(path2.x1, path2.x2, t2));
+        dot2.setAttribute('cy', lerp(path2.y1, path2.y2, t2));
+        dot2.style.opacity = '0.9';
+
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+  }());
+
+  /* ========================================================================
+     Reveal on scroll
+     ======================================================================== */
+
+  (function initReveal() {
+    const els = document.querySelectorAll('.reveal');
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(el => obs.observe(el));
+  }());
+
+  /* ========================================================================
+     Architecture Toggle
+     ======================================================================== */
+
+  function switchArch(mode) {
+    document.querySelectorAll('.arch-toggle-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.arch-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + mode).classList.add('active');
+    document.getElementById('panel-' + mode).classList.add('active');
+    document.getElementById('tab-' + mode).setAttribute('aria-selected', 'true');
+    document.getElementById('tab-' + (mode === 'swarm' ? 'coord' : 'swarm')).setAttribute('aria-selected', 'false');
+  }
+
+  /* ========================================================================
+     Mailbox Flow Animation
+     ======================================================================== */
+
+  let flowCurrent = -1;
+  let flowTimer = null;
+  const FLOW_TOTAL = 7;
+
+  function flowSetStep(n) {
+    flowCurrent = Math.max(-1, Math.min(FLOW_TOTAL - 1, n));
+    for (let i = 0; i < FLOW_TOTAL; i++) {
+      const el = document.getElementById('fstep-' + i);
+      if (!el) continue;
+      el.classList.toggle('active', i <= flowCurrent);
+      const numEl = el.querySelector('.flow-step-num');
+      if (numEl) {
+        numEl.innerHTML = i === flowCurrent
+          ? '<span class="flow-dot"></span>'
+          : (i + 1);
+      }
+    }
+    const counter = document.getElementById('flow-counter');
+    if (counter) counter.textContent = Math.max(0, flowCurrent + 1) + ' / ' + FLOW_TOTAL;
+    const prevBtn = document.getElementById('flow-prev-btn');
+    const nextBtn = document.getElementById('flow-next-btn');
+    if (prevBtn) prevBtn.disabled = flowCurrent < 0;
+    if (nextBtn) nextBtn.disabled = flowCurrent >= FLOW_TOTAL - 1;
+  }
+
+  function flowNext() {
+    if (flowCurrent < FLOW_TOTAL - 1) flowSetStep(flowCurrent + 1);
+    else flowStop();
+  }
+
+  function flowPrev() {
+    if (flowCurrent > -1) flowSetStep(flowCurrent - 1);
+  }
+
+  function flowReset() {
+    flowStop();
+    flowSetStep(-1);
+    const btn = document.getElementById('flow-play-btn');
+    if (btn) { btn.textContent = '\u25B6 Play'; btn.classList.remove('playing'); }
+  }
+
+  function flowStop() {
+    if (flowTimer) { clearInterval(flowTimer); flowTimer = null; }
+    const btn = document.getElementById('flow-play-btn');
+    if (btn) { btn.textContent = '\u25B6 Play'; btn.classList.remove('playing'); }
+  }
+
+  function flowToggle() {
+    const btn = document.getElementById('flow-play-btn');
+    if (flowTimer) {
+      flowStop();
+    } else {
+      if (flowCurrent >= FLOW_TOTAL - 1) flowSetStep(-1);
+      btn.textContent = '\u23F9 Stop'; btn.classList.add('playing');
+      flowTimer = setInterval(() => {
+        if (flowCurrent >= FLOW_TOTAL - 1) { flowStop(); return; }
+        flowNext();
+      }, 1100);
+    }
+  }
+
+  flowSetStep(-1);
+
+  /* ========================================================================
+     Permission Flow Animations
+     ======================================================================== */
+
+  function playPermSteps(prefix, count, color) {
+    const steps = [];
+    for (let i = 0; i < count; i++) {
+      const el = document.getElementById(prefix + i);
+      if (el) steps.push(el);
+    }
+    steps.forEach(s => s.classList.remove('perm-active'));
+    let i = 0;
+    function next() {
+      if (i > 0) steps[i-1].classList.remove('perm-active');
+      if (i < steps.length) {
+        steps[i].classList.add('perm-active');
+        i++;
+        setTimeout(next, 700);
+      }
+    }
+    next();
+  }
+
+  function playPermProc() { playPermSteps('ps-', 7, 'purple'); }
+  function playPermInproc() { playPermSteps('ip-', 6, 'cyan'); }
+
+  /* ========================================================================
+     Coordinator Phase Animation
+     ======================================================================== */
+
+  let coordPhaseExpanded = [false, false, false, false];
+
+  function toggleCoordPhase(idx) {
+    const card = document.getElementById('cp-' + idx);
+    if (!card) return;
+    const isExpanded = card.classList.contains('phase-expanded');
+    card.classList.toggle('phase-expanded', !isExpanded);
+  }
+
+  let coordTimer = null;
+  let coordCurrent = -1;
+
+  function coordPlay() {
+    if (coordTimer) { coordStop(); return; }
+    coordReset();
+    const btn = document.getElementById('coord-play-btn');
+    if (btn) btn.textContent = '\u23F9 Stop';
+    coordAdvance();
+  }
+
+  function coordAdvance() {
+    coordCurrent++;
+    if (coordCurrent > 3) { coordStop(); return; }
+    const card = document.getElementById('cp-' + coordCurrent);
+    if (card) {
+      card.classList.add('phase-active', 'phase-expanded');
+      // mark previous as done
+      if (coordCurrent > 0) {
+        const prev = document.getElementById('cp-' + (coordCurrent - 1));
+        if (prev) { prev.classList.remove('phase-active', 'phase-expanded'); prev.classList.add('phase-done'); }
+      }
+    }
+    const prog = document.getElementById('coord-progress');
+    if (prog) prog.style.width = ((coordCurrent + 1) / 4 * 100) + '%';
+    coordTimer = setTimeout(coordAdvance, 2000);
+  }
+
+  function coordStop() {
+    if (coordTimer) { clearTimeout(coordTimer); coordTimer = null; }
+    const btn = document.getElementById('coord-play-btn');
+    if (btn) btn.textContent = '\u25B6 Animate Progression';
+  }
+
+  function coordReset() {
+    coordStop();
+    coordCurrent = -1;
+    for (let i = 0; i < 4; i++) {
+      const c = document.getElementById('cp-' + i);
+      if (c) c.classList.remove('phase-active', 'phase-done', 'phase-expanded');
+    }
+    const prog = document.getElementById('coord-progress');
+    if (prog) prog.style.width = '0%';
+  }
+
+  /* ========================================================================
+     Team Lifecycle Timeline
+     ======================================================================== */
+
+  let tlTimer = null;
+  let tlCurrent = -1;
+  const TL_TOTAL = 5;
+
+  function tlSetStep(n) {
+    tlCurrent = Math.max(-1, Math.min(TL_TOTAL - 1, n));
+    for (let i = 0; i < TL_TOTAL; i++) {
+      const el = document.getElementById('tl-' + i);
+      if (el) el.classList.toggle('tl-active', i <= tlCurrent);
+    }
+    const fill = document.getElementById('tl-line-fill');
+    if (fill) fill.style.height = tlCurrent < 0 ? '0%' : ((tlCurrent + 1) / TL_TOTAL * 100) + '%';
+  }
+
+  function tlPlay() {
+    const btn = document.getElementById('tl-play-btn');
+    if (tlTimer) { clearTimeout(tlTimer); tlTimer = null; if (btn) btn.textContent = '\u25B6 Animate Timeline'; return; }
+    if (tlCurrent >= TL_TOTAL - 1) tlSetStep(-1);
+    if (btn) btn.textContent = '\u23F9 Stop';
+    function advance() {
+      if (tlCurrent >= TL_TOTAL - 1) { tlTimer = null; if (btn) btn.textContent = '\u25B6 Animate Timeline'; return; }
+      tlSetStep(tlCurrent + 1);
+      tlTimer = setTimeout(advance, 1200);
+    }
+    advance();
+  }
+
+  function tlReset() {
+    if (tlTimer) { clearTimeout(tlTimer); tlTimer = null; }
+    tlSetStep(-1);
+    const btn = document.getElementById('tl-play-btn');
+    if (btn) btn.textContent = '\u25B6 Animate Timeline';
+  }
+
+  </script>
+</body>
+</html>

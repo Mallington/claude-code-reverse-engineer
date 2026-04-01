@@ -2011,6 +2011,975 @@
     </section>
 
     <!-- ===================================================================
+         AgentTool Internals
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="internals-title">
+      <div class="container">
+
+        <div class="section-header reveal">
+          <div class="section-label">Source Code Revealed</div>
+          <h2 class="section-title" id="internals-title">AgentTool Internals</h2>
+          <p class="section-desc">
+            A deep-dive into <code>src/tools/AgentTool/</code> — the built-in agent registry, the <code>runAgent()</code> execution engine, and how fork agents differ from fresh sub-agents.
+          </p>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             1. Built-In Agent Registry
+             --------------------------------------------------------------- -->
+        <div class="reveal" style="margin-bottom: var(--space-10);">
+          <div style="font-size:var(--text-xs);font-weight:var(--font-semibold);letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:var(--space-4);">Built-In Agent Registry — <code>builtInAgents.ts</code></div>
+
+          <div class="int-agents-grid" id="int-agents-grid">
+
+            <!-- general-purpose -->
+            <div class="int-agent-card" style="--card-accent: #58a6ff; --card-glow: rgba(88,166,255,0.15);">
+              <div class="int-agent-card-bar"></div>
+              <div class="int-agent-card-inner">
+                <div class="int-agent-name">general-purpose</div>
+                <div class="int-agent-meta">
+                  <span class="int-agent-model-badge" style="background:rgba(88,166,255,0.1);color:#58a6ff;border-color:rgba(88,166,255,0.25);">getDefaultSubagentModel()</span>
+                </div>
+                <div class="int-agent-tools-label">Tools</div>
+                <div class="int-agent-tools">
+                  <span class="int-tool-badge" style="background:rgba(88,166,255,0.08);color:#58a6ff;border-color:rgba(88,166,255,0.2);">*&nbsp;wildcard</span>
+                </div>
+                <ul class="int-agent-chars">
+                  <li>Default when <code>subagent_type</code> omitted</li>
+                  <li>Full filesystem + shell access</li>
+                  <li>No color (uses terminal default)</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Explore -->
+            <div class="int-agent-card" style="--card-accent: #3fb950; --card-glow: rgba(63,185,80,0.15);">
+              <div class="int-agent-card-bar"></div>
+              <div class="int-agent-card-inner">
+                <div class="int-agent-name">Explore</div>
+                <div class="int-agent-meta">
+                  <span class="int-agent-model-badge" style="background:rgba(63,185,80,0.1);color:#3fb950;border-color:rgba(63,185,80,0.25);">haiku (external) / inherit (ANT)</span>
+                </div>
+                <div class="int-agent-tools-label">Disallowed</div>
+                <div class="int-agent-tools">
+                  <span class="int-tool-badge denied">Agent</span>
+                  <span class="int-tool-badge denied">FileEdit</span>
+                  <span class="int-tool-badge denied">FileWrite</span>
+                  <span class="int-tool-badge denied">NotebookEdit</span>
+                  <span class="int-tool-badge denied">ExitPlanMode</span>
+                </div>
+                <ul class="int-agent-chars">
+                  <li>Strict <strong>READ-ONLY MODE</strong> enforced</li>
+                  <li><code>omitClaudeMd: true</code> — skips CLAUDE.md hierarchy</li>
+                  <li>One-shot: skips agentId/SendMessage trailer (~135 chars saved)</li>
+                  <li>Min 3 queries enforced</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Plan -->
+            <div class="int-agent-card" style="--card-accent: #d29922; --card-glow: rgba(210,153,34,0.15);">
+              <div class="int-agent-card-bar"></div>
+              <div class="int-agent-card-inner">
+                <div class="int-agent-name">Plan</div>
+                <div class="int-agent-meta">
+                  <span class="int-agent-model-badge" style="background:rgba(210,153,34,0.1);color:#d29922;border-color:rgba(210,153,34,0.25);">inherit (parent model)</span>
+                </div>
+                <div class="int-agent-tools-label">Tools (mirrors Explore)</div>
+                <div class="int-agent-tools">
+                  <span class="int-tool-badge denied">Agent</span>
+                  <span class="int-tool-badge denied">FileEdit</span>
+                  <span class="int-tool-badge denied">FileWrite</span>
+                  <span class="int-tool-badge denied">NotebookEdit</span>
+                </div>
+                <ul class="int-agent-chars">
+                  <li>"Software architect &amp; planning specialist"</li>
+                  <li>Must end output with "Critical Files" list</li>
+                  <li><code>omitClaudeMd: true</code>, git status stripped</li>
+                  <li>One-shot type like Explore</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- verification -->
+            <div class="int-agent-card" style="--card-accent: #f85149; --card-glow: rgba(248,81,73,0.15);">
+              <div class="int-agent-card-bar"></div>
+              <div class="int-agent-card-inner">
+                <div class="int-agent-name">verification</div>
+                <div class="int-agent-meta">
+                  <span class="int-agent-model-badge" style="background:rgba(248,81,73,0.1);color:#f85149;border-color:rgba(248,81,73,0.25);">inherit · color: red</span>
+                </div>
+                <div class="int-agent-tools-label">Disallowed (same as Explore)</div>
+                <div class="int-agent-tools">
+                  <span class="int-tool-badge denied">Agent</span>
+                  <span class="int-tool-badge denied">FileEdit</span>
+                  <span class="int-tool-badge denied">FileWrite</span>
+                  <span class="int-tool-badge" style="background:rgba(248,81,73,0.08);color:#f85149;border-color:rgba(248,81,73,0.2);">background: true</span>
+                </div>
+                <ul class="int-agent-chars">
+                  <li>Feature-gated: <code>VERIFICATION_AGENT</code> flag + GrowthBook</li>
+                  <li>Adversarial mindset: "try to <em>break</em> it"</li>
+                  <li>Verdict: <strong>PASS / FAIL / PARTIAL</strong></li>
+                  <li>May write ephemeral scripts to <code>/tmp</code> only</li>
+                  <li>Re-injected reminder every user turn</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- claude-code-guide -->
+            <div class="int-agent-card" style="--card-accent: #bc8cff; --card-glow: rgba(188,140,255,0.15);">
+              <div class="int-agent-card-bar"></div>
+              <div class="int-agent-card-inner">
+                <div class="int-agent-name">claude-code-guide</div>
+                <div class="int-agent-meta">
+                  <span class="int-agent-model-badge" style="background:rgba(188,140,255,0.1);color:#bc8cff;border-color:rgba(188,140,255,0.25);">haiku · permissionMode: dontAsk</span>
+                </div>
+                <div class="int-agent-tools-label">Allowlist only</div>
+                <div class="int-agent-tools">
+                  <span class="int-tool-badge allowed">Glob</span>
+                  <span class="int-tool-badge allowed">Grep</span>
+                  <span class="int-tool-badge allowed">Read</span>
+                  <span class="int-tool-badge allowed">WebFetch</span>
+                  <span class="int-tool-badge allowed">WebSearch</span>
+                </div>
+                <ul class="int-agent-chars">
+                  <li>Non-SDK entrypoints only</li>
+                  <li>Fetches live docs from <code>code.claude.com</code></li>
+                  <li>Includes user's current config dynamically</li>
+                  <li>Never prompts for permissions (<code>dontAsk</code>)</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- statusline-setup -->
+            <div class="int-agent-card" style="--card-accent: #39d2c0; --card-glow: rgba(57,210,192,0.15);">
+              <div class="int-agent-card-bar"></div>
+              <div class="int-agent-card-inner">
+                <div class="int-agent-name">statusline-setup</div>
+                <div class="int-agent-meta">
+                  <span class="int-agent-model-badge" style="background:rgba(57,210,192,0.1);color:#39d2c0;border-color:rgba(57,210,192,0.25);">sonnet · color: orange</span>
+                </div>
+                <div class="int-agent-tools-label">Allowlist only</div>
+                <div class="int-agent-tools">
+                  <span class="int-tool-badge allowed">Read</span>
+                  <span class="int-tool-badge allowed">Edit</span>
+                </div>
+                <ul class="int-agent-chars">
+                  <li>Converts shell PS1 prompts → Claude Code statusline commands</li>
+                  <li>Knows ANSI colors, PS1 escape sequences</li>
+                  <li>Writes to <code>~/.claude/settings.json</code></li>
+                  <li>Always loaded (no feature flag)</li>
+                </ul>
+              </div>
+            </div>
+
+          </div><!-- /int-agents-grid -->
+
+          <div style="margin-top:var(--space-4);padding:var(--space-4);background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-md);">
+            <code style="font-size:var(--text-xs);color:var(--text-secondary);">getBuiltInAgents()</code>
+            <span style="font-size:var(--text-xs);color:var(--text-secondary);margin-left:var(--space-2);">conditionally assembles this list based on feature flags. SDK users can disable all built-ins with <code>CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS=true</code>. If <code>COORDINATOR_MODE</code> is active, a separate coordinator-specific agent list is returned instead.</span>
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             2. runAgent() Flow Diagram
+             --------------------------------------------------------------- -->
+        <div class="reveal" style="margin-bottom: var(--space-10);">
+          <div style="font-size:var(--text-xs);font-weight:var(--font-semibold);letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:var(--space-4);"><code>runAgent()</code> — The Core Execution Loop · <code>runAgent.ts</code></div>
+
+          <div class="int-flow-wrap">
+            <div class="int-flow-steps" id="int-flow-steps">
+
+              <!-- Step 1 -->
+              <div class="int-flow-step" data-step="1">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">1</div>
+                  <div class="int-flow-label">Resolve model</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <code>getAgentModel(agent.model, mainLoopModel, override, permissionMode)</code> — resolves <code>"inherit"</code>, alias strings (haiku/sonnet), or a full model ID to a concrete model for the API call.
+                </div>
+              </div>
+
+              <!-- Step 2 -->
+              <div class="int-flow-step" data-step="2">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">2</div>
+                  <div class="int-flow-label">Create agentId</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  A unique identifier assigned to this agent run. Used for transcript storage keying and the <code>/agents</code> transcript viewer. May be supplied as an override (resume path).
+                </div>
+              </div>
+
+              <!-- Step 3 -->
+              <div class="int-flow-step" data-step="3">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">3</div>
+                  <div class="int-flow-label">Build initial messages</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  Combines <code>forkContextMessages</code> (filtered parent history, fork path only) with the incoming <code>promptMessages</code>. Fresh agents receive only the prompt — no parent conversation history.
+                </div>
+              </div>
+
+              <!-- Step 4 -->
+              <div class="int-flow-step" data-step="4">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">4</div>
+                  <div class="int-flow-label">Resolve user/system context</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  Calls <code>getUserContext()</code> / <code>getSystemContext()</code>. For read-only agents with <code>omitClaudeMd: true</code>, the CLAUDE.md hierarchy is skipped. Explore/Plan agents also have git status stripped — saves ~5–15 Gtok/week at fleet scale.
+                </div>
+              </div>
+
+              <!-- Step 5 -->
+              <div class="int-flow-step" data-step="5">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node int-flow-node-decision" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">5</div>
+                  <div class="int-flow-label">Configure permission mode</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <strong>Decision point.</strong> Agent can override permission mode unless parent is <code>bypassPermissions</code>, <code>acceptEdits</code>, or <code>auto</code>. Async agents get <code>shouldAvoidPermissionPrompts = true</code>. Bubble mode surfaces prompts to the parent terminal.
+                </div>
+              </div>
+
+              <!-- Step 6 -->
+              <div class="int-flow-step" data-step="6">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node int-flow-node-decision" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">6</div>
+                  <div class="int-flow-label">Resolve tools</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <strong>Decision point.</strong> Fork path: <code>useExactTools = true</code> → use <code>availableTools</code> verbatim (identical to parent for cache hit). Fresh path: <code>resolveAgentTools(agentDef, availableTools, isAsync)</code> applies all four filtering layers (global disallowed, custom extra, async allowlist, per-definition allow/deny).
+                </div>
+              </div>
+
+              <!-- Step 7 -->
+              <div class="int-flow-step" data-step="7">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node int-flow-node-decision" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">7</div>
+                  <div class="int-flow-label">Build system prompt</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <strong>Decision point.</strong> Fork path: <code>override.systemPrompt</code> is passed directly (byte-identical to parent for prompt cache hit). Fresh path: <code>getAgentSystemPrompt()</code> → <code>enhanceSystemPromptWithEnvDetails()</code> produces an agent-specific condensed prompt.
+                </div>
+              </div>
+
+              <!-- Step 8 -->
+              <div class="int-flow-step" data-step="8">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">8</div>
+                  <div class="int-flow-label">Execute SubagentStart hooks</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  Runs any <code>SubagentStart</code> hooks registered for this agent. Hook output is collected as additional context injected before the query loop begins.
+                </div>
+              </div>
+
+              <!-- Step 9 -->
+              <div class="int-flow-step" data-step="9">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">9</div>
+                  <div class="int-flow-label">Register frontmatter hooks + preload skills</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  Frontmatter hooks are scoped to this agent's lifecycle and cleared on exit. Skills listed in the agent definition's frontmatter are resolved by name, loaded, and injected as user messages before the first API call.
+                </div>
+              </div>
+
+              <!-- Step 10 -->
+              <div class="int-flow-step" data-step="10">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">10</div>
+                  <div class="int-flow-label">Initialize agent-specific MCP servers</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  String refs (named servers) share an existing client. Inline definitions create a new MCP client that is cleaned up when the agent exits. The MCP connections are established here before tools are finalized.
+                </div>
+              </div>
+
+              <!-- Step 11 -->
+              <div class="int-flow-step" data-step="11">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">11</div>
+                  <div class="int-flow-label">Create subagent context</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <code>createSubagentContext()</code>: sync agents share <code>setAppState</code> and the parent's <code>AbortController</code>. Async agents get a fully isolated context with a new <code>AbortController</code> so they can be cancelled independently.
+                </div>
+              </div>
+
+              <!-- Step 12 -->
+              <div class="int-flow-step" data-step="12">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">12</div>
+                  <div class="int-flow-label">Record initial messages to sidechain transcript</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <code>recordSidechainTranscript(agentId, ...)</code> writes the startup state before the first query. This enables agent resume — if the run is interrupted, the transcript can be replayed by <code>resumeAgent.ts</code>.
+                </div>
+              </div>
+
+              <!-- Step 13 — THE QUERY LOOP -->
+              <div class="int-flow-step int-flow-step-highlight" data-step="13">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num" style="background:rgba(88,166,255,0.25);color:#58a6ff;">13</div>
+                  <div class="int-flow-label" style="color:var(--accent-blue);">THE QUERY LOOP — <code>query()</code></div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  <code>for await (message of query({ messages, systemPrompt, userContext, systemContext, canUseTool, toolUseContext, querySource, maxTurns }))</code><br><br>
+                  This is the <strong>same <code>query()</code> function used by the main session</strong>. Sub-agents are not special — they run the identical engine. Inside the loop:<br>
+                  &bull; API metrics (TTFT) forwarded to parent<br>
+                  &bull; <code>max_turns_reached</code> signal → break<br>
+                  &bull; Each message recorded to sidechain transcript<br>
+                  &bull; Message yielded to caller (parent tool handler)<br><br>
+                  <strong>Thinking:</strong> disabled for regular sub-agents (<code>thinkingConfig: &#123; type: 'disabled' &#125;</code>) to control token costs. Fork children inherit parent's thinking config for cache-identical API prefixes.
+                </div>
+              </div>
+
+              <!-- Step 14 — TRANSCRIPT -->
+              <div class="int-flow-step" data-step="14">
+                <div class="int-flow-connector"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)">
+                  <div class="int-flow-num">14</div>
+                  <div class="int-flow-label">Record each message (per turn)</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  Inside the query loop, every message yielded from <code>query()</code> is written to the sidechain transcript keyed by <code>agentId</code>. This powers the <code>/agents</code> command and enables mid-run resume.
+                </div>
+              </div>
+
+              <!-- Step 15 — CLEANUP -->
+              <div class="int-flow-step int-flow-step-final" data-step="15">
+                <div class="int-flow-connector int-flow-connector-last"></div>
+                <div class="int-flow-node" onclick="intFlowToggle(this)" style="border-color:rgba(63,185,80,0.35);">
+                  <div class="int-flow-num" style="background:rgba(63,185,80,0.15);color:#3fb950;">15</div>
+                  <div class="int-flow-label">Cleanup — <code>finally</code> block</div>
+                  <svg class="int-flow-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+                </div>
+                <div class="int-flow-detail">
+                  Runs unconditionally (success, error, or abort):<br>
+                  &bull; Clean up agent-specific MCP servers<br>
+                  &bull; Clear session hooks registered in step 9<br>
+                  &bull; Clean up prompt cache tracking<br>
+                  &bull; Release file state cache<br>
+                  &bull; Release perfetto tracing<br>
+                  &bull; Remove agent's todo entries<br>
+                  &bull; Kill any background bash tasks spawned by agent
+                </div>
+              </div>
+
+            </div><!-- /int-flow-steps -->
+          </div><!-- /int-flow-wrap -->
+        </div>
+
+        <!-- ---------------------------------------------------------------
+             3. Fork vs. Fresh Agent Comparison
+             --------------------------------------------------------------- -->
+        <div class="reveal">
+          <div style="font-size:var(--text-xs);font-weight:var(--font-semibold);letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:var(--space-4);">Fork vs. Fresh Agent — <code>forkSubagent.ts</code></div>
+
+          <div class="int-compare-wrap">
+
+            <!-- Header panels -->
+            <div class="int-compare-header-row">
+              <div class="int-compare-header int-compare-header-fork">
+                <div class="int-compare-header-icon">&#x2442;</div>
+                <div>
+                  <div class="int-compare-header-name">Fork Agent</div>
+                  <div class="int-compare-header-sub">Inherits parent — shares context &amp; cache</div>
+                </div>
+              </div>
+              <div class="int-compare-header int-compare-header-fresh">
+                <div class="int-compare-header-icon">&#x2605;</div>
+                <div>
+                  <div class="int-compare-header-name">Fresh Agent</div>
+                  <div class="int-compare-header-sub">New context — isolated tools &amp; prompt</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Comparison rows -->
+            <div class="int-compare-table">
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Context</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-blue"></span>
+                  Inherits parent's full conversation history
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-grey"></span>
+                  Starts empty — only receives the prompt
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">System Prompt</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-blue"></span>
+                  Parent's exact prompt (byte-identical)
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-grey"></span>
+                  Agent-specific condensed prompt
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Tools</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-blue"></span>
+                  Parent's exact tool pool (verbatim)
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-grey"></span>
+                  Filtered per agent type definition
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Prompt Cache</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-green"></span>
+                  Shares parent's cache — <strong>major perf win</strong>
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-red"></span>
+                  Cold start — no shared cache
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Thinking config</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-blue"></span>
+                  Inherits parent's thinking config
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-red"></span>
+                  <code>type: 'disabled'</code> — always off
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Background</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-green"></span>
+                  Always background
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-grey"></span>
+                  Optional (<code>run_in_background</code>)
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Model</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-blue"></span>
+                  Always inherits parent model
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-grey"></span>
+                  Per agent definition (haiku/sonnet/inherit)
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Used by</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-blue"></span>
+                  Memory extraction, compact, open-ended research
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-grey"></span>
+                  Standard subagent dispatch via <code>subagent_type</code>
+                </div>
+              </div>
+
+              <div class="int-compare-row">
+                <div class="int-compare-aspect">Nested forks</div>
+                <div class="int-compare-cell int-compare-cell-fork">
+                  <span class="int-compare-indicator int-compare-indicator-red"></span>
+                  Blocked — <code>isInForkChild()</code> scans history for <code>&lt;fork_boilerplate&gt;</code>
+                </div>
+                <div class="int-compare-cell int-compare-cell-fresh">
+                  <span class="int-compare-indicator int-compare-indicator-green"></span>
+                  Allowed (subject to normal permissions)
+                </div>
+              </div>
+
+            </div><!-- /int-compare-table -->
+
+            <!-- Fork construction note -->
+            <div class="int-compare-note">
+              <div class="int-compare-note-icon">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#58a6ff" stroke-width="1.5"/><path d="M7 4v3.5" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="10" r="0.75" fill="#58a6ff"/></svg>
+              </div>
+              <div>
+                <strong>How fork children are built (<code>buildForkedMessages()</code>):</strong> The parent's final assistant message (all tool_use, thinking, text blocks) is cloned. Each child gets identical <code>tool_result</code> placeholder text (<code>"Fork started — processing in background"</code>). Only the final per-child directive block differs — maximising prompt cache hits when multiple forks run in parallel.
+              </div>
+            </div>
+
+          </div><!-- /int-compare-wrap -->
+        </div>
+
+      </div>
+    </section>
+
+    <style>
+      /* =====================================================================
+         AgentTool Internals — Built-In Agent Registry Cards
+         ===================================================================== */
+      .int-agents-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+      }
+
+      @media (max-width: 900px) {
+        .int-agents-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+
+      @media (max-width: 580px) {
+        .int-agents-grid { grid-template-columns: 1fr; }
+      }
+
+      .int-agent-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        position: relative;
+        transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+      }
+
+      .int-agent-card:hover {
+        border-color: var(--card-accent);
+        box-shadow: 0 0 0 1px var(--card-accent, #58a6ff),
+                    0 8px 32px var(--card-glow, rgba(88,166,255,0.15));
+        transform: translateY(-2px);
+      }
+
+      .int-agent-card-bar {
+        height: 3px;
+        background: var(--card-accent, #58a6ff);
+        opacity: 0.8;
+      }
+
+      .int-agent-card-inner {
+        padding: var(--space-5);
+      }
+
+      .int-agent-name {
+        font-size: var(--text-base);
+        font-weight: var(--font-bold);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        margin-bottom: var(--space-2);
+      }
+
+      .int-agent-meta {
+        margin-bottom: var(--space-3);
+      }
+
+      .int-agent-model-badge {
+        display: inline-block;
+        font-size: var(--text-xs);
+        font-family: var(--font-mono);
+        padding: 2px 8px;
+        border-radius: var(--radius-full);
+        border: 1px solid;
+      }
+
+      .int-agent-tools-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: var(--space-2);
+      }
+
+      .int-agent-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+        margin-bottom: var(--space-3);
+      }
+
+      .int-tool-badge {
+        font-size: 10px;
+        font-family: var(--font-mono);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        border: 1px solid;
+      }
+
+      .int-tool-badge.denied {
+        background: rgba(248,81,73,0.07);
+        color: #f85149;
+        border-color: rgba(248,81,73,0.2);
+      }
+
+      .int-tool-badge.allowed {
+        background: rgba(63,185,80,0.08);
+        color: #3fb950;
+        border-color: rgba(63,185,80,0.2);
+      }
+
+      .int-agent-chars {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .int-agent-chars li::before {
+        content: '› ';
+        color: var(--card-accent, #58a6ff);
+        font-weight: var(--font-bold);
+      }
+
+      .int-agent-chars code {
+        font-size: 10px;
+        background: var(--bg-tertiary);
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+
+      /* =====================================================================
+         runAgent() Flow Diagram
+         ===================================================================== */
+      .int-flow-wrap {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-6);
+        overflow: hidden;
+      }
+
+      .int-flow-steps {
+        position: relative;
+      }
+
+      .int-flow-step {
+        position: relative;
+        padding-left: 44px;
+        margin-bottom: var(--space-2);
+      }
+
+      .int-flow-connector {
+        position: absolute;
+        left: 15px;
+        top: 32px;
+        bottom: -8px;
+        width: 2px;
+        background: var(--border);
+      }
+
+      .int-flow-connector-last {
+        display: none;
+      }
+
+      .int-flow-node {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease;
+        user-select: none;
+      }
+
+      .int-flow-node:hover {
+        border-color: rgba(88,166,255,0.3);
+        background: rgba(88,166,255,0.04);
+      }
+
+      .int-flow-node.expanded {
+        border-color: rgba(88,166,255,0.35);
+      }
+
+      .int-flow-node-decision {
+        border-left: 3px solid rgba(210,153,34,0.5);
+      }
+
+      .int-flow-num {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-bold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono);
+      }
+
+      .int-flow-label {
+        flex: 1;
+        font-size: var(--text-sm);
+        font-weight: var(--font-medium);
+        color: var(--text-primary);
+      }
+
+      .int-flow-label code {
+        font-size: var(--text-xs);
+        background: var(--bg-primary);
+        padding: 1px 5px;
+        border-radius: 3px;
+        color: var(--accent-blue);
+      }
+
+      .int-flow-chevron {
+        flex-shrink: 0;
+        color: var(--text-secondary);
+        transition: transform 0.2s ease;
+      }
+
+      .int-flow-node.expanded .int-flow-chevron {
+        transform: rotate(180deg);
+      }
+
+      .int-flow-detail {
+        display: none;
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        line-height: var(--leading-relaxed);
+        background: rgba(88,166,255,0.03);
+        border: 1px solid rgba(88,166,255,0.12);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        margin-top: -4px;
+      }
+
+      .int-flow-detail.open {
+        display: block;
+      }
+
+      .int-flow-detail code {
+        font-size: var(--text-xs);
+        background: var(--bg-tertiary);
+        padding: 1px 5px;
+        border-radius: 3px;
+        color: var(--accent-blue);
+      }
+
+      .int-flow-step-highlight > .int-flow-node {
+        border-color: rgba(88,166,255,0.3);
+        background: rgba(88,166,255,0.05);
+      }
+
+      .int-flow-step-final > .int-flow-node {
+        border-color: rgba(63,185,80,0.25);
+      }
+
+      /* =====================================================================
+         Fork vs. Fresh Comparison
+         ===================================================================== */
+      .int-compare-wrap {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+      }
+
+      .int-compare-header-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .int-compare-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-5) var(--space-6);
+      }
+
+      .int-compare-header-fork {
+        background: rgba(88,166,255,0.05);
+        border-right: 1px solid var(--border);
+      }
+
+      .int-compare-header-fresh {
+        background: rgba(188,140,255,0.05);
+      }
+
+      .int-compare-header-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+      }
+
+      .int-compare-header-name {
+        font-size: var(--text-base);
+        font-weight: var(--font-bold);
+        color: var(--text-primary);
+      }
+
+      .int-compare-header-fork .int-compare-header-name { color: var(--accent-blue); }
+      .int-compare-header-fresh .int-compare-header-name { color: var(--accent-purple); }
+
+      .int-compare-header-sub {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+
+      .int-compare-table {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .int-compare-row {
+        display: grid;
+        grid-template-columns: 150px 1fr 1fr;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.15s ease;
+      }
+
+      .int-compare-row:last-child {
+        border-bottom: none;
+      }
+
+      .int-compare-row:hover {
+        background: rgba(255,255,255,0.015);
+      }
+
+      @media (max-width: 680px) {
+        .int-compare-header-row { grid-template-columns: 1fr; }
+        .int-compare-header-fork { border-right: none; border-bottom: 1px solid var(--border); }
+        .int-compare-row { grid-template-columns: 1fr; }
+        .int-compare-aspect { border-bottom: 1px solid var(--border); }
+        .int-compare-cell-fork { border-right: none !important; }
+      }
+
+      .int-compare-aspect {
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        color: var(--text-secondary);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        background: var(--bg-tertiary);
+        display: flex;
+        align-items: center;
+        border-right: 1px solid var(--border);
+      }
+
+      .int-compare-cell {
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        line-height: 1.5;
+      }
+
+      .int-compare-cell code {
+        font-size: var(--text-xs);
+        background: var(--bg-tertiary);
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: var(--accent-blue);
+      }
+
+      .int-compare-cell-fork {
+        border-right: 1px solid var(--border);
+      }
+
+      .int-compare-indicator {
+        flex-shrink: 0;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 5px;
+      }
+
+      .int-compare-indicator-blue  { background: #58a6ff; }
+      .int-compare-indicator-green { background: #3fb950; }
+      .int-compare-indicator-red   { background: #f85149; }
+      .int-compare-indicator-grey  { background: #484f58; }
+
+      .int-compare-note {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-4) var(--space-6);
+        background: rgba(88,166,255,0.04);
+        border-top: 1px solid rgba(88,166,255,0.15);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        line-height: var(--leading-relaxed);
+      }
+
+      .int-compare-note-icon {
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .int-compare-note strong {
+        color: var(--text-primary);
+      }
+    </style>
+
+    <script>
+    'use strict';
+    /* runAgent() flow — expand/collapse steps */
+    function intFlowToggle(nodeEl) {
+      var detail = nodeEl.parentElement.querySelector('.int-flow-detail');
+      if (!detail) return;
+      var isOpen = detail.classList.contains('open');
+      nodeEl.classList.toggle('expanded', !isOpen);
+      detail.classList.toggle('open', !isOpen);
+    }
+    </script>
+
+    <!-- ===================================================================
          Navigation Footer
          =================================================================== -->
     <div class="nav-footer">

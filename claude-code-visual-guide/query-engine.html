@@ -1,0 +1,2627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Query Engine &amp; Agentic Loop — Claude Code Architecture</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* =====================================================================
+       Hero
+       ===================================================================== */
+    .hero {
+      padding: var(--space-16) 0 var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(188,140,255,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 20% 60%, rgba(88,166,255,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(57,210,192,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      background: rgba(188,140,255,0.08);
+      border: 1px solid rgba(188,140,255,0.2);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: var(--font-bold);
+      line-height: var(--leading-tight);
+      color: var(--text-primary);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title-accent {
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto var(--space-10);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Section layout
+       ===================================================================== */
+    .page-section {
+      padding: var(--space-16) 0;
+    }
+
+    .page-section + .page-section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-header {
+      margin-bottom: var(--space-10);
+    }
+
+    .section-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-secondary);
+      max-width: 640px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* =====================================================================
+       Hero diagram
+       ===================================================================== */
+    .hero-diagram-wrap {
+      position: relative;
+      max-width: 960px;
+      margin: 0 auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    .hero-diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-cyan), transparent);
+      opacity: 0.5;
+    }
+
+    /* =====================================================================
+       Shared pill / badge
+       ===================================================================== */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+    }
+    .pill-blue   { background: rgba(88,166,255,0.1);   color: var(--accent-blue);   border: 1px solid rgba(88,166,255,0.25); }
+    .pill-purple { background: rgba(188,140,255,0.1);  color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.25); }
+    .pill-green  { background: rgba(63,185,80,0.1);    color: var(--accent-green);  border: 1px solid rgba(63,185,80,0.25); }
+    .pill-orange { background: rgba(210,153,34,0.1);   color: var(--accent-orange); border: 1px solid rgba(210,153,34,0.25); }
+    .pill-red    { background: rgba(248,81,73,0.1);    color: var(--accent-red);    border: 1px solid rgba(248,81,73,0.25); }
+    .pill-cyan   { background: rgba(57,210,192,0.1);   color: var(--accent-cyan);   border: 1px solid rgba(57,210,192,0.25); }
+
+    /* =====================================================================
+       Keyframes
+       ===================================================================== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes flowDash {
+      to { stroke-dashoffset: -20; }
+    }
+
+    @keyframes orbitDot {
+      0%   { offset-distance: 0%; }
+      100% { offset-distance: 100%; }
+    }
+
+    @keyframes stageGlow {
+      0%, 100% { box-shadow: 0 0 0 0 transparent; }
+      50%       { box-shadow: 0 0 16px 3px rgba(188,140,255,0.35); }
+    }
+
+    @keyframes tokenStream {
+      from { transform: translateX(-40px); opacity: 0; }
+      20%  { opacity: 1; }
+      80%  { opacity: 1; }
+      to   { transform: translateX(40px); opacity: 0; }
+    }
+
+    @keyframes loopPulse {
+      0%, 100% { opacity: 0.3; stroke-width: 1.5; }
+      50%       { opacity: 1;   stroke-width: 2.5; }
+    }
+
+    @keyframes slidePipeline {
+      0%   { transform: scaleX(0); opacity: 0; }
+      100% { transform: scaleX(1); opacity: 1; }
+    }
+
+    /* =====================================================================
+       Agentic Loop Hero SVG
+       ===================================================================== */
+    .loop-svg-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 360px;
+    }
+
+    #loop-svg {
+      width: 100%;
+      max-width: 700px;
+      height: auto;
+    }
+
+    .loop-node rect {
+      transition: fill 0.3s ease, filter 0.3s ease;
+    }
+
+    .loop-path {
+      stroke-dasharray: 6 4;
+      animation: flowDash 1.4s linear infinite;
+    }
+
+    .loop-path-back {
+      stroke-dasharray: 5 5;
+      animation: flowDash 1.8s linear infinite reverse;
+    }
+
+    /* traveling dot */
+    #travel-dot {
+      r: 5;
+      fill: var(--accent-purple);
+      filter: drop-shadow(0 0 6px var(--accent-purple));
+      offset-rotate: 0deg;
+    }
+
+    /* =====================================================================
+       Pre-Processing Pipeline
+       ===================================================================== */
+    .pipeline-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .pipeline-header {
+      padding: var(--space-5) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .pipeline-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .pipeline-stages {
+      padding: var(--space-8) var(--space-6) var(--space-6);
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+      overflow-x: auto;
+    }
+
+    .pipeline-stage {
+      flex: 1;
+      min-width: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .pipeline-stage:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 28px;
+      width: 0;
+      height: 0;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      border-left: 10px solid var(--border);
+      z-index: 2;
+    }
+
+    .pipeline-stage-box {
+      width: 100%;
+      padding: var(--space-4) var(--space-3);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pipeline-stage-box::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(188,140,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .pipeline-stage.active .pipeline-stage-box {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 16px rgba(188,140,255,0.3);
+    }
+
+    .pipeline-stage.active .pipeline-stage-box::before {
+      opacity: 1;
+    }
+
+    .pipeline-stage:hover .pipeline-stage-box {
+      border-color: rgba(188,140,255,0.5);
+    }
+
+    .pipeline-stage-name {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+      position: relative;
+    }
+
+    .pipeline-stage.active .pipeline-stage-name {
+      color: var(--accent-purple);
+    }
+
+    .pipeline-stage-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: var(--font-bold);
+      color: var(--text-secondary);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .pipeline-stage.active .pipeline-stage-num {
+      background: var(--accent-purple);
+      border-color: var(--accent-purple);
+      color: white;
+    }
+
+    .pipeline-token-count {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      transition: all 0.3s ease;
+    }
+
+    .pipeline-token-count.shrinking {
+      color: var(--accent-green);
+    }
+
+    .pipeline-detail {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border);
+      display: none;
+      animation: fadeInUp 0.2s ease;
+    }
+
+    .pipeline-detail.visible {
+      display: block;
+    }
+
+    .pipeline-detail-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--accent-purple);
+      margin-bottom: var(--space-2);
+      font-family: var(--font-mono);
+    }
+
+    .pipeline-detail-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .token-flow-bar {
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-full);
+      margin-top: var(--space-3);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .token-flow-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+      transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* =====================================================================
+       State Machine
+       ===================================================================== */
+    .state-machine-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl);
+    }
+
+    .sm-header {
+      padding: var(--space-5) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .sm-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .sm-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .sm-body {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      min-height: 520px;
+    }
+
+    @media (max-width: 860px) {
+      .sm-body { grid-template-columns: 1fr; }
+    }
+
+    .sm-stages {
+      padding: var(--space-6);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+      align-content: start;
+    }
+
+    @media (max-width: 640px) {
+      .sm-stages { grid-template-columns: 1fr; }
+    }
+
+    .sm-stage {
+      position: relative;
+      padding: var(--space-4);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .sm-stage::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sm-stage.active {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 1px var(--accent-purple), 0 0 20px rgba(188,140,255,0.25);
+      animation: stageGlow 2s ease-in-out infinite;
+    }
+
+    .sm-stage.active::before {
+      background: linear-gradient(135deg, rgba(188,140,255,0.08), transparent);
+      opacity: 1;
+    }
+
+    .sm-stage.completed {
+      border-color: rgba(63,185,80,0.3);
+    }
+
+    .sm-stage.completed::before {
+      background: linear-gradient(135deg, rgba(63,185,80,0.05), transparent);
+      opacity: 1;
+    }
+
+    .sm-stage:hover:not(.active) {
+      border-color: rgba(188,140,255,0.4);
+    }
+
+    .sm-stage-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+
+    .sm-stage-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: var(--font-bold);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+
+    .sm-stage.active .sm-stage-num {
+      background: var(--accent-purple);
+      border-color: var(--accent-purple);
+      color: white;
+    }
+
+    .sm-stage.completed .sm-stage-num {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: white;
+    }
+
+    .sm-stage-name {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+    }
+
+    .sm-stage.active .sm-stage-name {
+      color: var(--accent-purple);
+    }
+
+    .sm-stage.completed .sm-stage-name {
+      color: var(--accent-green);
+    }
+
+    .sm-stage-desc {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      opacity: 0.7;
+      line-height: var(--leading-relaxed);
+      position: relative;
+    }
+
+    .sm-stage-mini-viz {
+      margin-top: var(--space-2);
+      height: 4px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sm-stage.active .sm-stage-mini-viz {
+      opacity: 1;
+    }
+
+    .sm-stage-mini-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+      width: 0;
+      transition: width 2s ease;
+    }
+
+    .sm-stage.active .sm-stage-mini-fill {
+      width: 100%;
+    }
+
+    /* Info panel */
+    .sm-info-panel {
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border);
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+
+    .sm-panel-content {
+      display: none;
+      flex-direction: column;
+      gap: var(--space-4);
+      animation: fadeInUp 0.25s ease;
+    }
+
+    .sm-panel-content.active {
+      display: flex;
+    }
+
+    .sm-panel-num {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .sm-panel-title {
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+    }
+
+    .sm-panel-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .sm-panel-viz {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+    }
+
+    .sm-panel-code {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+
+    /* Loop back arrow */
+    .loop-back-indicator {
+      grid-column: 1 / -1;
+      padding: var(--space-3) var(--space-4);
+      background: rgba(188,140,255,0.06);
+      border: 1px dashed rgba(188,140,255,0.25);
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-size: var(--text-xs);
+      color: var(--accent-purple);
+      font-weight: var(--font-semibold);
+      transition: all 0.4s ease;
+    }
+
+    .loop-back-indicator.pulsing {
+      background: rgba(188,140,255,0.12);
+      border-color: rgba(188,140,255,0.5);
+      box-shadow: 0 0 12px rgba(188,140,255,0.2);
+      animation: stageGlow 1.5s ease-in-out infinite;
+    }
+
+    /* SM footer */
+    .sm-footer {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .sm-progress-dots {
+      display: flex;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
+    .sm-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      transition: all 0.2s ease;
+    }
+
+    .sm-dot.active { background: var(--accent-purple); transform: scale(1.3); }
+    .sm-dot.done   { background: var(--accent-green); }
+
+    .sm-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .sm-btn:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-purple);
+      color: var(--accent-purple);
+    }
+
+    .sm-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .sm-btn-play {
+      background: rgba(188,140,255,0.08);
+      border-color: rgba(188,140,255,0.3);
+      color: var(--accent-purple);
+    }
+
+    .sm-btn-play:hover:not(:disabled) {
+      background: rgba(188,140,255,0.15);
+      border-color: var(--accent-purple);
+    }
+
+    .sm-turn-counter {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =====================================================================
+       Token streaming mini-viz
+       ===================================================================== */
+    .token-stream-row {
+      display: flex;
+      gap: 4px;
+      overflow: hidden;
+      padding: var(--space-2) 0;
+      height: 32px;
+      align-items: center;
+    }
+
+    .token-chip {
+      display: inline-block;
+      padding: 2px 6px;
+      background: rgba(57,210,192,0.15);
+      border: 1px solid rgba(57,210,192,0.25);
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      white-space: nowrap;
+      animation: tokenStream 1.5s ease-in-out infinite;
+    }
+
+    /* =====================================================================
+       Recovery Decision Tree
+       ===================================================================== */
+    .tree-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .tree-header {
+      padding: var(--space-5) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    .tree-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .tree-body {
+      padding: var(--space-8) var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+    }
+
+    .tree-path {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .tree-path-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-3);
+      padding-left: var(--space-2);
+    }
+
+    .tree-nodes {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
+    .tree-node {
+      position: relative;
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      border: 1px solid transparent;
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .tree-node:hover {
+      transform: translateY(-1px);
+    }
+
+    .tree-node.trigger {
+      background: rgba(248,81,73,0.1);
+      border-color: rgba(248,81,73,0.3);
+      color: var(--accent-red);
+    }
+    .tree-node.trigger:hover {
+      background: rgba(248,81,73,0.18);
+      box-shadow: 0 0 12px rgba(248,81,73,0.2);
+    }
+
+    .tree-node.action {
+      background: rgba(210,153,34,0.1);
+      border-color: rgba(210,153,34,0.3);
+      color: var(--accent-orange);
+    }
+    .tree-node.action:hover {
+      background: rgba(210,153,34,0.18);
+      box-shadow: 0 0 12px rgba(210,153,34,0.2);
+    }
+
+    .tree-node.success {
+      background: rgba(63,185,80,0.1);
+      border-color: rgba(63,185,80,0.3);
+      color: var(--accent-green);
+    }
+    .tree-node.success:hover {
+      background: rgba(63,185,80,0.18);
+      box-shadow: 0 0 12px rgba(63,185,80,0.2);
+    }
+
+    .tree-node.fail {
+      background: rgba(248,81,73,0.06);
+      border-color: rgba(248,81,73,0.2);
+      color: var(--accent-red);
+      opacity: 0.8;
+    }
+
+    .tree-connector {
+      display: flex;
+      align-items: center;
+      padding: 0 var(--space-2);
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+    }
+
+    .tree-arrow {
+      width: 32px;
+      height: 2px;
+      background: var(--border);
+      position: relative;
+    }
+
+    .tree-arrow::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: -3px;
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid var(--border);
+    }
+
+    .tree-arrow-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      padding: 0 4px;
+    }
+
+    .tree-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      width: 220px;
+      white-space: normal;
+      text-align: left;
+      z-index: 10;
+      font-weight: var(--font-normal);
+      line-height: var(--leading-relaxed);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .tree-tooltip strong {
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: var(--space-1);
+    }
+
+    .tree-node:hover .tree-tooltip {
+      display: block;
+    }
+
+    /* =====================================================================
+       StreamingToolExecutor diagram
+       ===================================================================== */
+    .ste-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .ste-header {
+      padding: var(--space-5) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    .ste-body {
+      padding: var(--space-6);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+    }
+
+    @media (max-width: 700px) {
+      .ste-body { grid-template-columns: 1fr; }
+    }
+
+    .ste-col-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-3);
+    }
+
+    .ste-col-label.concurrent { color: var(--accent-green); }
+    .ste-col-label.serial     { color: var(--accent-orange); }
+
+    .ste-tool-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .ste-tool {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all 0.3s ease;
+    }
+
+    .ste-tool.running {
+      border-color: rgba(63,185,80,0.4);
+      box-shadow: 0 0 8px rgba(63,185,80,0.15);
+    }
+
+    .ste-tool.queued {
+      border-color: rgba(210,153,34,0.3);
+      opacity: 0.7;
+    }
+
+    .ste-tool.done {
+      border-color: rgba(63,185,80,0.2);
+      opacity: 0.5;
+    }
+
+    .ste-tool-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .ste-tool.running .ste-tool-dot {
+      background: var(--accent-green);
+      animation: pulseDot 1s ease-in-out infinite;
+    }
+
+    .ste-tool.queued .ste-tool-dot {
+      background: var(--accent-orange);
+    }
+
+    .ste-tool.done .ste-tool-dot {
+      background: var(--accent-green);
+    }
+
+    .ste-tool-name {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .ste-tool-status {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .ste-tool-bar {
+      height: 3px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      width: 60px;
+    }
+
+    .ste-tool-progress {
+      height: 100%;
+      border-radius: var(--radius-full);
+      background: var(--accent-green);
+      transition: width 0.8s ease;
+    }
+
+    .ste-sibling-note {
+      grid-column: 1 / -1;
+      padding: var(--space-4);
+      background: rgba(248,81,73,0.05);
+      border: 1px solid rgba(248,81,73,0.15);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .ste-sibling-note strong {
+      color: var(--accent-red);
+      font-weight: var(--font-semibold);
+    }
+
+    .ste-play-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: rgba(63,185,80,0.08);
+      border: 1px solid rgba(63,185,80,0.25);
+      border-radius: var(--radius);
+      color: var(--accent-green);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .ste-play-btn:hover {
+      background: rgba(63,185,80,0.15);
+      border-color: var(--accent-green);
+    }
+
+    /* =====================================================================
+       Token Budget Viz
+       ===================================================================== */
+    .budget-wrap {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .budget-header {
+      padding: var(--space-5) var(--space-6);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .budget-body {
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+    }
+
+    .budget-bar-container {
+      position: relative;
+    }
+
+    .budget-bar-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: var(--space-2);
+    }
+
+    .budget-bar-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .budget-bar-count {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .budget-track {
+      position: relative;
+      height: 32px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .budget-segment {
+      height: 100%;
+      float: left;
+      transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .budget-segment:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+
+    .budget-seg-system   { background: rgba(88,166,255,0.6); }
+    .budget-seg-tools    { background: rgba(57,210,192,0.6); }
+    .budget-seg-messages { background: rgba(188,140,255,0.6); }
+    .budget-seg-results  { background: rgba(210,153,34,0.6); }
+
+    .budget-threshold-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent-red);
+      z-index: 5;
+      transition: left 0.8s ease;
+    }
+
+    .budget-threshold-line::before {
+      content: 'autocompact';
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--accent-red);
+      white-space: nowrap;
+      font-weight: var(--font-semibold);
+    }
+
+    .budget-legend {
+      display: flex;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .budget-legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .budget-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .budget-turn-row {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .budget-turn-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .budget-compact-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 2px 8px;
+      background: rgba(63,185,80,0.1);
+      border: 1px solid rgba(63,185,80,0.25);
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: var(--font-semibold);
+      color: var(--accent-green);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .budget-compact-badge.visible {
+      opacity: 1;
+    }
+
+    .budget-animate-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: rgba(63,185,80,0.08);
+      border: 1px solid rgba(63,185,80,0.25);
+      border-radius: var(--radius);
+      color: var(--accent-green);
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .budget-animate-btn:hover {
+      background: rgba(63,185,80,0.15);
+      border-color: var(--accent-green);
+    }
+
+    /* =====================================================================
+       Page nav footer
+       ===================================================================== */
+    .page-nav-footer {
+      padding: var(--space-12) 0 var(--space-16);
+      border-top: 1px solid var(--border);
+    }
+
+    .page-nav-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+
+    .page-nav-link {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .page-nav-link:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-purple);
+      text-decoration: none;
+    }
+
+    .page-nav-link-dir {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .page-nav-link-title {
+      font-size: var(--text-base);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+    }
+
+    .page-nav-link-next {
+      text-align: right;
+    }
+
+    /* =====================================================================
+       Reveal animation
+       ===================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.in-view {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* =====================================================================
+       Key Insights callout
+       ===================================================================== */
+    .insight-card {
+      background: rgba(188,140,255,0.05);
+      border: 1px solid rgba(188,140,255,0.2);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+    }
+
+    .insight-card-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      margin-bottom: var(--space-3);
+    }
+
+    .insight-card-body {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-relaxed);
+    }
+
+    .insight-card-body strong { color: var(--text-primary); }
+
+    .insights-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+
+    @media (max-width: 640px) {
+      .insights-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <div class="nav-inner">
+        <a href="index.html" class="nav-brand" aria-label="Claude Code Architecture Home">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+            <rect width="22" height="22" rx="6" fill="rgba(188,140,255,0.15)"/>
+            <circle cx="11" cy="11" r="3.5" stroke="#bc8cff" stroke-width="1.5"/>
+            <path d="M11 4v2M11 16v2M4 11h2M16 11h2" stroke="#bc8cff" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6.5 6.5l1.5 1.5M14 14l1.5 1.5M14 6.5l-1.5 1.5M8 14l-1.5 1.5" stroke="#58a6ff" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <span>Claude Code Architecture</span>
+        </a>
+
+        <div class="nav-links" role="list">
+          <a href="index.html" class="nav-link" role="listitem">The Big Picture</a>
+          <a href="request-lifecycle.html" class="nav-link" role="listitem">Request Lifecycle</a>
+          <a href="system-prompt.html" class="nav-link" role="listitem">System Prompt</a>
+          <a href="tools.html" class="nav-link" role="listitem">Tools</a>
+          <a href="context-injection.html" class="nav-link" role="listitem">Context Injection</a>
+          <a href="skills.html" class="nav-link" role="listitem">Skills</a>
+          <a href="plugins.html" class="nav-link" role="listitem">Plugins</a>
+          <a href="agents.html" class="nav-link" role="listitem">Agents</a>
+          <a href="mcp.html" class="nav-link" role="listitem">MCP</a>
+          <a href="context-management.html" class="nav-link" role="listitem">Context Mgmt</a>
+          <a href="persistence.html" class="nav-link" role="listitem">Persistence</a>
+          <a href="query-engine.html" class="nav-link active" role="listitem">Query Engine</a>
+        </div>
+
+        <button class="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" role="navigation" aria-label="Mobile navigation">
+    <a href="index.html" class="nav-link">The Big Picture</a>
+    <a href="request-lifecycle.html" class="nav-link">Request Lifecycle</a>
+    <a href="system-prompt.html" class="nav-link">System Prompt</a>
+    <a href="tools.html" class="nav-link">Tools</a>
+    <a href="context-injection.html" class="nav-link">Context Injection</a>
+    <a href="skills.html" class="nav-link">Skills</a>
+    <a href="plugins.html" class="nav-link">Plugins</a>
+    <a href="agents.html" class="nav-link">Agents</a>
+    <a href="mcp.html" class="nav-link">MCP</a>
+    <a href="context-management.html" class="nav-link">Context Mgmt</a>
+    <a href="persistence.html" class="nav-link">Persistence</a>
+    <a href="query-engine.html" class="nav-link active">Query Engine</a>
+  </div>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+        <div class="hero-eyebrow" aria-hidden="true">
+          <span class="hero-eyebrow-dot"></span>
+          Chapter 14
+        </div>
+
+        <h1 class="hero-title" id="hero-title">
+          The <span class="hero-title-accent">Query Engine</span><br>& Agentic Loop
+        </h1>
+
+        <p class="hero-subtitle">
+          Every user message flows through <code>QueryEngine</code> and <code>query()</code> — the beating heart of Claude Code. Explore the while(true) loop that calls the model, executes tools, recovers from errors, and decides when to stop.
+        </p>
+
+        <!-- Animated Agentic Loop SVG -->
+        <div class="hero-diagram-wrap reveal" id="hero-diagram">
+          <div class="loop-svg-wrap">
+            <svg id="loop-svg" viewBox="0 0 700 320" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Agentic loop flow diagram" role="img">
+              <!-- Background glow -->
+              <defs>
+                <filter id="glow-purple" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+                <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+                <marker id="arrow-purple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#bc8cff" opacity="0.7"/>
+                </marker>
+                <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#3fb950" opacity="0.7"/>
+                </marker>
+                <marker id="arrow-dashed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#8b949e" opacity="0.5"/>
+                </marker>
+                <radialGradient id="center-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#bc8cff" stop-opacity="0.06"/>
+                  <stop offset="100%" stop-color="#bc8cff" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+
+              <!-- Center ambient glow -->
+              <ellipse cx="350" cy="160" rx="160" ry="100" fill="url(#center-glow)"/>
+
+              <!-- Flow paths between nodes (arrows drawn after rects for z-order) -->
+              <!-- User Msg -> Pre-Process (top left -> top middle) -->
+              <path d="M 148 80 L 218 80" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="5 4"
+                    marker-end="url(#arrow-purple)" class="loop-path"/>
+
+              <!-- Pre-Process -> API Call (top middle -> top right) -->
+              <path d="M 328 80 L 398 80" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="5 4"
+                    marker-end="url(#arrow-purple)" class="loop-path"/>
+
+              <!-- API Call -> Stream Response (top right -> right -> bottom right) -->
+              <path d="M 540 100 Q 590 100 590 160 Q 590 220 540 220" stroke="#bc8cff" stroke-width="1.5"
+                    stroke-dasharray="5 4" marker-end="url(#arrow-purple)" class="loop-path"/>
+
+              <!-- Stream Response -> Tool Execution (bottom right -> bottom middle) -->
+              <path d="M 432 220 L 362 220" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="5 4"
+                    marker-end="url(#arrow-purple)" class="loop-path"/>
+
+              <!-- Tool Execution -> loop back (bottom middle -> left -> top left) -->
+              <path d="M 218 220 L 148 220 Q 110 220 110 180 Q 110 140 110 100 Q 110 80 148 80"
+                    stroke="#3fb950" stroke-width="2" stroke-dasharray="5 4"
+                    marker-end="url(#arrow-green)" class="loop-path-back" id="loop-back-path"/>
+
+              <!-- Tool Execution -> Final Response (bottom right path downward) -->
+              <path d="M 295 240 L 295 270 L 520 270 L 570 270" stroke="#8b949e" stroke-width="1.2"
+                    stroke-dasharray="4 4" marker-end="url(#arrow-dashed)" opacity="0.5"/>
+
+              <!-- NODES -->
+              <!-- 1: User Message -->
+              <g class="loop-node" id="node-user">
+                <rect x="20" y="56" width="128" height="48" rx="8" fill="rgba(88,166,255,0.12)" stroke="#58a6ff" stroke-width="1.2"/>
+                <text x="84" y="76" text-anchor="middle" fill="#58a6ff" font-size="10" font-weight="600" font-family="monospace">User Message</text>
+                <text x="84" y="92" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">submitMessage()</text>
+              </g>
+
+              <!-- 2: Pre-Process -->
+              <g class="loop-node" id="node-preprocess">
+                <rect x="218" y="56" width="110" height="48" rx="8" fill="rgba(188,140,255,0.12)" stroke="#bc8cff" stroke-width="1.2"/>
+                <text x="273" y="76" text-anchor="middle" fill="#bc8cff" font-size="10" font-weight="600" font-family="monospace">Pre-Process</text>
+                <text x="273" y="92" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">5 pipeline stages</text>
+              </g>
+
+              <!-- 3: API Call -->
+              <g class="loop-node" id="node-api">
+                <rect x="398" y="56" width="142" height="48" rx="8" fill="rgba(210,153,34,0.12)" stroke="#d29922" stroke-width="1.2"/>
+                <text x="469" y="76" text-anchor="middle" fill="#d29922" font-size="10" font-weight="600" font-family="monospace">API Call</text>
+                <text x="469" y="92" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">callModel() + stream</text>
+              </g>
+
+              <!-- 4: Stream Response -->
+              <g class="loop-node" id="node-stream">
+                <rect x="398" y="196" width="142" height="48" rx="8" fill="rgba(57,210,192,0.12)" stroke="#39d2c0" stroke-width="1.2"/>
+                <text x="469" y="216" text-anchor="middle" fill="#39d2c0" font-size="10" font-weight="600" font-family="monospace">Stream Response</text>
+                <text x="469" y="232" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">tokens + tool blocks</text>
+              </g>
+
+              <!-- 5: Tool Execution -->
+              <g class="loop-node" id="node-tools">
+                <rect x="218" y="196" width="110" height="48" rx="8" fill="rgba(188,140,255,0.12)" stroke="#bc8cff" stroke-width="1.2"/>
+                <text x="273" y="216" text-anchor="middle" fill="#bc8cff" font-size="10" font-weight="600" font-family="monospace">Tool Execution</text>
+                <text x="273" y="232" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">parallel / serial</text>
+              </g>
+
+              <!-- Final Response (side exit) -->
+              <g id="node-final">
+                <rect x="576" y="255" width="108" height="36" rx="8" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.4)" stroke-width="1" stroke-dasharray="3 2"/>
+                <text x="630" y="272" text-anchor="middle" fill="#3fb950" font-size="10" font-weight="600" font-family="monospace">Final Response</text>
+                <text x="630" y="284" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">no tool calls</text>
+              </g>
+
+              <!-- Loop-back label -->
+              <text x="62" y="158" text-anchor="middle" fill="#3fb950" font-size="9" font-weight="600"
+                    font-family="sans-serif" opacity="0.8">next</text>
+              <text x="62" y="170" text-anchor="middle" fill="#3fb950" font-size="9" font-weight="600"
+                    font-family="sans-serif" opacity="0.8">turn</text>
+
+              <!-- Traveling dot (CSS motion path) -->
+              <circle id="dot1" r="5" fill="#bc8cff" opacity="0.9">
+                <animateMotion dur="4s" repeatCount="indefinite" rotate="none">
+                  <mpath href="#travel-circuit"/>
+                </animateMotion>
+              </circle>
+
+              <!-- Hidden path for dot travel -->
+              <path id="travel-circuit" d="
+                M 84 80
+                L 218 80
+                L 328 80
+                L 398 80
+                L 469 80
+                L 469 100
+                Q 590 100 590 160
+                Q 590 220 540 220
+                L 432 220
+                L 362 220
+                L 273 220
+                L 218 220
+                L 148 220
+                Q 110 220 110 140
+                Q 110 80 148 80
+                L 84 80
+              " fill="none" stroke="none"/>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 1: Pre-Processing Pipeline
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="pipeline-title">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">Stage 1</div>
+          <h2 class="section-title" id="pipeline-title">The Pre-Processing Pipeline</h2>
+          <p class="section-desc">Before every model call, five transformations run in sequence — each potentially shrinking context. Click any stage to learn what it does.</p>
+        </div>
+
+        <div class="pipeline-wrap reveal">
+          <div class="pipeline-header">
+            <span class="pipeline-title">Context Reduction Pipeline</span>
+            <div style="display:flex;gap:var(--space-2);align-items:center">
+              <span id="pipeline-token-label" class="pill pill-purple">200,000 tokens in</span>
+              <button class="sm-btn sm-btn-play" id="pipeline-run-btn">&#9654; Animate</button>
+            </div>
+          </div>
+
+          <div class="pipeline-stages" id="pipeline-stages">
+            <!-- Stage boxes injected by JS -->
+          </div>
+
+          <div class="pipeline-detail" id="pipeline-detail">
+            <div class="pipeline-detail-title" id="pipeline-detail-title"></div>
+            <div class="pipeline-detail-text" id="pipeline-detail-text"></div>
+            <div class="token-flow-bar">
+              <div class="token-flow-fill" id="pipeline-token-bar" style="width:100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 2: Interactive Query Loop State Machine
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="sm-title">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">The Agentic Loop</div>
+          <h2 class="section-title" id="sm-title">8-Stage Query Loop State Machine</h2>
+          <p class="section-desc">Each iteration of the while(true) loop passes through these stages. Use auto-play or step through manually. The loop-back arrow pulses when tool calls are present.</p>
+        </div>
+
+        <div class="state-machine-wrap reveal" id="state-machine">
+          <div class="sm-header">
+            <span class="sm-title">queryLoop() — while(true)</span>
+            <div class="sm-controls">
+              <span class="sm-turn-counter" id="sm-turn-label">Turn 1 of 8</span>
+            </div>
+          </div>
+
+          <div class="sm-body">
+            <!-- Left: stage grid -->
+            <div class="sm-stages" id="sm-stage-grid">
+              <!-- populated by JS -->
+            </div>
+
+            <!-- Right: info panel -->
+            <div class="sm-info-panel" id="sm-info-panel">
+              <!-- populated by JS -->
+            </div>
+          </div>
+
+          <div class="sm-footer">
+            <div class="sm-progress-dots" id="sm-dots"></div>
+            <div style="display:flex;gap:var(--space-2)">
+              <button class="sm-btn" id="sm-prev-btn" disabled>&larr; Prev</button>
+              <button class="sm-btn sm-btn-play" id="sm-play-btn">&#9654; Auto-Play</button>
+              <button class="sm-btn" id="sm-next-btn">Next &rarr;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 3: Recovery Path Decision Tree
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="tree-title">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">Stage 5</div>
+          <h2 class="section-title" id="tree-title">Recovery Path Decision Tree</h2>
+          <p class="section-desc">When the model finishes without tool calls, a cascade of recovery paths fires. Hover any node for details.</p>
+        </div>
+
+        <div class="tree-wrap reveal">
+          <div class="tree-header">
+            <div class="tree-title">Post-Streaming Recovery — Stage 5</div>
+          </div>
+          <div class="tree-body">
+
+            <!-- Path 1: Prompt Too Long -->
+            <div class="tree-path">
+              <div class="tree-path-label">Prompt Too Long (413)</div>
+              <div class="tree-nodes">
+                <div class="tree-node trigger">
+                  PTL Error
+                  <div class="tree-tooltip">
+                    <strong>Prompt Too Long (413)</strong>
+                    A withheld 413 error means the context exceeded the model's limit. The error was buffered during streaming rather than surfaced immediately.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div><span class="tree-arrow-label">tier 1</span></div>
+                <div class="tree-node action">
+                  Context Collapse Drain
+                  <div class="tree-tooltip">
+                    <strong>Context Collapse Drain</strong>
+                    Commits all staged collapses. Cheap and fast — preserves granular context. Single-shot: if the retry still 413s, falls through to tier 2.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div><span class="tree-arrow-label">if fails</span></div>
+                <div class="tree-node action">
+                  Reactive Compact
+                  <div class="tree-tooltip">
+                    <strong>Reactive Compact</strong>
+                    Runs a full compaction — a forked model call to summarize old messages. Guarded by hasAttemptedReactiveCompact to prevent spirals. Single attempt per turn.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div><span class="tree-arrow-label">if fails</span></div>
+                <div class="tree-node fail">
+                  Surface Error
+                  <div class="tree-tooltip">
+                    <strong>Surface Error</strong>
+                    If both recovery tiers fail, the withheld PTL error is yielded to callers and the loop returns.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Path 2: Max Output Tokens -->
+            <div class="tree-path">
+              <div class="tree-path-label">Max Output Tokens</div>
+              <div class="tree-nodes">
+                <div class="tree-node trigger">
+                  Max Output Hit
+                  <div class="tree-tooltip">
+                    <strong>Max Output Tokens</strong>
+                    The model hit its output token cap mid-response. Error is withheld during streaming.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div><span class="tree-arrow-label">escalate</span></div>
+                <div class="tree-node action">
+                  8K &rarr; 64K Escalation
+                  <div class="tree-tooltip">
+                    <strong>8K → 64K Escalation</strong>
+                    If the default 8K cap was active and no explicit override was set, retry with ESCALATED_MAX_TOKENS (64K). Fires once per turn.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div><span class="tree-arrow-label">resume (×3)</span></div>
+                <div class="tree-node action">
+                  Resume Retry
+                  <div class="tree-tooltip">
+                    <strong>Resume Recovery (up to 3 retries)</strong>
+                    Inject a meta message: "Output token limit hit. Resume directly — no apology, no recap..." and retry. maxOutputTokensRecoveryCount tracks attempts (max = 3).
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div><span class="tree-arrow-label">exhausted</span></div>
+                <div class="tree-node fail">
+                  Surface Error
+                  <div class="tree-tooltip">
+                    <strong>Surface Error</strong>
+                    All 3 resume retries exhausted. The withheld max-output error is yielded to callers.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Path 3: Fallback Model -->
+            <div class="tree-path">
+              <div class="tree-path-label">Fallback Model</div>
+              <div class="tree-nodes">
+                <div class="tree-node trigger">
+                  FallbackTriggeredError
+                  <div class="tree-tooltip">
+                    <strong>FallbackTriggeredError</strong>
+                    Thrown when the primary model is unavailable due to high demand. Caught during model streaming.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div></div>
+                <div class="tree-node action">
+                  Tombstone Orphans
+                  <div class="tree-tooltip">
+                    <strong>Tombstone Orphaned Messages</strong>
+                    Partial assistant messages (especially thinking blocks with invalid signatures) get tombstoned — removed from UI and transcript.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div></div>
+                <div class="tree-node action">
+                  Switch Model + Retry
+                  <div class="tree-tooltip">
+                    <strong>Switch Model & Retry</strong>
+                    Recreate StreamingToolExecutor, strip signature blocks, switch to fallback model, yield system warning "Switched to {fallback} due to high demand for {original}", retry.
+                  </div>
+                </div>
+                <div class="tree-connector"><div class="tree-arrow"></div></div>
+                <div class="tree-node success">
+                  Continue on Fallback
+                  <div class="tree-tooltip">
+                    <strong>Continue on Fallback Model</strong>
+                    The loop resumes on the fallback model. The transition field is set to 'fallback_retry' for test auditability.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 4: StreamingToolExecutor
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="ste-title">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">Stage 4 + 6</div>
+          <h2 class="section-title" id="ste-title">StreamingToolExecutor</h2>
+          <p class="section-desc">Tools start executing while the model is still streaming. Concurrent-safe tools (Read, Grep) run in parallel; non-concurrent tools (Bash, Write) queue for exclusive access.</p>
+        </div>
+
+        <div class="ste-wrap reveal">
+          <div class="ste-header" style="padding:var(--space-5) var(--space-6);border-bottom:1px solid var(--border);background:var(--bg-tertiary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3)">
+            <span style="font-size:var(--text-base);font-weight:var(--font-semibold);color:var(--text-primary)">StreamingToolExecutor — Concurrency Model</span>
+            <button class="ste-play-btn" id="ste-animate-btn">&#9654; Simulate Execution</button>
+          </div>
+          <div class="ste-body">
+            <!-- Concurrent safe -->
+            <div>
+              <div class="ste-col-label concurrent">Concurrent-Safe Tools (parallel)</div>
+              <div class="ste-tool-list" id="ste-concurrent-list">
+                <div class="ste-tool" data-tool="read1">
+                  <div class="ste-tool-dot"></div>
+                  <span class="ste-tool-name">Read(src/query.ts)</span>
+                  <div class="ste-tool-bar"><div class="ste-tool-progress" style="width:0%"></div></div>
+                  <span class="ste-tool-status">queued</span>
+                </div>
+                <div class="ste-tool" data-tool="grep1">
+                  <div class="ste-tool-dot"></div>
+                  <span class="ste-tool-name">Grep("queryLoop")</span>
+                  <div class="ste-tool-bar"><div class="ste-tool-progress" style="width:0%"></div></div>
+                  <span class="ste-tool-status">queued</span>
+                </div>
+                <div class="ste-tool" data-tool="read2">
+                  <div class="ste-tool-dot"></div>
+                  <span class="ste-tool-name">Read(src/tools/*.ts)</span>
+                  <div class="ste-tool-bar"><div class="ste-tool-progress" style="width:0%"></div></div>
+                  <span class="ste-tool-status">queued</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Serial -->
+            <div>
+              <div class="ste-col-label serial">Non-Concurrent Tools (queued)</div>
+              <div class="ste-tool-list" id="ste-serial-list">
+                <div class="ste-tool" data-tool="bash1">
+                  <div class="ste-tool-dot"></div>
+                  <span class="ste-tool-name">Bash(mkdir -p src/out)</span>
+                  <div class="ste-tool-bar"><div class="ste-tool-progress" style="width:0%"></div></div>
+                  <span class="ste-tool-status">queued</span>
+                </div>
+                <div class="ste-tool" data-tool="write1">
+                  <div class="ste-tool-dot"></div>
+                  <span class="ste-tool-name">Write(src/out/index.ts)</span>
+                  <div class="ste-tool-bar"><div class="ste-tool-progress" style="width:0%"></div></div>
+                  <span class="ste-tool-status">blocked</span>
+                </div>
+                <div class="ste-tool" data-tool="bash2">
+                  <div class="ste-tool-dot"></div>
+                  <span class="ste-tool-name">Bash(npm test)</span>
+                  <div class="ste-tool-bar"><div class="ste-tool-progress" style="width:0%"></div></div>
+                  <span class="ste-tool-status">blocked</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sibling abort note -->
+            <div class="ste-sibling-note">
+              <strong>Sibling Abort Controller:</strong> When a Bash tool errors, it calls <code>siblingAbortController.abort('sibling_error')</code> — killing all other running subprocesses immediately — without aborting the parent controller. Only Bash errors trigger sibling cancellation; Read/Grep/WebFetch are independent. Cancelled tools receive synthetic <code>tool_result</code> messages with <code>is_error: true</code> to satisfy the API's tool_use/tool_result pairing requirement.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tool lifecycle -->
+        <div class="insight-card reveal" style="margin-top:var(--space-6)">
+          <div class="insight-card-label">Tool Lifecycle</div>
+          <div class="insight-card-body">
+            Each tool moves through four states: <strong>queued &rarr; executing &rarr; completed &rarr; yielded</strong>. The executor calls <code>canExecuteTool(isConcurrencySafe)</code> before transitioning from queued to executing. A non-concurrent tool can only execute when <strong>no other tool is executing</strong>. A concurrent-safe tool can execute in parallel as long as all executing tools are also concurrent-safe.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 5: Token Budget Visualization
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="budget-title">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">Context Window</div>
+          <h2 class="section-title" id="budget-title">Token Budget Visualization</h2>
+          <p class="section-desc">Watch the context window fill turn-by-turn. When usage crosses the autocompact threshold, the context collapses and fills again. Hover segments for token counts.</p>
+        </div>
+
+        <div class="budget-wrap reveal">
+          <div class="budget-header">
+            <span style="font-size:var(--text-base);font-weight:var(--font-semibold);color:var(--text-primary)">200K Context Window — Turn-by-Turn</span>
+            <button class="budget-animate-btn" id="budget-animate-btn">&#9654; Animate Turns</button>
+          </div>
+          <div class="budget-body">
+            <div class="budget-legend">
+              <div class="budget-legend-item">
+                <div class="budget-legend-dot" style="background:rgba(88,166,255,0.7)"></div>
+                <span>System Prompt</span>
+              </div>
+              <div class="budget-legend-item">
+                <div class="budget-legend-dot" style="background:rgba(57,210,192,0.7)"></div>
+                <span>Tools</span>
+              </div>
+              <div class="budget-legend-item">
+                <div class="budget-legend-dot" style="background:rgba(188,140,255,0.7)"></div>
+                <span>Messages</span>
+              </div>
+              <div class="budget-legend-item">
+                <div class="budget-legend-dot" style="background:rgba(210,153,34,0.7)"></div>
+                <span>Tool Results</span>
+              </div>
+              <div class="budget-legend-item">
+                <div class="budget-legend-dot" style="background:var(--accent-red)"></div>
+                <span>Autocompact threshold (80%)</span>
+              </div>
+            </div>
+
+            <div class="budget-turn-row" id="budget-turns">
+              <!-- populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         Section 6: Key Insights
+         =================================================================== -->
+    <section class="page-section" aria-labelledby="insights-title">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">Summary</div>
+          <h2 class="section-title" id="insights-title">Key Design Insights</h2>
+        </div>
+        <div class="insights-grid">
+          <div class="insight-card reveal">
+            <div class="insight-card-label">Clean Separation</div>
+            <div class="insight-card-body">
+              <strong>QueryEngine</strong> owns session state (messages, usage, permissions, transcript persistence) while <strong>query()</strong> owns the agentic loop. The query() generator knows nothing about SDK types or disk I/O.
+            </div>
+          </div>
+          <div class="insight-card reveal">
+            <div class="insight-card-label">Ordered Pipeline</div>
+            <div class="insight-card-body">
+              Collapse runs <strong>before</strong> autocompact so it gets "first dibs" — if collapsing individual tool groups is sufficient, the more aggressive full autocompact is skipped. This preserves more granular context.
+            </div>
+          </div>
+          <div class="insight-card reveal">
+            <div class="insight-card-label">Error Withholding</div>
+            <div class="insight-card-body">
+              Recoverable errors (413, max output, media size) are <strong>withheld during streaming</strong>, not surfaced. They are only revealed to callers if all recovery attempts fail — preventing SDK consumers from seeing transient errors.
+            </div>
+          </div>
+          <div class="insight-card reveal">
+            <div class="insight-card-label">Immutable State Transitions</div>
+            <div class="insight-card-body">
+              Each recovery path writes a <strong>complete new State object</strong> with a <code>transition</code> field explaining why it continued. This makes the 8 distinct continue sites auditable and independently testable.
+            </div>
+          </div>
+          <div class="insight-card reveal">
+            <div class="insight-card-label">Streaming Overlap</div>
+            <div class="insight-card-body">
+              <strong>StreamingToolExecutor</strong> starts concurrent-safe tools (Read, Grep) as soon as their tool_use block arrives in the stream — potentially completing before the model finishes streaming.
+            </div>
+          </div>
+          <div class="insight-card reveal">
+            <div class="insight-card-label">Transcript Before API Call</div>
+            <div class="insight-card-body">
+              The transcript is written to disk <strong>before</strong> the API call begins. If the process is killed mid-response, <code>--resume</code> can still pick up the conversation. Cost: ~4ms I/O (skipped in <code>--bare</code> mode).
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page nav footer -->
+    <nav class="page-nav-footer" aria-label="Page navigation">
+      <div class="container">
+        <div class="page-nav-grid">
+          <a href="persistence.html" class="page-nav-link">
+            <span class="page-nav-link-dir">&larr; Previous</span>
+            <span class="page-nav-link-title">Persistence &amp; History</span>
+          </a>
+          <a href="index.html" class="page-nav-link page-nav-link-next">
+            <span class="page-nav-link-dir">Back to Overview &rarr;</span>
+            <span class="page-nav-link-title">The Big Picture</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+  </main>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // =========================================================================
+    // Intersection Observer (reveal on scroll)
+    // =========================================================================
+    var revealEls = document.querySelectorAll('.reveal');
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('in-view');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.08 });
+    revealEls.forEach(function(el) { io.observe(el); });
+
+    // =========================================================================
+    // Nav hamburger
+    // =========================================================================
+    var hamburger = document.querySelector('.nav-hamburger');
+    var mobileMenu = document.querySelector('.nav-mobile-menu');
+    if (hamburger && mobileMenu) {
+      hamburger.addEventListener('click', function() {
+        var open = mobileMenu.classList.toggle('open');
+        hamburger.setAttribute('aria-expanded', String(open));
+      });
+    }
+
+    // =========================================================================
+    // Pipeline Data
+    // =========================================================================
+    var PIPELINE_STAGES = [
+      {
+        name: 'applyToolResultBudget',
+        num: 1,
+        tokens: 200000,
+        pct: 100,
+        detail: 'Enforces per-message size limits on tool result content. Large tool outputs are replaced with hash references stored on disk. Runs first because microcompact operates by tool_use_id and is unaffected by content replacement.',
+        reduction: 'Replaces large tool outputs with ~200 token hash refs'
+      },
+      {
+        name: 'snipCompactIfNeeded',
+        num: 2,
+        tokens: 185000,
+        pct: 92,
+        detail: 'Feature-gated (HISTORY_SNIP). Removes old message groups that exceed a snip threshold. Returns a tokensFreed count that is plumbed to autocompact so its threshold check accounts for what snip already removed.',
+        reduction: 'Removed 15K tokens from old message groups'
+      },
+      {
+        name: 'microcompact',
+        num: 3,
+        tokens: 162000,
+        pct: 81,
+        detail: 'Compresses individual tool results within messages (e.g., truncating large bash output). For cached microcompact, the boundary message is deferred until after the API response so it can use actual cache_deleted_input_tokens from the API.',
+        reduction: 'Compressed 3 large bash outputs: -23K tokens'
+      },
+      {
+        name: 'applyCollapsesIfNeeded',
+        num: 4,
+        tokens: 148000,
+        pct: 74,
+        detail: 'Feature-gated (CONTEXT_COLLAPSE). Projects the collapsed context view and commits pending collapses. Runs before autocompact so that if collapse brings context under the autocompact threshold, we keep granular context rather than a single summary.',
+        reduction: 'Collapsed 4 tool groups: -14K tokens'
+      },
+      {
+        name: 'autocompact',
+        num: 5,
+        tokens: 148000,
+        pct: 74,
+        detail: 'If total token count still exceeds the threshold, runs a full compaction — summarizes old messages using a forked model call. Yields compact boundary messages and replaces messagesForQuery with the post-compact summary. Skipped here because collapse was sufficient.',
+        reduction: 'Skipped — collapse brought context under threshold'
+      }
+    ];
+
+    var pipelineContainer = document.getElementById('pipeline-stages');
+    var pipelineDetail = document.getElementById('pipeline-detail');
+    var pipelineDetailTitle = document.getElementById('pipeline-detail-title');
+    var pipelineDetailText = document.getElementById('pipeline-detail-text');
+    var pipelineTokenBar = document.getElementById('pipeline-token-bar');
+    var pipelineTokenLabel = document.getElementById('pipeline-token-label');
+    var pipelineRunBtn = document.getElementById('pipeline-run-btn');
+
+    var activeStageIdx = -1;
+
+    // Build stage boxes
+    PIPELINE_STAGES.forEach(function(stage, i) {
+      var el = document.createElement('div');
+      el.className = 'pipeline-stage';
+      el.setAttribute('data-idx', i);
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', 'Stage ' + stage.num + ': ' + stage.name);
+      el.innerHTML =
+        '<div class="pipeline-stage-box">' +
+          '<div class="pipeline-stage-num">' + stage.num + '</div>' +
+        '</div>' +
+        '<div class="pipeline-stage-name">' + stage.name + '()</div>' +
+        '<div class="pipeline-token-count" id="pipe-tok-' + i + '">' + fmtTokens(stage.tokens) + '</div>';
+
+      el.addEventListener('click', function() { activatePipelineStage(i); });
+      el.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activatePipelineStage(i); }
+      });
+      pipelineContainer.appendChild(el);
+    });
+
+    function fmtTokens(n) {
+      return (n / 1000).toFixed(0) + 'K tokens';
+    }
+
+    function activatePipelineStage(idx) {
+      var stages = pipelineContainer.querySelectorAll('.pipeline-stage');
+      stages.forEach(function(s, i) {
+        s.classList.toggle('active', i === idx);
+      });
+
+      var stage = PIPELINE_STAGES[idx];
+      pipelineDetailTitle.textContent = stage.name + '()';
+      pipelineDetailText.innerHTML = stage.detail + '<br><br><em style="color:var(--accent-green)">' + stage.reduction + '</em>';
+      pipelineTokenBar.style.width = stage.pct + '%';
+      pipelineTokenLabel.textContent = fmtTokens(stage.tokens) + ' out';
+      pipelineDetail.classList.add('visible');
+      activeStageIdx = idx;
+    }
+
+    // Animate through stages
+    var pipelineAnimTimer = null;
+    pipelineRunBtn.addEventListener('click', function() {
+      if (pipelineAnimTimer) {
+        clearInterval(pipelineAnimTimer);
+        pipelineAnimTimer = null;
+        pipelineRunBtn.innerHTML = '&#9654; Animate';
+        return;
+      }
+      pipelineRunBtn.innerHTML = '&#9646;&#9646; Pause';
+      var cur = 0;
+      activatePipelineStage(cur);
+      pipelineAnimTimer = setInterval(function() {
+        cur++;
+        if (cur >= PIPELINE_STAGES.length) {
+          clearInterval(pipelineAnimTimer);
+          pipelineAnimTimer = null;
+          pipelineRunBtn.innerHTML = '&#9654; Animate';
+          return;
+        }
+        activatePipelineStage(cur);
+      }, 1400);
+    });
+
+    // =========================================================================
+    // State Machine Data
+    // =========================================================================
+    var SM_STAGES = [
+      {
+        num: 1,
+        name: 'Pre-Processing',
+        shortDesc: '5-stage context reduction pipeline',
+        desc: 'Five transformations run in sequence: applyToolResultBudget, snipCompactIfNeeded, microcompact, applyCollapsesIfNeeded, and autocompact. Each potentially shrinks context before the model call.',
+        code: 'applyToolResultBudget(msgs)\nsnipCompactIfNeeded(msgs)\nmicrocompact(msgs)\napplyCollapsesIfNeeded(msgs)\nautocompact(msgs)',
+        vizType: 'pipeline'
+      },
+      {
+        num: 2,
+        name: 'Context Assembly',
+        shortDesc: 'System prompt + messages assembled',
+        desc: 'appendSystemContext() adds git status to the system prompt. prependUserContext() injects CLAUDE.md as <system-reminder> tags into the first user message. The split keeps the system prompt stable for prompt caching.',
+        code: 'const sys = appendSystemContext(\n  systemPrompt, systemContext)\n\nprependUserContext(\n  messagesForQuery, userContext)',
+        vizType: 'context'
+      },
+      {
+        num: 3,
+        name: 'Blocking Limit Check',
+        shortDesc: 'Token count vs hard limit',
+        desc: 'Before calling the model, the loop checks if context exceeds a blocking limit. This check is skipped when compaction just happened, or when the query source is "compact"/"session_memory" (deadlock prevention), or when reactive compact / context collapse is enabled.',
+        code: 'if (tokenCount > blockingLimit\n    && !reactiveCompact\n    && !contextCollapse) {\n  yield PROMPT_TOO_LONG_ERROR\n  return\n}',
+        vizType: 'threshold'
+      },
+      {
+        num: 4,
+        name: 'Model Streaming',
+        shortDesc: 'callModel() + StreamingToolExecutor',
+        desc: 'The model call uses streaming SSE. In parallel: assistant messages are yielded, tool use blocks trigger StreamingToolExecutor (concurrent-safe tools start immediately), and recoverable errors are withheld (not surfaced) for later recovery.',
+        code: 'for await (const msg of callModel()) {\n  // assistant msg → yield\n  // tool_use → start tool\n  // 413/max_output → buffer\n}',
+        vizType: 'stream'
+      },
+      {
+        num: 5,
+        name: 'Post-Streaming Recovery',
+        shortDesc: 'Context collapse → reactive compact → escalation',
+        desc: 'When no tool calls are present, a cascade of recovery paths fires: context collapse drain, reactive compact (for 413s), max output escalation (8K→64K), resume recovery (up to 3x), stop hooks, token budget check. If none fire, the loop returns completed.',
+        code: 'if (withheld413) → collapse drain\nif (withheld413) → reactiveCompact\nif (maxOutput)   → escalate 8K→64K\nif (maxOutput)   → resume (×3)\nif (stopHook)    → re-enter\nif (tokenBudget) → nudge + continue',
+        vizType: 'decision'
+      },
+      {
+        num: 6,
+        name: 'Tool Execution',
+        shortDesc: 'getRemainingResults() or runTools()',
+        desc: 'When the model produces tool_use blocks, streamingToolExecutor.getRemainingResults() drains any still in progress. Without the streaming executor, runTools() executes them sequentially. Tool use summaries are generated asynchronously via Haiku.',
+        code: 'const updates = executor\n  ? executor.getRemainingResults()\n  : runTools(blocks, ...)\n\nfor await (const u of updates)\n  yield u.message',
+        vizType: 'tools'
+      },
+      {
+        num: 7,
+        name: 'Attachment Collection',
+        shortDesc: 'Memory, skills, file changes',
+        desc: 'getAttachmentMessages() collects file change diffs, queued user commands, and task notifications. Memory prefetch results are filtered against readFileState. Skill discovery prefetch is consumed. Queued commands are scoped by agent ID.',
+        code: 'getAttachmentMessages()\nmemoryPrefetch.consume()\nskillPrefetch.consume()',
+        vizType: 'attachments'
+      },
+      {
+        num: 8,
+        name: 'Next Iteration',
+        shortDesc: 'messages = [...prev, ...assistant, ...results]',
+        desc: 'The message array for the next iteration is assembled: previous messages, new assistant messages, and tool results. maxOutputTokensRecoveryCount and hasAttemptedReactiveCompact reset to zero — they are per-turn guards. Loop continues.',
+        code: 'state = {\n  messages: [\n    ...messagesForQuery,\n    ...assistantMessages,\n    ...toolResults\n  ],\n  turnCount: turnCount + 1,\n  transition: { reason: "next_turn" }\n}',
+        vizType: 'assemble'
+      }
+    ];
+
+    var smStageGrid = document.getElementById('sm-stage-grid');
+    var smInfoPanel = document.getElementById('sm-info-panel');
+    var smDots = document.getElementById('sm-dots');
+    var smPrevBtn = document.getElementById('sm-prev-btn');
+    var smNextBtn = document.getElementById('sm-next-btn');
+    var smPlayBtn = document.getElementById('sm-play-btn');
+    var smTurnLabel = document.getElementById('sm-turn-label');
+    var smActiveStage = 0;
+    var smPlayTimer = null;
+    var smPlaying = false;
+    var loopBackIndicator = null;
+
+    // Build stage tiles
+    SM_STAGES.forEach(function(stage, i) {
+      var el = document.createElement('div');
+      el.className = 'sm-stage';
+      el.setAttribute('data-idx', i);
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', 'Stage ' + stage.num + ': ' + stage.name);
+      el.innerHTML =
+        '<div class="sm-stage-header">' +
+          '<div class="sm-stage-num">' + stage.num + '</div>' +
+          '<div class="sm-stage-name">' + stage.name + '</div>' +
+        '</div>' +
+        '<div class="sm-stage-desc">' + stage.shortDesc + '</div>' +
+        '<div class="sm-stage-mini-viz"><div class="sm-stage-mini-fill"></div></div>';
+      el.addEventListener('click', function() { smGoTo(i); });
+      el.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); smGoTo(i); }
+      });
+      smStageGrid.appendChild(el);
+    });
+
+    // Loop back indicator
+    loopBackIndicator = document.createElement('div');
+    loopBackIndicator.className = 'loop-back-indicator';
+    loopBackIndicator.innerHTML = '&#8635; Stage 8 &rarr; Stage 1 — loop continues while tool calls present';
+    smStageGrid.appendChild(loopBackIndicator);
+
+    // Build info panels
+    SM_STAGES.forEach(function(stage, i) {
+      var el = document.createElement('div');
+      el.className = 'sm-panel-content';
+      el.setAttribute('data-idx', i);
+
+      var vizHtml = buildSMViz(stage, i);
+
+      el.innerHTML =
+        '<div>' +
+          '<div class="sm-panel-num">Stage ' + stage.num + ' of 8</div>' +
+          '<div class="sm-panel-title">' + stage.name + '</div>' +
+        '</div>' +
+        '<div class="sm-panel-desc">' + stage.desc + '</div>' +
+        vizHtml +
+        '<div class="sm-panel-code">' + stage.code + '</div>';
+      smInfoPanel.appendChild(el);
+    });
+
+    // Dots
+    SM_STAGES.forEach(function(stage, i) {
+      var dot = document.createElement('button');
+      dot.className = 'sm-dot';
+      dot.setAttribute('aria-label', 'Stage ' + stage.num);
+      dot.addEventListener('click', function() { smGoTo(i); });
+      smDots.appendChild(dot);
+    });
+
+    function buildSMViz(stage, i) {
+      switch (stage.vizType) {
+        case 'pipeline':
+          return '<div class="sm-panel-viz"><div style="display:flex;gap:4px;flex-wrap:wrap">' +
+            ['applyToolResultBudget','snipCompact','microcompact','applyCollapses','autocompact'].map(function(n) {
+              return '<span class="pill pill-purple" style="font-size:9px">' + n + '</span>';
+            }).join('') +
+          '</div></div>';
+        case 'context':
+          return '<div class="sm-panel-viz" style="display:flex;flex-direction:column;gap:4px">' +
+            '<div style="display:flex;gap:4px;align-items:center"><span class="pill pill-blue" style="font-size:9px">System Prompt</span><span style="font-size:9px;color:var(--text-secondary)">+ git status</span></div>' +
+            '<div style="display:flex;gap:4px;align-items:center"><span class="pill pill-green" style="font-size:9px">User Context</span><span style="font-size:9px;color:var(--text-secondary)">CLAUDE.md as &lt;system-reminder&gt;</span></div>' +
+            '<div style="display:flex;gap:4px;align-items:center"><span class="pill pill-purple" style="font-size:9px">Messages</span><span style="font-size:9px;color:var(--text-secondary)">prependUserContext()</span></div>' +
+            '</div>';
+        case 'threshold':
+          return '<div class="sm-panel-viz"><div style="position:relative;height:16px;background:var(--bg-primary);border-radius:8px;overflow:hidden;margin-bottom:4px">' +
+            '<div style="height:100%;width:74%;background:linear-gradient(90deg,rgba(188,140,255,0.4),rgba(57,210,192,0.4));border-radius:8px;transition:width 1s ease" id="sm-threshold-fill"></div>' +
+            '<div style="position:absolute;top:0;bottom:0;left:80%;width:2px;background:var(--accent-red)"></div>' +
+            '</div><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-secondary)"><span>Current: 148K</span><span style="color:var(--accent-red)">Block: 160K</span></div></div>';
+        case 'stream':
+          return '<div class="sm-panel-viz"><div class="token-stream-row" id="token-stream-row-' + i + '">' +
+            ['assistant:', 'Sure,', 'I\'ll', 'read', 'the', 'file...', '<tool_use>', 'Read', '</tool_use>'].map(function(t, j) {
+              return '<span class="token-chip" style="animation-delay:' + (j * 0.18) + 's">' + t + '</span>';
+            }).join('') +
+            '</div></div>';
+        case 'decision':
+          return '<div class="sm-panel-viz" style="display:flex;flex-direction:column;gap:4px">' +
+            ['Context Collapse Drain','Reactive Compact','8K→64K Escalation','Resume ×3','Stop Hook Check','Token Budget'].map(function(n, j) {
+              return '<div style="display:flex;align-items:center;gap:6px"><div style="width:4px;height:4px;border-radius:50%;background:var(--accent-orange);flex-shrink:0"></div><span style="font-size:9px;color:var(--text-secondary)">' + n + '</span></div>';
+            }).join('') +
+            '</div>';
+        case 'tools':
+          return '<div class="sm-panel-viz" style="display:flex;flex-direction:column;gap:4px">' +
+            [['Read','concurrent','var(--accent-green)'],['Grep','concurrent','var(--accent-green)'],['Bash','serial','var(--accent-orange)']].map(function(t) {
+              return '<div style="display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:' + t[2] + ';flex-shrink:0"></div><span style="font-size:9px;font-family:var(--font-mono);color:var(--text-secondary)">' + t[0] + '</span><span style="font-size:9px;color:' + t[2] + ';margin-left:auto">' + t[1] + '</span></div>';
+            }).join('') +
+            '</div>';
+        case 'attachments':
+          return '<div class="sm-panel-viz" style="display:flex;flex-direction:column;gap:4px">' +
+            [['file diffs','var(--accent-blue)'],['memory (CLAUDE.md)','var(--accent-purple)'],['skill results','var(--accent-cyan)'],['queued commands','var(--accent-orange)']].map(function(t) {
+              return '<div style="display:flex;align-items:center;gap:6px"><div style="width:4px;height:4px;border-radius:50%;background:' + t[1] + ';flex-shrink:0"></div><span style="font-size:9px;color:var(--text-secondary)">' + t[0] + ' flowing in</span></div>';
+            }).join('') +
+            '</div>';
+        case 'assemble':
+          return '<div class="sm-panel-viz" style="display:flex;flex-direction:column;gap:2px">' +
+            [['messagesForQuery','var(--accent-blue)'],['assistantMessages','var(--accent-purple)'],['toolResults','var(--accent-orange)'],['→ new State{}','var(--accent-green)']].map(function(t) {
+              return '<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><div style="width:4px;height:4px;border-radius:50%;background:' + t[1] + ';flex-shrink:0"></div><span style="font-size:9px;font-family:var(--font-mono);color:var(--text-secondary)">' + t[0] + '</span></div>';
+            }).join('') +
+            '</div>';
+        default:
+          return '';
+      }
+    }
+
+    function smGoTo(idx) {
+      smActiveStage = idx;
+      var stages = smStageGrid.querySelectorAll('.sm-stage');
+      var panels = smInfoPanel.querySelectorAll('.sm-panel-content');
+      var dots = smDots.querySelectorAll('.sm-dot');
+
+      stages.forEach(function(s, i) {
+        s.classList.toggle('active', i === idx);
+        s.classList.toggle('completed', i < idx);
+      });
+
+      panels.forEach(function(p, i) {
+        p.classList.toggle('active', i === idx);
+      });
+
+      dots.forEach(function(d, i) {
+        d.classList.toggle('active', i === idx);
+        d.classList.toggle('done', i < idx);
+      });
+
+      smTurnLabel.textContent = 'Stage ' + (idx + 1) + ' of 8';
+      smPrevBtn.disabled = idx === 0;
+      smNextBtn.disabled = idx === SM_STAGES.length - 1;
+
+      // Pulse loop-back on stage 8
+      if (loopBackIndicator) {
+        loopBackIndicator.classList.toggle('pulsing', idx === SM_STAGES.length - 1);
+      }
+    }
+
+    smGoTo(0);
+
+    smPrevBtn.addEventListener('click', function() {
+      if (smActiveStage > 0) smGoTo(smActiveStage - 1);
+    });
+    smNextBtn.addEventListener('click', function() {
+      if (smActiveStage < SM_STAGES.length - 1) smGoTo(smActiveStage + 1);
+    });
+
+    smPlayBtn.addEventListener('click', function() {
+      if (smPlaying) {
+        clearInterval(smPlayTimer);
+        smPlaying = false;
+        smPlayBtn.innerHTML = '&#9654; Auto-Play';
+        return;
+      }
+      smPlaying = true;
+      smPlayBtn.innerHTML = '&#9646;&#9646; Pause';
+      smGoTo(0);
+      smPlayTimer = setInterval(function() {
+        var next = smActiveStage + 1;
+        if (next >= SM_STAGES.length) {
+          clearInterval(smPlayTimer);
+          smPlaying = false;
+          smPlayBtn.innerHTML = '&#9654; Auto-Play';
+          return;
+        }
+        smGoTo(next);
+      }, 2000);
+    });
+
+    // =========================================================================
+    // StreamingToolExecutor animation
+    // =========================================================================
+    var steAnimBtn = document.getElementById('ste-animate-btn');
+    var steRunning = false;
+
+    function resetSteTools() {
+      document.querySelectorAll('.ste-tool').forEach(function(t) {
+        t.className = 'ste-tool';
+        t.querySelector('.ste-tool-status').textContent =
+          (t.dataset.tool === 'bash1') ? 'queued' :
+          (t.dataset.tool === 'write1' || t.dataset.tool === 'bash2') ? 'blocked' : 'queued';
+        t.querySelector('.ste-tool-progress').style.width = '0%';
+      });
+    }
+
+    steAnimBtn.addEventListener('click', function() {
+      if (steRunning) return;
+      steRunning = true;
+      steAnimBtn.textContent = 'Running...';
+      resetSteTools();
+
+      var concurrent = document.querySelectorAll('#ste-concurrent-list .ste-tool');
+      var serial = document.querySelectorAll('#ste-serial-list .ste-tool');
+
+      // t=0: All concurrent start simultaneously
+      concurrent.forEach(function(t) {
+        t.className = 'ste-tool running';
+        t.querySelector('.ste-tool-status').textContent = 'executing';
+      });
+
+      // Animate concurrent progress
+      var concurrentDuration = [1200, 900, 1500];
+      concurrent.forEach(function(t, i) {
+        var prog = t.querySelector('.ste-tool-progress');
+        setTimeout(function() { prog.style.width = '100%'; }, 50);
+        setTimeout(function() {
+          t.className = 'ste-tool done';
+          t.querySelector('.ste-tool-status').textContent = 'done';
+        }, concurrentDuration[i]);
+      });
+
+      // t=1600: serial queue drains sequentially
+      setTimeout(function() {
+        var bash1 = serial[0];
+        bash1.className = 'ste-tool running';
+        bash1.querySelector('.ste-tool-status').textContent = 'executing';
+        var b1prog = bash1.querySelector('.ste-tool-progress');
+        setTimeout(function() { b1prog.style.width = '100%'; }, 50);
+
+        setTimeout(function() {
+          bash1.className = 'ste-tool done';
+          bash1.querySelector('.ste-tool-status').textContent = 'done';
+
+          // write1 starts
+          var write1 = serial[1];
+          write1.className = 'ste-tool running';
+          write1.querySelector('.ste-tool-status').textContent = 'executing';
+          var w1prog = write1.querySelector('.ste-tool-progress');
+          setTimeout(function() { w1prog.style.width = '100%'; }, 50);
+
+          setTimeout(function() {
+            write1.className = 'ste-tool done';
+            write1.querySelector('.ste-tool-status').textContent = 'done';
+
+            // bash2 starts
+            var bash2 = serial[2];
+            bash2.className = 'ste-tool running';
+            bash2.querySelector('.ste-tool-status').textContent = 'executing';
+            var b2prog = bash2.querySelector('.ste-tool-progress');
+            setTimeout(function() { b2prog.style.width = '100%'; }, 50);
+
+            setTimeout(function() {
+              bash2.className = 'ste-tool done';
+              bash2.querySelector('.ste-tool-status').textContent = 'done';
+              steRunning = false;
+              steAnimBtn.textContent = '\u25BA Simulate Execution';
+            }, 1200);
+          }, 1100);
+        }, 1000);
+      }, 1600);
+    });
+
+    // =========================================================================
+    // Token Budget Visualization
+    // =========================================================================
+    var budgetTurns = document.getElementById('budget-turns');
+    var budgetAnimBtn = document.getElementById('budget-animate-btn');
+    var budgetAnimating = false;
+
+    // Turn data: [system, tools, messages, results] as % of 200K
+    var TURNS = [
+      { label: 'Turn 1',  segs: [5, 8, 4, 1],  total: 18, compact: false },
+      { label: 'Turn 2',  segs: [5, 8, 9, 4],  total: 26, compact: false },
+      { label: 'Turn 3',  segs: [5, 8, 16, 8], total: 37, compact: false },
+      { label: 'Turn 4',  segs: [5, 8, 24, 14], total: 51, compact: false },
+      { label: 'Turn 5',  segs: [5, 8, 35, 21], total: 69, compact: false },
+      { label: 'Turn 6',  segs: [5, 8, 47, 28], total: 88, compact: true  },  // fires autocompact
+      { label: 'Turn 7',  segs: [5, 8, 12, 3],  total: 28, compact: false }, // post-compact
+      { label: 'Turn 8',  segs: [5, 8, 20, 8],  total: 41, compact: false }
+    ];
+
+    var THRESHOLD = 80; // %
+
+    // Build skeleton turn rows
+    TURNS.forEach(function(turn, i) {
+      var row = document.createElement('div');
+      row.className = 'budget-turn-row';
+
+      var headerDiv = document.createElement('div');
+      headerDiv.style.cssText = 'display:flex;align-items:center;gap:var(--space-3)';
+      headerDiv.innerHTML =
+        '<span class="budget-turn-label">' + turn.label + '</span>' +
+        (turn.compact
+          ? '<span class="budget-compact-badge" id="compact-badge-' + i + '">&#9889; autocompact fired</span>'
+          : '') +
+        '<span style="font-size:var(--text-xs);font-family:var(--font-mono);color:var(--text-secondary);margin-left:auto" id="budget-total-' + i + '">0K / 200K</span>';
+
+      var track = document.createElement('div');
+      track.className = 'budget-track';
+      track.style.cssText = 'position:relative;height:32px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border);background:var(--bg-primary)';
+
+      // Threshold line
+      var threshold = document.createElement('div');
+      threshold.className = 'budget-threshold-line';
+      threshold.style.cssText = 'position:absolute;top:0;bottom:0;left:' + THRESHOLD + '%;width:2px;background:var(--accent-red);z-index:5;opacity:0.7';
+      track.appendChild(threshold);
+
+      // Segments
+      var segColors = ['budget-seg-system','budget-seg-tools','budget-seg-messages','budget-seg-results'];
+      var segLabels = ['System','Tools','Messages','Tool Results'];
+      turn.segs.forEach(function(pct, j) {
+        var seg = document.createElement('div');
+        seg.className = 'budget-segment ' + segColors[j];
+        seg.style.width = '0%';
+        seg.setAttribute('title', segLabels[j] + ': ' + Math.round(pct * 2000) + ' tokens');
+        seg.id = 'bseg-' + i + '-' + j;
+        track.appendChild(seg);
+      });
+
+      row.appendChild(headerDiv);
+      row.appendChild(track);
+      budgetTurns.appendChild(row);
+    });
+
+    function animateBudgetTurn(i, delay) {
+      setTimeout(function() {
+        var turn = TURNS[i];
+        var total = turn.segs.reduce(function(a, b) { return a + b; }, 0);
+
+        turn.segs.forEach(function(pct, j) {
+          var seg = document.getElementById('bseg-' + i + '-' + j);
+          if (seg) seg.style.width = pct + '%';
+        });
+
+        var totalEl = document.getElementById('budget-total-' + i);
+        if (totalEl) totalEl.textContent = Math.round(total * 2000 / 1000) + 'K / 200K';
+
+        if (turn.compact) {
+          var badge = document.getElementById('compact-badge-' + i);
+          if (badge) {
+            setTimeout(function() { badge.classList.add('visible'); }, 600);
+          }
+        }
+      }, delay);
+    }
+
+    budgetAnimBtn.addEventListener('click', function() {
+      if (budgetAnimating) return;
+      budgetAnimating = true;
+      budgetAnimBtn.textContent = 'Animating...';
+
+      // Reset
+      TURNS.forEach(function(t, i) {
+        t.segs.forEach(function(p, j) {
+          var s = document.getElementById('bseg-' + i + '-' + j);
+          if (s) s.style.width = '0%';
+        });
+        var badge = document.getElementById('compact-badge-' + i);
+        if (badge) badge.classList.remove('visible');
+        var totalEl = document.getElementById('budget-total-' + i);
+        if (totalEl) totalEl.textContent = '0K / 200K';
+      });
+
+      // Animate each turn with delay
+      TURNS.forEach(function(t, i) {
+        animateBudgetTurn(i, i * 700 + 300);
+      });
+
+      setTimeout(function() {
+        budgetAnimating = false;
+        budgetAnimBtn.textContent = '\u25BA Animate Turns';
+      }, TURNS.length * 700 + 1000);
+    });
+
+    // Auto-animate budget on scroll into view
+    var budgetEl = document.querySelector('.budget-wrap');
+    var budgetSeen = false;
+    var budgetIO = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting && !budgetSeen) {
+          budgetSeen = true;
+          TURNS.forEach(function(t, i) {
+            animateBudgetTurn(i, i * 600 + 200);
+          });
+        }
+      });
+    }, { threshold: 0.2 });
+    if (budgetEl) budgetIO.observe(budgetEl);
+
+  })();
+  </script>
+</body>
+</html>
